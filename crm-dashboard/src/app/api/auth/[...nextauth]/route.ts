@@ -66,9 +66,15 @@ export const authOptions: NextAuthOptions = {
         async jwt({ token, account, user }) {
             // Initial sign in
             if (account && user) {
+                console.log("[NextAuth] Initial sign-in, storing tokens");
+                console.log("[NextAuth] Access token (first 20 chars):", account.access_token?.substring(0, 20));
+                console.log("[NextAuth] Expires at:", account.expires_at);
+                console.log("[NextAuth] Has refresh token:", !!account.refresh_token);
+
                 return {
                     accessToken: account.access_token,
-                    accessTokenExpires: Date.now() + (account.expires_at! * 1000),
+                    // expires_at is seconds since epoch, convert to milliseconds
+                    accessTokenExpires: account.expires_at ? account.expires_at * 1000 : Date.now() + 3600 * 1000,
                     refreshToken: account.refresh_token,
                     user,
                 };
@@ -76,10 +82,12 @@ export const authOptions: NextAuthOptions = {
 
             // Return previous token if the access token has not expired yet
             // @ts-ignore
-            if (Date.now() < token.accessTokenExpires) {
+            const expiresAt = token.accessTokenExpires as number;
+            if (Date.now() < expiresAt) {
                 return token;
             }
 
+            console.log("[NextAuth] Access token expired, refreshing...");
             // Access token has expired, try to update it
             return refreshAccessToken(token);
         },
