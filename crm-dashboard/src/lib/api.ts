@@ -146,6 +146,15 @@ export async function getSheets(): Promise<{ sheets: { id: string; name: string 
   return handleResponse(response);
 }
 
+export async function createSheet(name: string): Promise<{ success: boolean; sheet: { id: string; name: string; url: string } }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/sheets/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  return handleResponse(response);
+}
+
 // ============================================================================
 // Leads
 // ============================================================================

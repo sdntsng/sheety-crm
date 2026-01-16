@@ -1,0 +1,3 @@
+Opportunity ID,Lead ID,Title,Stage,Value,Probability,Expected Value,Close Date,Product,Notes,Created At,Updated At,Closed At,Owner
+O001,L001,Acme Enterprise License,Prospecting,50000,0.2,10000,2026-03-15,Enterprise,Initial discussions,2026-01-15,2026-01-15,,
+O002,L002,TechStart Pro Package,Discovery,25000,0.4,10000,2026-02-28,Pro,Demo scheduled,2026-01-16,2026-01-16,,

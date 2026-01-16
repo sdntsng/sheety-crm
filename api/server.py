@@ -29,6 +29,7 @@ async def get_sheet_manager(authorization: Optional[str] = Header(None)):
     from src.auth import authenticate
     from google.oauth2.credentials import Credentials
     from src.sheets import SheetManager
+    import gspread
     import os
     
     # If no auth header, use local credentials (dev mode only)
@@ -163,10 +164,31 @@ def health():
 def list_available_sheets(sm: SheetManager = Depends(get_sheet_manager)):
     """List all Google Sheets available to the user."""
     files = sm.list_files()
-    # Filter or just return all? Returning all for now.
-    # We might want to filter by mimeType if list_files doesn't already?
-    # gspread list_spreadsheet_files does filtering.
     return {"sheets": files}
+
+
+class CreateSheetRequest(BaseModel):
+    name: str = "Sales Pipeline 2026"
+
+
+@app.post("/api/sheets/create")
+def create_crm_sheet(request: CreateSheetRequest, sm: SheetManager = Depends(get_sheet_manager)):
+    """Create a new CRM spreadsheet with all required worksheets."""
+    from src.crm.templates import CRMTemplates
+    
+    try:
+        templates = CRMTemplates(sm.gc)
+        sh = templates.create_crm_sheet(request.name)
+        return {
+            "success": True,
+            "sheet": {
+                "id": sh.id,
+                "name": request.name,
+                "url": sh.url
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =============================================================================
