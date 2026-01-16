@@ -49,106 +49,113 @@ export default function LeadsPage() {
             <div className="p-8">
                 <div className="animate-pulse space-y-4">
                     <div className="h-8 bg-[var(--bg-surface)] rounded w-1/4"></div>
-                    <div className="h-64 bg-[var(--bg-surface)] rounded-xl"></div>
+                    <div className="h-64 bg-white rounded border border-gray-200"></div>
                 </div>
             </div>
         );
     }
 
-    if (error) {
-        return (
-            <div className="p-8">
-                <div className="glass-card p-6 text-center">
-                    <p className="text-red-400 mb-4">⚠️ {error}</p>
-                    <p className="text-zinc-500 text-sm">
-                        Make sure the API server is running
-                    </p>
-                </div>
-            </div>
-        );
-    }
+    if (error) return <div className="p-8 text-red-500 font-mono">Error: {error}</div>;
 
     return (
-        <div className="p-8">
+        <div className="p-8 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="mb-6 flex justify-between items-center">
+            <div className="mb-8 flex justify-between items-end border-b-4 border-[var(--text-primary)] pb-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">Leads</h1>
-                    <p className="text-[var(--text-secondary)]">{leads.length} total leads</p>
+                    <h1 className="text-4xl font-serif font-bold text-[var(--text-primary)] leading-none">Values Ledger</h1>
+                    <p className="font-mono text-sm text-[var(--text-secondary)] mt-2 uppercase tracking-widest">
+                        {leads.length} Records Found • {new Date().toLocaleDateString()}
+                    </p>
                 </div>
-                <button className="btn-primary" onClick={() => setShowModal(true)}>
-                    + Add Lead
+                <button className="btn-primary flex items-center gap-2" onClick={() => setShowModal(true)}>
+                    <span className="text-xl leading-none">+</span> New Entry
                 </button>
             </div>
 
-            {/* Filters */}
-            <div className="mb-6 flex gap-4">
-                <select
-                    className="input"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                    <option value="">All Statuses</option>
+            {/* Filters - Tabs Style */}
+            <div className="mb-6">
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                    <button
+                        onClick={() => setStatusFilter('')}
+                        className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-all border-b-2 ${statusFilter === '' ? 'border-[var(--accent-blue)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                    >
+                        All Entries
+                    </button>
                     {config?.lead_statuses.map((status: string) => (
-                        <option key={status} value={status}>{status}</option>
+                        <button
+                            key={status}
+                            onClick={() => setStatusFilter(status)}
+                            className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-all border-b-2 ${statusFilter === status ? 'border-[var(--accent-blue)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        >
+                            {status}
+                        </button>
                     ))}
-                </select>
+                </div>
             </div>
 
-            {/* Leads Table */}
-            <div className="glass-card overflow-hidden">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-zinc-800">
-                            <th className="text-left p-4 text-sm font-medium text-zinc-400">Company</th>
-                            <th className="text-left p-4 text-sm font-medium text-zinc-400">Contact</th>
-                            <th className="text-left p-4 text-sm font-medium text-zinc-400">Email</th>
-                            <th className="text-left p-4 text-sm font-medium text-zinc-400">Status</th>
-                            <th className="text-left p-4 text-sm font-medium text-zinc-400">Source</th>
-                            <th className="text-left p-4 text-sm font-medium text-zinc-400">Created</th>
-                            <th className="text-left p-4 text-sm font-medium text-zinc-400">Actions</th>
+            {/* Leads Table - Ledger Style */}
+            <div className="bg-white border-2 border-[var(--border-ink)] shadow-[4px_4px_0px_rgba(0,0,0,0.1)] overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                    <thead className="bg-[var(--bg-paper)] border-b-2 border-[var(--border-ink)]">
+                        <tr>
+                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Company</th>
+                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Person</th>
+                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Info</th>
+                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">Status</th>
+                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] w-32 text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-[var(--border-pencil)] divide-dashed">
                         {filteredLeads.map(lead => (
-                            <tr
-                                key={lead.lead_id}
-                                className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
-                            >
-                                <td className="p-4">
-                                    <span className="font-medium text-zinc-100">{lead.company_name}</span>
+                            <tr key={lead.lead_id} className="hover:bg-[var(--bg-hover)] transition-colors group">
+                                <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
+                                    <span className="font-serif font-bold text-lg text-[var(--text-primary)]">{lead.company_name}</span>
+                                    <div className="font-mono text-[10px] text-[var(--text-secondary)] uppercase mt-1">{lead.source}</div>
                                 </td>
-                                <td className="p-4 text-zinc-400">{lead.contact_name}</td>
-                                <td className="p-4 text-zinc-400">{lead.contact_email || '-'}</td>
-                                <td className="p-4">
+                                <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
+                                    <span className="font-serif text-[var(--text-primary)]">{lead.contact_name}</span>
+                                </td>
+                                <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
+                                    <div className="font-mono text-xs text-[var(--text-secondary)]">
+                                        {lead.contact_email && <div>✉️ {lead.contact_email}</div>}
+                                        {lead.contact_phone && <div>📞 {lead.contact_phone}</div>}
+                                    </div>
+                                </td>
+                                <td className="p-4 border-r border-[var(--border-pencil)] border-dashed text-center">
                                     <StatusBadge status={lead.status} />
                                 </td>
-                                <td className="p-4 text-zinc-400">{lead.source}</td>
-                                <td className="p-4 text-zinc-500 text-sm">
-                                    {new Date(lead.created_at).toLocaleDateString()}
-                                </td>
-                                <td className="p-4">
+                                <td className="p-4 text-center">
                                     {lead.status !== 'Qualified' && lead.status !== 'Lost' && lead.status !== 'Unqualified' && (
                                         <button
-                                            className="px-3 py-1.5 text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/20 transition-colors"
+                                            className="px-3 py-1 font-mono text-[10px] uppercase font-bold border border-[var(--border-pencil)] rounded bg-white hover:bg-[var(--accent-green)] hover:text-white hover:border-[var(--accent-green)] transition-all shadow-sm"
                                             onClick={() => setLeadToConvert(lead)}
                                         >
-                                            🚀 Convert
+                                            Convert →
                                         </button>
                                     )}
                                     {lead.status === 'Qualified' && (
-                                        <span className="text-xs text-zinc-500">Converted</span>
+                                        <span className="font-serif italic text-xs text-green-600">✓ In Pipeline</span>
                                     )}
                                 </td>
                             </tr>
                         ))}
                         {filteredLeads.length === 0 && (
                             <tr>
-                                <td colSpan={7} className="p-8 text-center text-zinc-500">
-                                    No leads found
+                                <td colSpan={5} className="p-12 text-center text-[var(--text-secondary)] font-serif italic border-b border-[var(--border-pencil)]">
+                                    No entries found in the ledger.
                                 </td>
                             </tr>
                         )}
+                        {/* Empty rows filler for ledger look */}
+                        {[1, 2, 3].map(i => (
+                            <tr key={`empty-${i}`} className="h-16">
+                                <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
+                                <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
+                                <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
+                                <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
+                                <td></td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>
@@ -172,7 +179,7 @@ export default function LeadsPage() {
                     onClose={() => setLeadToConvert(null)}
                     onSuccess={() => {
                         setLeadToConvert(null);
-                        fetchLeads(); // Refresh to show updated status
+                        fetchLeads();
                     }}
                 />
             )}
@@ -181,30 +188,23 @@ export default function LeadsPage() {
 }
 
 function StatusBadge({ status }: { status: string }) {
+    // "Stamped" look
     const colors: Record<string, string> = {
-        New: 'bg-blue-500/20 text-blue-400',
-        Contacted: 'bg-yellow-500/20 text-yellow-400',
-        Qualified: 'bg-green-500/20 text-green-400',
-        Unqualified: 'bg-zinc-500/20 text-zinc-400',
-        Lost: 'bg-red-500/20 text-red-400',
+        New: 'border-blue-500 text-blue-600',
+        Contacted: 'border-yellow-500 text-yellow-600',
+        Qualified: 'border-green-500 text-green-600 transform -rotate-2', // Qualified gets a jaunty tilt
+        Unqualified: 'border-gray-400 text-gray-500',
+        Lost: 'border-red-500 text-red-600 opacity-70',
     };
 
     return (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${colors[status] || 'bg-zinc-800 text-zinc-400'}`}>
+        <span className={`inline-block px-3 py-1 text-xs font-mono font-bold uppercase border-2 rounded ${colors[status] || 'border-gray-800 text-gray-800'}`}>
             {status}
         </span>
     );
 }
 
-function AddLeadModal({
-    config,
-    onClose,
-    onAdded,
-}: {
-    config: Config | null;
-    onClose: () => void;
-    onAdded: (lead: Lead) => void;
-}) {
+function AddLeadModal({ config, onClose, onAdded }: { config: Config | null; onClose: () => void; onAdded: (lead: Lead) => void; }) {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         company_name: '',
@@ -228,16 +228,19 @@ function AddLeadModal({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="glass-card w-full max-w-md p-6 animate-fade-in">
-                <h2 className="text-lg font-semibold mb-4">Add New Lead</h2>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 animate-fade-in" onClick={onClose}>
+            <div className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] shadow-[8px_8px_0px_rgba(0,0,0,0.1)] w-full max-w-md relative" onClick={e => e.stopPropagation()}>
+                <div className="bg-[var(--bg-paper)] p-4 border-b-2 border-[var(--border-ink)] flex justify-between items-center">
+                    <h2 className="font-serif font-bold text-xl">New Lead Entry</h2>
+                    <button onClick={onClose} className="font-bold text-xl hover:text-red-500">×</button>
+                </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Company Name *</label>
+                        <label className="block font-mono text-xs font-bold uppercase mb-1">Company Name *</label>
                         <input
                             type="text"
-                            className="input w-full"
+                            className="w-full bg-transparent border-b-2 border-[var(--border-pencil)] px-2 py-1 font-serif text-lg focus:border-[var(--accent-blue)] focus:outline-none"
                             value={formData.company_name}
                             onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                             required
@@ -245,40 +248,41 @@ function AddLeadModal({
                     </div>
 
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Contact Name *</label>
+                        <label className="block font-mono text-xs font-bold uppercase mb-1">Contact Name *</label>
                         <input
                             type="text"
-                            className="input w-full"
+                            className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-serif"
                             value={formData.contact_name}
                             onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
                             required
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Email</label>
-                        <input
-                            type="email"
-                            className="input w-full"
-                            value={formData.contact_email}
-                            onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block font-mono text-xs font-bold uppercase mb-1">Email</label>
+                            <input
+                                type="email"
+                                className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-mono text-xs"
+                                value={formData.contact_email}
+                                onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block font-mono text-xs font-bold uppercase mb-1">Phone</label>
+                            <input
+                                type="tel"
+                                className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-mono text-xs"
+                                value={formData.contact_phone}
+                                onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
+                            />
+                        </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Phone</label>
-                        <input
-                            type="tel"
-                            className="input w-full"
-                            value={formData.contact_phone}
-                            onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Source</label>
+                        <label className="block font-mono text-xs font-bold uppercase mb-1">Source</label>
                         <select
-                            className="input w-full"
+                            className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-sans"
                             value={formData.source}
                             onChange={(e) => setFormData({ ...formData, source: e.target.value })}
                         >
@@ -288,12 +292,12 @@ function AddLeadModal({
                         </select>
                     </div>
 
-                    <div className="flex gap-3 justify-end pt-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-zinc-400 hover:text-zinc-100">
+                    <div className="flex gap-3 justify-end pt-4 border-t border-[var(--border-pencil)] border-dashed mt-6">
+                        <button type="button" onClick={onClose} className="font-mono text-xs uppercase hover:underline">
                             Cancel
                         </button>
                         <button type="submit" className="btn-primary" disabled={loading}>
-                            {loading ? 'Adding...' : 'Add Lead'}
+                            {loading ? 'Writing...' : 'Add Entry'}
                         </button>
                     </div>
                 </form>

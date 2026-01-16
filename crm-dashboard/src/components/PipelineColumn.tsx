@@ -62,27 +62,29 @@ export default function PipelineColumn({ stage, onDrop, onOppClick, onUpdate }: 
 
     return (
         <div
-            className={`pipeline-column flex flex-col transition-all duration-200 ${isDragOver ? 'ring-2 ring-indigo-500 bg-indigo-500/5' : ''
-                }`}
+            className={`pipeline-column flex flex-col h-full bg-[var(--bg-paper)]/50 ${isDragOver ? 'ring-2 ring-[var(--accent-blue)] bg-[var(--accent-blue)]/5' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
         >
-            {/* Header */}
-            <div className={`p-4 border-b border-[var(--border-color)] bg-gradient-to-r ${colorClass} to-transparent rounded-t-xl`}>
+            {/* Header - Tape/Label Style */}
+            <div className="p-3 border-b-2 border-[var(--text-primary)] bg-[var(--bg-paper)] relative">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--border-pencil)] opacity-20"></div>
                 <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-semibold text-sm text-[var(--text-primary)]">{stage.stage}</h3>
-                    <span className="text-xs text-[var(--text-secondary)] bg-[var(--bg-paper)] border border-[var(--border-color)] px-2 py-0.5 rounded-full">
+                    <h3 className="font-serif font-bold text-lg text-[var(--text-primary)] tracking-tight uppercase border-b-2 border-[var(--accent-yellow)] inline-block leading-none pb-1">
+                        {stage.stage}
+                    </h3>
+                    <span className="font-mono text-xs font-bold text-[var(--text-primary)] border border-[var(--text-primary)] px-2 py-0.5 rounded-full bg-white shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">
                         {stage.count}
                     </span>
                 </div>
-                <div className="text-sm font-medium text-green-500">
-                    {formatCurrency(stage.total_value)}
+                <div className="font-mono text-xs text-[var(--text-secondary)] text-right mt-2">
+                    Total: <span className="font-bold border-b border-[var(--text-secondary)] border-dashed">{formatCurrency(stage.total_value)}</span>
                 </div>
             </div>
 
             {/* Opportunities */}
-            <div className="flex-1 p-3 space-y-3 overflow-y-auto">
+            <div className="flex-1 p-3 space-y-3 overflow-y-auto custom-scrollbar">
                 {stage.opportunities.map((opp) => (
                     <OpportunityCard
                         key={opp.opp_id}
@@ -94,8 +96,11 @@ export default function PipelineColumn({ stage, onDrop, onOppClick, onUpdate }: 
                 ))}
 
                 {stage.opportunities.length === 0 && (
-                    <div className="text-center text-[var(--text-secondary)] py-8 text-sm">
-                        No opportunities
+                    <div className="flex flex-col items-center justify-center py-10 text-[var(--text-muted)] opacity-50">
+                        <div className="w-12 h-12 border-2 border-dashed border-[var(--border-pencil)] rounded-full flex items-center justify-center mb-2">
+                            <span className="text-xl">?</span>
+                        </div>
+                        <span className="font-serif italic text-sm">Empty Pile</span>
                     </div>
                 )}
             </div>

@@ -1,17 +1,25 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Crimson_Pro, JetBrains_Mono } from "next/font/google"; // Distinctive Typography
 import "./globals.css";
 import Header from "@/components/Header";
 import SessionProvider from "@/providers/SessionProvider";
 
-const inter = Inter({
+const serif = Crimson_Pro({
     subsets: ["latin"],
-    variable: "--font-inter",
+    variable: "--font-serif",
+    weight: ["400", "600", "700"],
+    display: "swap",
+});
+
+const mono = JetBrains_Mono({
+    subsets: ["latin"],
+    variable: "--font-mono",
+    display: "swap",
 });
 
 export const metadata: Metadata = {
-    title: "SheetyCRM - Sales Pipeline powered by Google Sheets",
-    description: "A modern CRM that uses Google Sheets as its database",
+    title: "SheetyCRM - Digital Workspace",
+    description: "A tactile, paper-inspired CRM built on Google Sheets",
 };
 
 export default function RootLayout({
@@ -21,11 +29,11 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className={`${inter.variable} antialiased`}>
+            <body className={`${serif.variable} ${mono.variable} antialiased font-serif`}>
                 <SessionProvider>
-                    <div className="min-h-screen flex flex-col">
+                    <div className="min-h-screen flex flex-col bg-paper text-ink">
                         <Header />
-                        <main className="flex-1 bg-[var(--bg-paper)]">
+                        <main className="flex-1 relative">
                             {children}
                         </main>
                     </div>

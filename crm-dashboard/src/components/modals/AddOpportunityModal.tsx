@@ -48,113 +48,100 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="glass-card w-full max-w-lg p-6 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-fade-in">
+            <div className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] shadow-[8px_8px_0px_rgba(0,0,0,0.15)] w-full max-w-lg relative">
+                {/* Close Button - X Mark */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--accent-red)] font-serif font-bold text-xl leading-none z-10"
                 >
-                    ✕
+                    ×
                 </button>
 
-                <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">New Opportunity</h2>
+                <div className="p-8">
+                    <h2 className="font-serif font-bold text-3xl text-[var(--text-primary)] mb-8 border-b-4 border-[var(--accent-yellow)] inline-block">
+                        New Deal
+                    </h2>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1">
-                            Lead / Company
-                        </label>
-                        <select
-                            required
-                            className="input w-full"
-                            value={formData.lead_id}
-                            onChange={(e) => setFormData({ ...formData, lead_id: e.target.value })}
-                        >
-                            <option value="">Select a Lead...</option>
-                            {leads.map((lead) => (
-                                <option key={lead.lead_id} value={lead.lead_id}>
-                                    {lead.company_name} ({lead.contact_name})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">
-                            Deal Title
-                        </label>
-                        <input
-                            required
-                            type="text"
-                            className="input w-full"
-                            placeholder="e.g. Q1 Enterprise License"
-                            value={formData.title}
-                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">
-                                Value ($)
-                            </label>
+                            <label className="block font-mono text-xs font-bold uppercase mb-1">Lead / Company</label>
+                            <div className="relative">
+                                <select
+                                    required
+                                    className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-serif appearance-none focus:border-[var(--accent-blue)] focus:outline-none"
+                                    value={formData.lead_id}
+                                    onChange={(e) => setFormData({ ...formData, lead_id: e.target.value })}
+                                >
+                                    <option value="">Select a Lead...</option>
+                                    {leads.map((lead) => (
+                                        <option key={lead.lead_id} value={lead.lead_id}>
+                                            {lead.company_name} ({lead.contact_name})
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-secondary)] text-xs">
+                                    ▼
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block font-mono text-xs font-bold uppercase mb-1">Deal Title</label>
                             <input
                                 required
-                                type="number"
-                                min="0"
-                                className="input w-full"
-                                value={formData.value || ''}
-                                onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+                                type="text"
+                                className="w-full bg-transparent border-b-2 border-[var(--border-pencil)] px-2 py-1 font-serif text-lg focus:border-[var(--accent-blue)] focus:outline-none placeholder:italic placeholder:text-[var(--text-muted)]"
+                                placeholder="e.g. Q1 Enterprise Contract"
+                                value={formData.title}
+                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             />
                         </div>
-                        <div>
-                            <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">
-                                Probability (%)
-                            </label>
-                            <input
-                                required
-                                type="number"
-                                min="0"
-                                max="100"
-                                className="input w-full"
-                                value={formData.probability}
-                                onChange={(e) => setFormData({ ...formData, probability: Number(e.target.value) })}
-                            />
+
+                        <div className="grid grid-cols-2 gap-6">
+                            <div>
+                                <label className="block font-mono text-xs font-bold uppercase mb-1">Value ($)</label>
+                                <input
+                                    required
+                                    type="number"
+                                    min="0"
+                                    className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-mono focus:border-[var(--accent-blue)] focus:outline-none"
+                                    value={formData.value || ''}
+                                    onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block font-mono text-xs font-bold uppercase mb-1">Probability (%)</label>
+                                <input
+                                    required
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-mono focus:border-[var(--accent-blue)] focus:outline-none"
+                                    value={formData.probability}
+                                    onChange={(e) => setFormData({ ...formData, probability: Number(e.target.value) })}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">
-                            Initial Stage
-                        </label>
-                        <select
-                            className="input w-full"
-                            value={formData.stage}
-                            onChange={(e) => setFormData({ ...formData, stage: e.target.value as PipelineStageEnum })}
-                        >
-                            {Object.values(PipelineStageEnum).map((stage) => (
-                                <option key={stage} value={stage}>{stage}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="pt-4 flex justify-end gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={submitting}
-                            className="btn-primary"
-                        >
-                            {submitting ? 'Creating...' : 'Create Opportunity'}
-                        </button>
-                    </div>
-                </form>
+                        <div className="pt-6 flex justify-end gap-4">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="font-mono text-xs uppercase hover:underline underline-offset-4"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="btn-primary"
+                            >
+                                {submitting ? 'Creating...' : 'Create Opportunity'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     );

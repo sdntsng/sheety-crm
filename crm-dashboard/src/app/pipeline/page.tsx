@@ -73,7 +73,7 @@ export default function PipelinePage() {
                     <div className="h-8 bg-[var(--bg-surface)] rounded w-1/4 mb-6"></div>
                     <div className="flex gap-4 overflow-x-auto">
                         {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="w-72 h-96 bg-[var(--bg-surface)] rounded-xl shrink-0"></div>
+                            <div key={i} className="w-72 h-96 bg-[var(--bg-surface)] rounded-xl shrink-0 border border-[var(--border-pencil)]"></div>
                         ))}
                     </div>
                 </div>
@@ -81,46 +81,37 @@ export default function PipelinePage() {
         );
     }
 
-    if (error) {
-        return (
-            <div className="p-8">
-                <div className="glass-card p-6 text-center">
-                    <p className="text-red-400 mb-4">⚠️ {error}</p>
-                    <p className="text-[var(--text-secondary)] text-sm">
-                        Make sure the API server is running: <code className="bg-[var(--bg-surface)] px-2 py-1 rounded">uvicorn api.server:app --reload</code>
-                    </p>
-                </div>
-            </div>
-        );
-    }
+    if (error) return <div className="p-8 text-red-500 font-mono">Error: {error}</div>;
 
     if (!data) return null;
 
     return (
-        <div className="p-8 h-screen flex flex-col">
+        <div className="p-8 h-[calc(100vh-64px)] flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="mb-6 flex justify-between items-center">
+            <div className="mb-6 flex justify-between items-center bg-[var(--bg-paper)] py-2 border-b-4 border-[var(--text-primary)]">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-100">Pipeline</h1>
-                    <p className="text-zinc-500">Drag opportunities between stages</p>
+                    <h1 className="text-3xl font-serif font-bold text-[var(--text-primary)]">Pipeline</h1>
+                    <p className="font-mono text-xs text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                        Drag cards to update status
+                    </p>
                 </div>
                 <button
                     className="btn-primary"
                     onClick={() => setShowAddModal(true)}
                 >
-                    + Add Opportunity
+                    + New Deal
                 </button>
             </div>
 
-            {/* Pipeline Board */}
-            <div className="flex-1 overflow-x-auto">
-                <div className="flex gap-4 h-full pb-4" style={{ minWidth: 'max-content' }}>
+            {/* Pipeline Board - Corkboard/Desk Surface */}
+            <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
+                <div className="flex gap-4 h-full" style={{ minWidth: 'max-content' }}>
                     {data.stages.map((stageName: string) => {
                         const stage = data.pipeline[stageName];
                         if (!stage) return null;
 
                         return (
-                            <div key={stageName} className="w-72 shrink-0">
+                            <div key={stageName} className="w-80 shrink-0 h-full">
                                 <PipelineColumn
                                     stage={stage}
                                     onDrop={handleDrop}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getDashboard, DashboardData } from '@/lib/api';
 import StatCard from '@/components/StatCard';
 import Link from 'next/link';
+import { Lead, Opportunity } from '@/lib/api';
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -14,10 +15,8 @@ export default function DashboardPage() {
     const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
 
     useEffect(() => {
-        // Check if a sheet is selected
         const saved = localStorage.getItem('selected_sheet_name');
         if (!saved) {
-            // Redirect to setup if no sheet selected
             router.push('/setup');
             return;
         }
@@ -53,13 +52,12 @@ export default function DashboardPage() {
         return (
             <div className="p-8">
                 <div className="animate-pulse space-y-6">
-                    <div className="h-10 bg-[var(--bg-surface)] rounded-lg w-1/3"></div>
+                    <div className="h-10 bg-[var(--bg-surface)] rounded w-1/3"></div>
                     <div className="grid grid-cols-4 gap-6">
                         {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="h-32 bg-[var(--bg-surface)] rounded-xl"></div>
+                            <div key={i} className="h-32 bg-[var(--bg-surface)] rounded"></div>
                         ))}
                     </div>
-                    <div className="h-64 bg-[var(--bg-surface)] rounded-xl"></div>
                 </div>
             </div>
         );
@@ -69,24 +67,16 @@ export default function DashboardPage() {
         return (
             <div className="p-8">
                 <div className="max-w-lg mx-auto mt-20">
-                    <div className="glass-card p-8 text-center">
+                    <div className="paper-card p-8 text-center bg-white border border-[var(--border-ink)] shadow-[8px_8px_0px_var(--border-ink)]">
                         <span className="text-4xl mb-4 block">⚠️</span>
-                        <h2 className="text-xl font-semibold text-[var(--color-ink)] mb-2">Connection Error</h2>
-                        <p className="text-[var(--color-ink-muted)] mb-6">{error}</p>
-                        <div className="space-y-3">
-                            <p className="text-sm text-[var(--color-ink-muted)]">
-                                Make sure the API server is running:
-                            </p>
-                            <code className="block bg-zinc-800 px-4 py-2 rounded-lg text-sm">
-                                make crm-dev
-                            </code>
-                            <button
-                                onClick={() => window.location.reload()}
-                                className="mt-4 px-4 py-2 rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
-                            >
-                                Retry
-                            </button>
-                        </div>
+                        <h2 className="text-xl font-serif font-bold text-[var(--color-ink)] mb-2">Connection Error</h2>
+                        <p className="font-mono text-sm text-[var(--color-ink-muted)] mb-6">{error}</p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="btn-primary"
+                        >
+                            Retry Connection
+                        </button>
                     </div>
                 </div>
             </div>
@@ -95,44 +85,34 @@ export default function DashboardPage() {
 
     if (!data) return null;
 
-    // Check if this is an empty CRM
     const isEmpty = data.total_leads === 0 && data.total_opportunities === 0;
 
     if (isEmpty) {
         return (
-            <div className="p-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-[var(--color-ink)]">Dashboard</h1>
-                    <p className="text-[var(--color-ink-muted)]">
-                        Connected to: <span className="font-medium">{selectedSheet}</span>
+            <div className="p-8 flex items-center justify-center min-h-[80vh]">
+                <div className="paper-card p-12 text-center max-w-lg bg-white border-2 border-[var(--border-pencil)] shadow-[12px_12px_0px_rgba(0,0,0,0.05)] transform rotate-1">
+                    <div className="w-20 h-20 bg-[var(--bg-paper)] rounded-full flex items-center justify-center mx-auto mb-6 border border-[var(--border-pencil)]">
+                        <span className="text-5xl">✨</span>
+                    </div>
+                    <h2 className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-4">
+                        A clean desk!
+                    </h2>
+                    <p className="font-serif italic text-[var(--text-secondary)] text-lg mb-8">
+                        "The secret of getting ahead is getting started."
                     </p>
-                </div>
-
-                {/* Empty State */}
-                <div className="max-w-lg mx-auto mt-12">
-                    <div className="glass-card p-8 text-center">
-                        <span className="text-5xl mb-4 block">🚀</span>
-                        <h2 className="text-2xl font-serif font-bold text-[var(--color-ink)] mb-2">
-                            Welcome to Vinci CRM
-                        </h2>
-                        <p className="text-[var(--color-ink-muted)] mb-6">
-                            Your CRM is ready! Start by adding your first lead.
-                        </p>
-                        <div className="flex gap-3 justify-center">
-                            <Link
-                                href="/leads"
-                                className="px-6 py-3 rounded-lg bg-[var(--accent)] text-white font-medium hover:opacity-90 transition-opacity"
-                            >
-                                Add First Lead
-                            </Link>
-                            <Link
-                                href="/setup"
-                                className="px-6 py-3 rounded-lg border border-[var(--border)] text-[var(--color-ink)] hover:border-[var(--accent)] transition-colors"
-                            >
-                                Change Sheet
-                            </Link>
-                        </div>
+                    <div className="flex flex-col gap-3">
+                        <Link
+                            href="/leads"
+                            className="btn-primary"
+                        >
+                            Create First Lead
+                        </Link>
+                        <Link
+                            href="/setup"
+                            className="font-mono text-xs underline hover:text-[var(--accent-blue)]"
+                        >
+                            Change Sheet
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -140,83 +120,104 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="p-8">
+        <div className="p-8 space-y-8">
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-[var(--color-ink)]">Dashboard</h1>
-                <p className="text-[var(--color-ink-muted)]">
-                    Connected to: <span className="font-medium text-[var(--accent)]">{selectedSheet}</span>
+            <div>
+                <h1 className="text-4xl font-serif font-bold text-[var(--text-primary)] mb-2">
+                    Start Your Day
+                </h1>
+                <p className="font-mono text-xs text-[var(--text-secondary)] uppercase tracking-widest border-b border-[var(--border-pencil)] pb-2 inline-block">
+                    Dashboard • {selectedSheet}
                 </p>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Stats Grid - Pinned Notes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    title="Total Leads"
+                    title="Active Leads"
                     value={data.total_leads}
-                    subtitle="Active prospects"
+                    subtitle="Prospects"
                 />
                 <StatCard
-                    title="Total Opportunities"
+                    title="Opportunities"
                     value={data.total_opportunities}
-                    subtitle="In pipeline"
+                    subtitle="In Pipeline"
                 />
                 <StatCard
                     title="Pipeline Value"
                     value={formatCurrency(data.total_pipeline_value)}
-                    subtitle="Total potential"
+                    subtitle="Potential Revenue"
                     variant="warning"
                 />
                 <StatCard
-                    title="Cash in Bank"
+                    title="Revenue"
                     value={formatCurrency(data.cash_in_bank)}
-                    subtitle="Collected revenue"
+                    subtitle="Closed Won"
                     variant="success"
                 />
             </div>
 
-            {/* Pipeline by Stage */}
-            <div className="glass-card p-6 mb-8">
-                <h2 className="text-lg font-semibold mb-4 text-[var(--color-ink)]">Pipeline by Stage</h2>
-                <div className="space-y-3">
-                    {Object.entries(data.pipeline_by_stage).map(([stage, stageData]: [string, { count: number; total_value: number; expected_value: number }]) => {
-                        const percentage = data.total_pipeline_value > 0
-                            ? (stageData.total_value / data.total_pipeline_value) * 100
-                            : 0;
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Pipeline Stages - List on Paper */}
+                <div className="lg:col-span-2 paper-card p-0 bg-white overflow-hidden">
+                    <div className="p-4 border-b-2 border-[var(--border-ink)] bg-[var(--bg-paper)] flex justify-between items-center">
+                        <h2 className="font-serif font-bold text-xl">Pipeline Health</h2>
+                        <div className="flex gap-2">
+                            <div className="w-3 h-3 rounded-full bg-[var(--accent-red)] border border-black/20"></div>
+                            <div className="w-3 h-3 rounded-full bg-[var(--accent-yellow)] border border-black/20"></div>
+                            <div className="w-3 h-3 rounded-full bg-[var(--accent-blue)] border border-black/20"></div>
+                        </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        {Object.entries(data.pipeline_by_stage).map(([stage, stageData]: [string, { count: number; total_value: number }]) => {
+                            const percentage = data.total_pipeline_value > 0
+                                ? (stageData.total_value / data.total_pipeline_value) * 100
+                                : 0;
 
-                        return (
-                            <div key={stage} className="flex items-center gap-4">
-                                <div className="w-28 text-sm text-[var(--color-ink-muted)]">{stage}</div>
-                                <div className="flex-1">
-                                    <div className="h-6 bg-[var(--bg-surface)] rounded-full overflow-hidden">
+                            return (
+                                <div key={stage} className="flex items-center gap-4 group">
+                                    <div className="w-32 font-mono text-xs font-bold text-[var(--text-secondary)] uppercase">{stage}</div>
+                                    <div className="flex-1 h-3 bg-[var(--bg-paper)] border border-[var(--border-pencil)] p-[1px] rounded-full">
                                         <div
-                                            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+                                            className="h-full bg-[var(--text-primary)] rounded-full opacity-80 group-hover:opacity-100 transition-opacity"
                                             style={{ width: `${Math.max(percentage, 2)}%` }}
                                         ></div>
                                     </div>
+                                    <div className="w-24 text-right font-serif font-bold">{formatCurrency(stageData.total_value)}</div>
+                                    <div className="w-8 text-center font-mono text-xs bg-[var(--bg-paper)] border border-[var(--border-pencil)] rounded">{stageData.count}</div>
                                 </div>
-                                <div className="w-24 text-right text-sm font-medium text-[var(--color-ink)]">
-                                    {formatCurrency(stageData.total_value)}
-                                </div>
-                                <div className="w-10 text-right text-xs text-[var(--color-ink-muted)]">
-                                    {stageData.count}
-                                </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
+                    <div className="bg-[var(--bg-paper)] border-t border-[var(--border-pencil)] p-2 text-center">
+                        <span className="font-serif italic text-xs text-[var(--text-secondary)]">Data refreshes automatically</span>
+                    </div>
                 </div>
-            </div>
 
-            {/* Leads by Status */}
-            <div className="glass-card p-6">
-                <h2 className="text-lg font-semibold mb-4 text-[var(--color-ink)]">Leads by Status</h2>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {Object.entries(data.leads_by_status).map(([status, count]: [string, number]) => (
-                        <div key={status} className="text-center p-4 bg-[var(--bg-surface)] rounded-lg border border-[var(--border)]">
-                            <p className="text-2xl font-bold text-[var(--color-ink)]">{count}</p>
-                            <p className="text-sm text-[var(--color-ink-muted)]">{status}</p>
+                {/* Leads Breakdown - Notepad */}
+                <div className="paper-card p-6 bg-[var(--bg-paper)] border-2 border-[var(--border-pencil)] relative">
+                    {/* Spiral Binding Effect */}
+                    <div className="absolute top-0 left-6 bottom-0 w-8 border-r-2 border-[var(--border-pencil)] border-double"></div>
+
+                    <div className="pl-12">
+                        <h2 className="font-serif font-bold text-xl mb-6 underline decoration-[var(--accent-blue)] decoration-2 underline-offset-4">Lead Status</h2>
+
+                        <div className="space-y-4">
+                            {Object.entries(data.leads_by_status).map(([status, count]: [string, number]) => (
+                                <div key={status} className="flex justify-between items-end border-b border-[var(--border-pencil)] border-dashed pb-1">
+                                    <span className="font-serif text-lg">{status}</span>
+                                    <span className="font-mono font-bold text-xl">{count}</span>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+
+                        <div className="mt-8 pt-4 border-t-2 border-[var(--border-ink)]">
+                            <Link href="/leads" className="font-mono text-xs uppercase font-bold hover:underline flex items-center justify-between group">
+                                <span>Go to Leads Ledger</span>
+                                <span className="group-hover:translate-x-1 transition-transform">→</span>
+                            </Link>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -90,73 +90,64 @@ export default function SearchBar() {
     };
 
     return (
-        <div className="relative" ref={containerRef}>
+        <div className="relative w-full" ref={containerRef}>
             {/* Search Input */}
-            <div className="relative">
+            <div className="relative group">
                 <input
                     ref={inputRef}
                     type="text"
                     placeholder="Search..."
-                    className="input w-48 pl-8 pr-7 h-8 text-[13px]"
+                    className="w-full bg-transparent border-b-2 border-[var(--border-pencil)] px-8 py-1.5 font-mono text-sm focus:border-[var(--accent-blue)] focus:outline-none transition-colors placeholder:text-[var(--text-muted)] group-hover:border-[var(--text-secondary)]"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => setIsOpen(true)}
                     onBlur={() => setTimeout(() => setIsOpen(false), 200)}
                     onKeyDown={handleKeyDown}
                 />
-                <svg
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                </svg>
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-[var(--accent-blue)]">
+                    🔍
+                </span>
+
                 {/* Keyboard hint */}
                 {!query && (
-                    <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-secondary)] bg-[var(--bg-surface)] px-1 py-0.5 rounded border border-[var(--border-color)]">
+                    <kbd className="absolute right-0 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[var(--text-muted)] border border-[var(--border-pencil)] px-1 rounded opacity-50">
                         /
                     </kbd>
                 )}
                 {loading && (
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-xs animate-spin">
-                        ⏳
+                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-xs animate-spin">
+                        ✎
                     </span>
                 )}
             </div>
 
-            {/* Results Dropdown */}
+            {/* Results Dropdown - Paper Stack Style */}
             {isOpen && query.length >= 2 && (
-                <div className="absolute top-full mt-2 w-72 bg-[var(--bg-paper)] border border-[var(--border-color)] rounded-lg shadow-lg z-50 overflow-hidden">
+                <div className="absolute top-full mt-2 w-80 bg-[var(--bg-card)] border border-[var(--border-ink)] shadow-[4px_4px_0px_rgba(0,0,0,0.1)] z-50 p-2 animate-fade-in">
                     {results && results.total > 0 ? (
-                        <div className="max-h-72 overflow-y-auto">
+                        <div className="max-h-80 overflow-y-auto custom-scrollbar">
                             {/* Leads Section */}
                             {results.results.leads.length > 0 && (
-                                <div>
-                                    <div className="px-3 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--bg-surface)] uppercase tracking-wider">
+                                <div className="mb-2">
+                                    <div className="px-2 py-1 text-[10px] font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider border-b border-[var(--border-pencil)] mb-1">
                                         Leads
                                     </div>
                                     {results.results.leads.map((lead, idx) => (
                                         <button
                                             key={lead.lead_id}
-                                            className={`w-full px-3 py-2 text-left hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5 ${selectedIndex === idx ? 'bg-[var(--bg-hover)]' : ''
+                                            className={`w-full px-2 py-2 text-left hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-3 group ${selectedIndex === idx ? 'bg-[var(--bg-hover)]' : ''
                                                 }`}
                                             onClick={() => navigateToResult({ ...lead, _type: 'lead' })}
                                         >
-                                            <div className="w-7 h-7 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)] text-xs font-semibold">
+                                            <div className="w-6 h-6 flex items-center justify-center font-serif font-bold text-[var(--text-primary)] border border-[var(--border-pencil)] bg-white group-hover:border-[var(--accent-blue)] group-hover:text-[var(--accent-blue)]">
                                                 {lead.company_name.charAt(0)}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">
+                                                <p className="text-sm font-serif font-semibold text-[var(--text-primary)] truncate">
                                                     {lead.company_name}
                                                 </p>
-                                                <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                                                    {lead.contact_name} • {lead.status}
+                                                <p className="text-xs font-mono text-[var(--text-secondary)] truncate">
+                                                    {lead.status}
                                                 </p>
                                             </div>
                                         </button>
@@ -167,7 +158,7 @@ export default function SearchBar() {
                             {/* Opportunities Section */}
                             {results.results.opportunities.length > 0 && (
                                 <div>
-                                    <div className="px-3 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--bg-surface)] uppercase tracking-wider">
+                                    <div className="px-2 py-1 text-[10px] font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider border-b border-[var(--border-pencil)] mb-1">
                                         Opportunities
                                     </div>
                                     {results.results.opportunities.map((opp, idx) => {
@@ -175,19 +166,19 @@ export default function SearchBar() {
                                         return (
                                             <button
                                                 key={opp.opp_id}
-                                                className={`w-full px-3 py-2 text-left hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5 ${selectedIndex === actualIdx ? 'bg-[var(--bg-hover)]' : ''
+                                                className={`w-full px-2 py-2 text-left hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-3 group ${selectedIndex === actualIdx ? 'bg-[var(--bg-hover)]' : ''
                                                     }`}
                                                 onClick={() => navigateToResult({ ...opp, _type: 'opportunity' })}
                                             >
-                                                <div className="w-7 h-7 rounded-full bg-green-500/10 flex items-center justify-center text-green-600 text-xs">
-                                                    💰
+                                                <div className="w-6 h-6 flex items-center justify-center text-[var(--accent-green)] border border-[var(--border-pencil)] bg-white group-hover:border-green-500">
+                                                    $
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">
+                                                    <p className="text-sm font-serif font-semibold text-[var(--text-primary)] truncate">
                                                         {opp.title}
                                                     </p>
-                                                    <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                                                        {opp.lead?.company_name || 'Unknown'} • ${opp.value.toLocaleString()}
+                                                    <p className="text-xs font-mono text-[var(--text-secondary)] truncate">
+                                                        {opp.lead?.company_name} • ${opp.value.toLocaleString()}
                                                     </p>
                                                 </div>
                                             </button>
@@ -197,8 +188,8 @@ export default function SearchBar() {
                             )}
                         </div>
                     ) : results && results.total === 0 ? (
-                        <div className="px-4 py-5 text-center text-[var(--text-secondary)] text-[13px]">
-                            No results for "{query}"
+                        <div className="px-4 py-6 text-center text-[var(--text-muted)] font-serif italic">
+                            No matching records found.
                         </div>
                     ) : null}
                 </div>

@@ -53,86 +53,80 @@ export default function Header() {
     }
 
     return (
-        <header className="header">
-            <div className="header-content">
-                {/* Logo & Brand */}
-                <Link href="/" className="header-logo">
-                    <span className="header-logo-icon">📋</span>
-                    <span className="header-logo-text">SheetyCRM</span>
+        <header className="header px-6">
+            <div className="w-full max-w-7xl mx-auto flex items-center gap-6">
+                {/* Logo & Brand - Ink Stamp Style */}
+                <Link href="/" className="header-logo group">
+                    <span className="font-serif italic text-2xl group-hover:text-[var(--accent-blue)] transition-colors">
+                        Sheety<span className="font-light text-[var(--text-secondary)]">CRM</span>
+                    </span>
                 </Link>
 
-                {/* Navigation Tabs */}
-                <nav className="header-nav">
+                {/* Navigation Tabs - Typewriter Style */}
+                <nav className="header-nav flex items-center gap-1">
                     {navItems.map(item => (
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={`header-nav-item ${pathname === item.href ? 'active' : ''}`}
+                            className={`header-nav-item ${pathname === item.href ? 'active border-b-2 border-[var(--accent-blue)] text-[var(--accent-blue)]' : 'border-transparent'}`}
                         >
-                            <span className="header-nav-icon">{item.icon}</span>
-                            <span className="header-nav-label">{item.label}</span>
+                            <span className="font-mono tracking-tighter">{item.label.toUpperCase()}</span>
                         </Link>
                     ))}
                 </nav>
 
                 {/* Right Side */}
-                <div className="header-actions">
+                <div className="header-actions ml-auto flex items-center gap-4">
                     {/* Search */}
-                    <SearchBar />
+                    <div className="w-64">
+                        <SearchBar />
+                    </div>
 
-                    {/* Sheet Indicator */}
-                    <Link href="/setup" className="header-sheet-badge" title="Change connected sheet">
-                        <span className="header-sheet-icon">📄</span>
-                        <span className="header-sheet-name">{selectedSheet || 'Select Sheet'}</span>
+                    <div className="h-6 w-px bg-[var(--border-pencil)] mx-2" />
+
+                    {/* Sheet Indicator - Sticky Note Style */}
+                    <Link href="/setup" className="header-sheet-badge font-mono text-xs bg-[var(--accent-yellow)] text-[var(--text-primary)] border border-black/10 px-3 py-1 -rotate-1 hover:-rotate-2 transition-transform shadow-sm" title="Change connected sheet">
+                        <span className="font-bold mr-2">SHEET:</span>
+                        <span className="border-b border-black/20 dashed">{selectedSheet || 'Select...'}</span>
                     </Link>
 
-                    {/* Theme Toggle */}
-                    <button
-                        onClick={toggleTheme}
-                        className="header-icon-btn"
-                        title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                    >
-                        {isDark ? '☀️' : '🌙'}
-                    </button>
-
-                    {/* User Menu */}
+                    {/* User Avatar - Ink Circle */}
                     {session?.user ? (
                         <div className="relative" ref={menuRef}>
                             <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
-                                className="header-avatar"
+                                className="w-9 h-9 rounded-full border-2 border-[var(--text-primary)] p-0.5 hover:scale-105 transition-transform bg-white"
                             >
                                 {session.user.image ? (
                                     <img
                                         src={session.user.image}
                                         alt={session.user.name || 'User'}
-                                        className="header-avatar-img"
+                                        className="w-full h-full rounded-full grayscale hover:grayscale-0 transition-all"
                                     />
                                 ) : (
-                                    <span className="header-avatar-fallback">
+                                    <span className="w-full h-full flex items-center justify-center font-serif font-bold bg-[var(--text-primary)] text-white rounded-full">
                                         {session.user.name?.[0] || 'U'}
                                     </span>
                                 )}
                             </button>
 
                             {showUserMenu && (
-                                <div className="header-dropdown">
-                                    <div className="header-dropdown-header">
-                                        <p className="header-dropdown-name">{session.user.name}</p>
-                                        <p className="header-dropdown-email">{session.user.email}</p>
+                                <div className="absolute top-full right-0 mt-3 w-56 paper-card z-50 p-2 bg-[var(--bg-card)]">
+                                    <div className="px-3 py-2 border-b border-[var(--border-pencil)] mb-2">
+                                        <p className="font-serif font-bold text-sm">{session.user.name}</p>
+                                        <p className="font-mono text-xs text-[var(--text-secondary)]">{session.user.email}</p>
                                     </div>
-                                    <div className="header-dropdown-divider" />
                                     <button
                                         onClick={() => signOut()}
-                                        className="header-dropdown-item"
+                                        className="w-full text-left px-3 py-2 hover:bg-[var(--bg-hover)] font-mono text-xs uppercase"
                                     >
-                                        Sign out
+                                        → Sign out
                                     </button>
                                 </div>
                             )}
                         </div>
                     ) : (
-                        <Link href="/login" className="header-signin-btn">
+                        <Link href="/login" className="font-mono text-sm underline decoration-[var(--accent-blue)] decoration-2 underline-offset-4 hover:text-[var(--accent-blue)]">
                             Sign in
                         </Link>
                     )}
