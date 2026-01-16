@@ -44,15 +44,18 @@ export default function SetupPage() {
             viewId: "SPREADSHEETS",
             token: token,
             showUploadView: false,
-            showViewList: true,
             supportDrives: true,
             multiselect: false,
             callbackFunction: (data) => {
+                console.log('Picker Callback Data:', data);
                 if (data.action === 'picked') {
                     const doc = data.docs[0];
+                    console.log('Selected Doc:', doc);
                     handleSelect({ id: doc.id, name: doc.name });
                 } else if (data.action === 'cancel') {
-                    // User cancelled
+                    console.log('User cancelled picker');
+                } else {
+                    console.warn('Unexpected picker action:', data.action);
                 }
             },
         });
