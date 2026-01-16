@@ -32,28 +32,34 @@ async def get_sheet_manager(authorization: Optional[str] = Header(None)):
     import gspread
     import os
     
-    # If no auth header, use local credentials (dev mode only)
-    if not authorization:
-        if os.environ.get("RENDER"):
-            raise HTTPException(status_code=401, detail="Authentication required")
-        try:
-            gc, _ = authenticate()
-            return SheetManager(gc)
-        except Exception:
-            raise HTTPException(status_code=401, detail="Local authentication failed")
+    is_production = os.environ.get("RENDER")
     
-    # Use the Bearer token from the logged-in user
-    token = authorization.replace("Bearer ", "").strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="Invalid authorization header")
+    # Try token-based auth first if provided
+    if authorization:
+        token = authorization.replace("Bearer ", "").strip()
+        if token:
+            try:
+                creds = Credentials(token=token)
+                gc = gspread.authorize(creds)
+                # Test the connection with a simple call
+                gc.list_spreadsheet_files()
+                return SheetManager(gc)
+            except Exception as e:
+                print(f"Token auth failed: {e}")
+                if is_production:
+                    raise HTTPException(status_code=401, detail="Session expired. Please sign out and sign in again.")
+                # Fall through to local auth in dev mode
+                print("Falling back to local auth (dev mode)")
+    
+    # Local fallback (dev mode only)
+    if is_production:
+        raise HTTPException(status_code=401, detail="Authentication required")
     
     try:
-        creds = Credentials(token=token)
-        gc = gspread.authorize(creds)
+        gc, _ = authenticate()
         return SheetManager(gc)
-    except Exception as e:
-        print(f"Token auth failed: {e}")
-        raise HTTPException(status_code=401, detail="Failed to authenticate with Google. Please sign out and sign in again.")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Local authentication failed. Run 'make auth' first.")
 
 app = FastAPI(
     title="Sales CRM API",
