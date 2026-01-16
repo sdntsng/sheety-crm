@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import ThemeToggle from './ThemeToggle';
+import SearchBar from './SearchBar';
 
 const navItems = [
     { href: '/', label: 'Dashboard', icon: '📊' },
@@ -55,6 +56,11 @@ export default function Sidebar() {
                     </span>
                 </div>
             </Link>
+
+            {/* Search */}
+            <div className="px-4 mt-4">
+                <SearchBar />
+            </div>
 
             {/* Navigation */}
             <nav className="flex-1 p-4">

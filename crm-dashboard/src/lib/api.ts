@@ -307,3 +307,21 @@ export async function createActivity(data: Partial<Activity>): Promise<Activity>
   });
   return handleResponse(response);
 }
+
+// ============================================================================
+// Search
+// ============================================================================
+
+export interface SearchResults {
+  query: string;
+  results: {
+    leads: (Lead & { type: 'lead' })[];
+    opportunities: (Opportunity & { type: 'opportunity'; lead?: Lead })[];
+  };
+  total: number;
+}
+
+export async function search(query: string): Promise<SearchResults> {
+  const response = await fetchWithAuth(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`);
+  return handleResponse(response);
+}

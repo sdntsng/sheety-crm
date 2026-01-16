@@ -476,3 +476,64 @@ def get_config():
         "activity_types": [t.value for t in ActivityType],
         "company_sizes": [s.value for s in CompanySize],
     }
+
+
+# =============================================================================
+# Search Endpoint
+# =============================================================================
+
+@app.get("/api/search")
+def search_all(
+    q: str = Query(..., min_length=1, description="Search query"),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """
+    Global search across leads and opportunities.
+    Returns results grouped by entity type.
+    """
+    query = q.lower().strip()
+    
+    # Search leads
+    leads = crm.get_leads()
+    matching_leads = [
+        l for l in leads
+        if query in l.company_name.lower()
+        or query in l.contact_name.lower()
+        or (l.contact_email and query in l.contact_email.lower())
+        or (l.industry and query in l.industry.lower())
+    ]
+    
+    # Search opportunities
+    opps = crm.get_opportunities()
+    leads_by_id = {l.lead_id: l for l in leads}
+    matching_opps = [
+        o for o in opps
+        if query in o.title.lower()
+        or (o.product and query in o.product.lower())
+        or (o.notes and query in o.notes.lower())
+        # Also match by company name of associated lead
+        or (o.lead_id in leads_by_id and query in leads_by_id[o.lead_id].company_name.lower())
+    ]
+    
+    return {
+        "query": q,
+        "results": {
+            "leads": [
+                {
+                    **l.model_dump(),
+                    "type": "lead",
+                }
+                for l in matching_leads[:10]  # Limit to 10 results
+            ],
+            "opportunities": [
+                {
+                    **o.model_dump(),
+                    "type": "opportunity",
+                    "lead": leads_by_id.get(o.lead_id).model_dump() if o.lead_id in leads_by_id else None,
+                }
+                for o in matching_opps[:10]
+            ],
+        },
+        "total": len(matching_leads) + len(matching_opps),
+    }
+
