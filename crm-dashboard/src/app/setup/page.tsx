@@ -120,7 +120,7 @@ export default function SetupPage() {
                     Choose Your Database
                 </h1>
                 <p className="text-[var(--color-ink-muted)] text-xl max-w-2xl mx-auto font-light leading-relaxed">
-                    Connect SheetyCRM to a Google Sheet. Select an existing one from your Drive or let us create a optimized template for you.
+                    Connect Sheety to a Google Sheet. Select an existing one from your Drive or let us create a optimized template for you.
                 </p>
             </div>
 

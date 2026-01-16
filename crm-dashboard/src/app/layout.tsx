@@ -17,7 +17,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "SheetyCRM - Digital Workspace",
+    title: "Sheety - Digital CRM Workspace",
     description: "A tactile, paper-inspired CRM built on Google Sheets",
 };
 

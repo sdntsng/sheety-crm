@@ -8,7 +8,7 @@ export default function LoginPage() {
             <div className="glass-card max-w-md w-full p-8 text-center space-y-6">
                 <div>
                     <h1 className="text-3xl font-sans font-bold text-[var(--accent)] mb-2">
-                        Vinci CRM
+                        Sheety
                     </h1>
                     <p className="text-[var(--color-ink-muted)]">
                         Sign in to connect your Google Sheets
