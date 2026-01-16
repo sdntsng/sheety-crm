@@ -2,7 +2,7 @@
 FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -23,6 +23,25 @@ from src.crm.models import (
     Lead, Opportunity, Activity,
     LeadStatus, LeadSource, PipelineStage, ActivityType, CompanySize
 )
+
+# New dependency for just authenticated SheetManager (without CRM session)
+async def get_sheet_manager(authorization: Optional[str] = Header(None)):
+    from src.auth import authenticate
+    from google.oauth2.credentials import Credentials
+    from src.sheets import SheetManager
+    
+    if not authorization:
+        # Local fallback
+        gc, _ = authenticate()
+        return SheetManager(gc)
+    
+    token = authorization.replace("Bearer ", "").strip()
+    try:
+        creds = Credentials(token=token)
+        gc = gspread.authorize(creds)
+        return SheetManager(gc)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 app = FastAPI(
     title="Sales CRM API",
@@ -127,6 +146,16 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
+
+@app.get("/api/sheets")
+def list_available_sheets(sm: SheetManager = Depends(get_sheet_manager)):
+    """List all Google Sheets available to the user."""
+    files = sm.list_files()
+    # Filter or just return all? Returning all for now.
+    # We might want to filter by mimeType if list_files doesn't already?
+    # gspread list_spreadsheet_files does filtering.
+    return {"sheets": files}
 
 
 # =============================================================================

@@ -110,6 +110,12 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     if (session?.accessToken) {
       // @ts-ignore
       headers['Authorization'] = `Bearer ${session.accessToken}`;
+
+      // Inject Selected Sheet ID from localStorage
+      const sheetId = localStorage.getItem('selected_sheet_id');
+      if (sheetId) {
+        headers['x-sheet-id'] = sheetId;
+      }
     }
   }
 
@@ -132,6 +138,11 @@ export async function getPipeline(): Promise<PipelineData> {
 
 export async function getConfig(): Promise<Config> {
   const response = await fetchWithAuth(`${API_BASE}/api/config`);
+  return handleResponse(response);
+}
+
+export async function getSheets(): Promise<{ sheets: { id: string; name: string }[] }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/sheets`);
   return handleResponse(response);
 }
 

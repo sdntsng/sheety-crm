@@ -10,7 +10,10 @@ import os
 # In a real production app, use Redis or Memcached.
 _user_sessions: Dict[str, CRMManager] = {}
 
-async def get_crm_session(authorization: Optional[str] = Header(None)) -> CRMManager:
+async def get_crm_session(
+    authorization: Optional[str] = Header(None),
+    x_sheet_id: Optional[str] = Header(None)
+) -> CRMManager:
     """
     Dependency that returns a CRMManager authenticated with the user's Bearer token.
     Supports Singleton fallback for Local Dev if no header is present (and not in Render).
@@ -28,7 +31,7 @@ async def get_crm_session(authorization: Optional[str] = Header(None)) -> CRMMan
              # We don't cache this in _user_sessions to avoid memory leaks of "default" keys
              # But for performance we might want to? 
              # For now, creating fresh is safer for CLI/Dev mix.
-             return CRMManager(SheetManager(gc))
+             return CRMManager(SheetManager(gc), sheet_name=x_sheet_id or "Sales Pipeline 2026")
         except Exception:
             raise HTTPException(status_code=401, detail="Authentication required (Bearer Token or Server Credentials)")
 
@@ -40,8 +43,9 @@ async def get_crm_session(authorization: Optional[str] = Header(None)) -> CRMMan
     # Return cached session if available
     # Note: Tokens rotate, so this dict will grow. We should clear it periodically?
     # For MVP, it's fine.
-    if token in _user_sessions:
-        return _user_sessions[token]
+    cache_key = f"{token}::{x_sheet_id or 'default'}"
+    if cache_key in _user_sessions:
+        return _user_sessions[cache_key]
 
     try:
         # Create Credentials from Access Token
@@ -53,9 +57,11 @@ async def get_crm_session(authorization: Optional[str] = Header(None)) -> CRMMan
         # We assume the user has the "Sales Pipeline 2026" sheet.
         # If not, errors will occur in methods, can be handled there.
         sm = SheetManager(gc)
-        crm = CRMManager(sm)
+        # Use provided sheet_id or default
+        sheet_name = x_sheet_id if x_sheet_id else "Sales Pipeline 2026"
+        crm = CRMManager(sm, sheet_name=sheet_name)
         
-        _user_sessions[token] = crm
+        _user_sessions[cache_key] = crm
         return crm
         
     except Exception as e:
