@@ -376,9 +376,16 @@ def update_opportunity(opp_id: str, data: OpportunityUpdate, crm: CRMManager = D
 @app.patch("/api/opportunities/{opp_id}/stage")
 def update_opportunity_stage(opp_id: str, data: StageUpdate, crm: CRMManager = Depends(get_crm_session)):
     """Update only the stage of an opportunity (for drag-and-drop)."""
-    success = crm.move_opportunity_stage(opp_id, PipelineStage(data.stage))
+    # Validate enum lookup
+    try:
+        target_stage = PipelineStage(data.stage)
+    except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid stage: {data.stage}")
+
+    success = crm.move_opportunity_stage(opp_id, target_stage)
     if not success:
         raise HTTPException(status_code=404, detail="Opportunity not found")
+        
     return {"updated": True, "new_stage": data.stage}
 
 

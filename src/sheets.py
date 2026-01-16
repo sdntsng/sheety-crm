@@ -130,12 +130,13 @@ class SheetManager:
             
             # gspread update usage: update([cell_list] or range_name, values=[[]])
             # For a single row, values is [[col1, col2, ...]]
-            # Range identifier: "A2" works for starting point? range "A2:Z2" is safer
             range_name = f"A{row_index}"
-            ws.update(check_input_data=False, range_name=range_name, values=[row_data])
+            ws.update(range_name=range_name, values=[row_data])
             console.print(f"[green]Updated row {row_index} in {sheet_name} (Batch)[/green]")
         except Exception as e:
             console.print(f"[red]Error updating row: {e}[/red]")
+            # Important: re-raise to upper layers!
+            raise e
 
     @sheets_api_retry
     def append_row(self, sheet_name: str, row_data: list, worksheet_name: str = "Sheet1"):

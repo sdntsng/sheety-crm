@@ -23,28 +23,21 @@ class CRMTemplates:
         sh = self.gc.create(name)
         console.print(f"[green]✓ Created spreadsheet: {sh.url}[/green]")
 
-        # Rename default sheet to Leads
+        # Create worksheets using ensure_worksheet to prevent duplicates
+        # The default sheet (sheet1) is renamed to "Leads" and then set up.
+        # Subsequent calls to ensure_worksheet will create new sheets if they don't exist.
         leads_ws = sh.sheet1
         leads_ws.update_title("Leads")
         self.setup_leads_sheet(leads_ws)
         console.print("[green]✓ Set up Leads worksheet[/green]")
-
-        # Create Opportunities worksheet
-        opps_ws = sh.add_worksheet(title="Opportunities", rows=1000, cols=20)
-        opps_ws = sh.add_worksheet(title="Opportunities", rows=1000, cols=20)
-        self.setup_opportunities_sheet(opps_ws)
+        
+        self.ensure_worksheet(sh, "Opportunities")
         console.print("[green]✓ Set up Opportunities worksheet[/green]")
-
-        # Create Activities worksheet
-        activities_ws = sh.add_worksheet(title="Activities", rows=1000, cols=10)
-        activities_ws = sh.add_worksheet(title="Activities", rows=1000, cols=10)
-        self.setup_activities_sheet(activities_ws)
+        
+        self.ensure_worksheet(sh, "Activities")
         console.print("[green]✓ Set up Activities worksheet[/green]")
-
-        # Create Summary/Dashboard worksheet
-        summary_ws = sh.add_worksheet(title="Summary", rows=50, cols=10)
-        summary_ws = sh.add_worksheet(title="Summary", rows=50, cols=10)
-        self.setup_summary_sheet(summary_ws)
+        
+        self.ensure_worksheet(sh, "Summary")
         console.print("[green]✓ Set up Summary dashboard[/green]")
 
         console.print(f"\n[bold green]CRM ready! Open: {sh.url}[/bold green]")

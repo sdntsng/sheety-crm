@@ -27,12 +27,21 @@ async def get_crm_session(
         from src.auth import authenticate
         try:
              # This uses local token.json or Service Account Env
-             gc, _ = authenticate() 
-             # We don't cache this in _user_sessions to avoid memory leaks of "default" keys
-             # But for performance we might want to? 
-             # For now, creating fresh is safer for CLI/Dev mix.
-             return CRMManager(SheetManager(gc), sheet_name=x_sheet_id or "Sales Pipeline 2026")
-        except Exception:
+             # This uses local token.json or Service Account Env
+             gc, _ = authenticate()
+             
+             # Use a fixed key for local dev session
+             cache_key = f"local_dev::{x_sheet_id or 'default'}"
+             
+             if cache_key in _user_sessions:
+                 return _user_sessions[cache_key]
+                 
+             sheet_name = x_sheet_id or "Sales Pipeline 2026"
+             crm = CRMManager(SheetManager(gc), sheet_name=sheet_name)
+             _user_sessions[cache_key] = crm
+             return crm
+        except Exception as e:
+            print(f"Auth Fallback Error: {e}")
             raise HTTPException(status_code=401, detail="Authentication required (Bearer Token or Server Credentials)")
 
     # 2. Multi-Tenant / SaaS Mode

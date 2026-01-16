@@ -130,13 +130,10 @@ def main():
         # Check if sheet exists, if not create it
         sh = sm.get_sheet(args.sheet)
         if not sh:
-             if console.input(f"[yellow]Sheet '{args.sheet}' not found. Create it? (y/n): [/yellow]").lower() == 'y':
-                 from src.crm.templates import CRMTemplates
-                 templates = CRMTemplates(gc)
-                 sh = templates.create_crm_sheet(args.sheet)
-             else:
-                 console.print("[red]Aborting.[/red]")
-                 return
+             console.print(f"[yellow]Sheet '{args.sheet}' not found. Creating...[/yellow]")
+             from src.crm.templates import CRMTemplates
+             templates = CRMTemplates(gc)
+             sh = templates.create_crm_sheet(args.sheet)
 
         crm = CRMManager(sm, sheet_name=args.sheet)
         console.print(f"[green]Connected to sheet: {args.sheet}[/green]")
@@ -146,13 +143,29 @@ def main():
 
     # Clear data if requested
     if args.clear:
-        if console.input(f"[bold red]Are you sure you want to clear ALL data from '{args.sheet}'? (y/n): [/bold red]").lower() == 'y':
-            console.print("Clearing worksheets...")
-            # We would need to implement clear methods in CRMManager or use SheetManager direct
-            # For safety, let's just warn for now or implement a simple clear range
-            # Implementation for clear left as exercise or manual for now to avoid accidents
-            # sm.clear_range(...)
-            pass
+        console.print("[bold red]Clearing ALL data from sheet...[/bold red]")
+        if True: # Skip prompt
+            console.print("Recreating worksheets...")
+            # Re-run creating worksheets to wipe them
+            from src.crm.templates import CRMTemplates
+            templates = CRMTemplates(gc)
+            
+            # Helper to delete if exists
+            def reset_ws(name):
+                try: 
+                    sh.del_worksheet(sh.worksheet(name))
+                except: pass
+                
+            reset_ws("Leads")
+            reset_ws("Opportunities") 
+            reset_ws("Activities")
+            reset_ws("Summary")
+            
+            # Re-create structure
+            templates.ensure_worksheet(sh, "Leads")
+            templates.ensure_worksheet(sh, "Opportunities")
+            templates.ensure_worksheet(sh, "Activities")
+            templates.ensure_worksheet(sh, "Summary")
 
     # Generate Data
     leads = generate_leads(args.leads)

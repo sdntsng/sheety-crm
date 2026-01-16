@@ -112,27 +112,44 @@ class CRMManager:
 
     def update_lead(self, lead: Lead) -> bool:
         """Update an existing lead."""
-        leads = self.get_leads()
-        for i, existing in enumerate(leads):
-            if existing.lead_id == lead.lead_id:
+        data = self._get_cached_data(LEADS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, LEADS_WS)
+            if data: self._set_cached_data(LEADS_WS, data)
+            
+        if not data: return False
+
+        # Iterate raw data to find ID (col 0)
+        # Skip header (index 0)
+        for i, row in enumerate(data):
+            if i == 0: continue
+            if row and row[0] == lead.lead_id:
                 lead.updated_at = datetime.now()
-                # Row index is i + 2 (1-indexed + header row)
-                # Row index is i + 2 (1-indexed + header row)
-                row_index = i + 2
-                # Use batch update_row instead of cell-by-cell
-                self.sm.update_row(self.sheet_name, row_index, lead.to_row(), LEADS_WS)
-                self._invalidate_cache(LEADS_WS)
+                row_index = i + 1  # 1-indexed sheet
+                new_row = lead.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, LEADS_WS)
+                # Optimistic cache update
+                data[i] = new_row
+                self._set_cached_data(LEADS_WS, data)
                 return True
         return False
 
     def delete_lead(self, lead_id: str) -> bool:
         """Delete a lead by ID."""
-        leads = self.get_leads()
-        for i, lead in enumerate(leads):
-            if lead.lead_id == lead_id:
-                row_index = i + 2  # 1-indexed + header
+        data = self._get_cached_data(LEADS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, LEADS_WS)
+        
+        if not data: return False
+
+        for i, row in enumerate(data):
+            if i == 0: continue
+            if row and row[0] == lead_id:
+                row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, LEADS_WS)
-                self._invalidate_cache(LEADS_WS)
+                # Optimistic cache update
+                data.pop(i)
+                self._set_cached_data(LEADS_WS, data)
                 return True
         return False
 
@@ -176,14 +193,26 @@ class CRMManager:
 
     def update_opportunity(self, opp: Opportunity) -> bool:
         """Update an existing opportunity."""
-        opps = self.get_opportunities()
-        for i, existing in enumerate(opps):
-            if existing.opp_id == opp.opp_id:
+        data = self._get_cached_data(OPPS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, OPPS_WS)
+            if data: self._set_cached_data(OPPS_WS, data)
+            
+        if not data: return False
+        
+        # Iterate raw data to find ID (col 0)
+        for i, row in enumerate(data):
+            if i == 0: continue
+            if row and row[0] == opp.opp_id:
                 opp.updated_at = datetime.now()
-                row_index = i + 2
-                # Use batch update_row
-                self.sm.update_row(self.sheet_name, row_index, opp.to_row(), OPPS_WS)
-                self._invalidate_cache(OPPS_WS)
+                row_index = i + 1
+                
+                new_row = opp.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, OPPS_WS)
+                
+                # Optimistic cache update
+                data[i] = new_row
+                self._set_cached_data(OPPS_WS, data)
                 return True
         return False
 
@@ -200,12 +229,20 @@ class CRMManager:
 
     def delete_opportunity(self, opp_id: str) -> bool:
         """Delete an opportunity by ID."""
-        opps = self.get_opportunities()
-        for i, opp in enumerate(opps):
-            if opp.opp_id == opp_id:
-                row_index = i + 2
+        data = self._get_cached_data(OPPS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, OPPS_WS)
+            
+        if not data: return False
+
+        for i, row in enumerate(data):
+            if i == 0: continue
+            if row and row[0] == opp_id:
+                row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, OPPS_WS)
-                self._invalidate_cache(OPPS_WS)
+                # Optimistic cache update
+                data.pop(i)
+                self._set_cached_data(OPPS_WS, data)
                 return True
         return False
 

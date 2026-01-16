@@ -59,9 +59,10 @@ export default function PipelinePage() {
         // Actual update
         try {
             await updateOpportunityStage(opp.opp_id, newStage);
+            console.log('Update success, refetching...');
         } catch (err) {
             console.error('Failed to update stage:', err);
-            // Refetch on error
+        } finally {
             fetchPipeline();
         }
     };
