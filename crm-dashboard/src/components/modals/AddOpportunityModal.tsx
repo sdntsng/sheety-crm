@@ -52,16 +52,16 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
             <div className="glass-card w-full max-w-lg p-6 shadow-2xl relative">
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-200"
+                    className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                     ✕
                 </button>
 
-                <h2 className="text-2xl font-serif font-bold text-zinc-100 mb-6">New Opportunity</h2>
+                <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">New Opportunity</h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">
+                        <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1">
                             Lead / Company
                         </label>
                         <select
@@ -142,7 +142,7 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-zinc-400 hover:text-zinc-200"
+                            className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         >
                             Cancel
                         </button>

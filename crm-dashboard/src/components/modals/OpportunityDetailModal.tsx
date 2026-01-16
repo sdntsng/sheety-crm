@@ -64,57 +64,57 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border-zinc-700">
+            <div className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
                 {/* Header */}
-                <div className={`p-6 border-b border-zinc-800 stage-${opportunity.stage.toLowerCase().replace(/\s+/g, '-')} border-l-4`}>
+                <div className={`p-6 border-b border-[var(--border-color)] stage-${opportunity.stage.toLowerCase().replace(/\s+/g, '-')} border-l-4`}>
                     <div className="flex justify-between items-start">
                         <div>
-                            <h2 className="text-xl font-bold text-zinc-100">{opportunity.title}</h2>
-                            <p className="text-zinc-400 text-sm mt-1">
+                            <h2 className="text-xl font-bold text-[var(--text-primary)]">{opportunity.title}</h2>
+                            <p className="text-[var(--text-secondary)] text-sm mt-1">
                                 {opportunity.lead?.company_name} • {opportunity.lead?.contact_name}
                             </p>
                         </div>
-                        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
+                        <button onClick={onClose} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                             ✕
                         </button>
                     </div>
                     <div className="flex gap-4 mt-4">
-                        <div className="bg-zinc-800/50 px-3 py-1.5 rounded-lg border border-zinc-700">
-                            <span className="text-xs text-zinc-500 uppercase tracking-wider">Value</span>
-                            <p className="text-lg font-semibold text-green-400">{formatCurrency(opportunity.value)}</p>
+                        <div className="bg-[var(--bg-surface)] px-3 py-1.5 rounded-lg border border-[var(--border-color)]">
+                            <span className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Value</span>
+                            <p className="text-lg font-semibold text-green-500">{formatCurrency(opportunity.value)}</p>
                         </div>
-                        <div className="bg-zinc-800/50 px-3 py-1.5 rounded-lg border border-zinc-700">
-                            <span className="text-xs text-zinc-500 uppercase tracking-wider">Probability</span>
-                            <p className="text-lg font-semibold text-zinc-200">{opportunity.probability}%</p>
+                        <div className="bg-[var(--bg-surface)] px-3 py-1.5 rounded-lg border border-[var(--border-color)]">
+                            <span className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Probability</span>
+                            <p className="text-lg font-semibold text-[var(--text-primary)]">{opportunity.probability}%</p>
                         </div>
-                        <div className="bg-zinc-800/50 px-3 py-1.5 rounded-lg border border-zinc-700">
-                            <span className="text-xs text-zinc-500 uppercase tracking-wider">Stage</span>
-                            <p className="text-lg font-semibold text-zinc-200">{opportunity.stage}</p>
+                        <div className="bg-[var(--bg-surface)] px-3 py-1.5 rounded-lg border border-[var(--border-color)]">
+                            <span className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Stage</span>
+                            <p className="text-lg font-semibold text-[var(--text-primary)]">{opportunity.stage}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-6">
-                    <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+                    <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-4">
                         Updates & Notes
                     </h3>
 
                     {/* Timeline */}
-                    <div className="space-y-6 relative ml-3 border-l border-zinc-800 pl-6 pb-4">
+                    <div className="space-y-6 relative ml-3 border-l border-[var(--border-color)] pl-6 pb-4">
                         {activities.length === 0 && (
-                            <p className="text-zinc-500 text-sm italic">No updates yet.</p>
+                            <p className="text-[var(--text-secondary)] text-sm italic">No updates yet.</p>
                         )}
 
                         {activities.map((activity) => (
                             <div key={activity.activity_id} className="relative">
                                 {/* Dot */}
-                                <div className="absolute -left-[29px] top-1 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-900"></div>
+                                <div className="absolute -left-[29px] top-1 w-3 h-3 rounded-full bg-[var(--text-secondary)] border-2 border-[var(--bg-paper)]"></div>
 
                                 <div className="flex flex-col gap-1">
                                     <div className="flex justify-between items-baseline">
-                                        <span className="text-zinc-300 font-medium text-sm">{activity.description || activity.subject}</span>
-                                        <span className="text-xs text-zinc-500">
+                                        <span className="text-[var(--text-primary)] font-medium text-sm">{activity.description || activity.subject}</span>
+                                        <span className="text-xs text-[var(--text-secondary)]">
                                             {new Date(activity.date).toLocaleString()}
                                         </span>
                                     </div>
@@ -128,12 +128,12 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                 </div>
 
                 {/* Footer / Input */}
-                <div className="p-4 border-t border-zinc-800 bg-zinc-900/50">
+                <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-surface)]">
                     <form onSubmit={handleAddNote} className="flex gap-3">
                         <input
                             type="text"
                             placeholder="Add a quick update..."
-                            className="input flex-1 bg-zinc-950 border-zinc-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                            className="input flex-1"
                             value={newNote}
                             onChange={(e) => setNewNote(e.target.value)}
                             autoFocus

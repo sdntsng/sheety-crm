@@ -69,14 +69,14 @@ export default function PipelineColumn({ stage, onDrop, onOppClick, onUpdate }: 
             onDrop={handleDrop}
         >
             {/* Header */}
-            <div className={`p-4 border-b border-zinc-800 bg-gradient-to-r ${colorClass} to-transparent rounded-t-xl`}>
+            <div className={`p-4 border-b border-[var(--border-color)] bg-gradient-to-r ${colorClass} to-transparent rounded-t-xl`}>
                 <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-semibold text-sm text-zinc-100">{stage.stage}</h3>
-                    <span className="text-xs text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-full">
+                    <h3 className="font-semibold text-sm text-[var(--text-primary)]">{stage.stage}</h3>
+                    <span className="text-xs text-[var(--text-secondary)] bg-[var(--bg-paper)] border border-[var(--border-color)] px-2 py-0.5 rounded-full">
                         {stage.count}
                     </span>
                 </div>
-                <div className="text-sm font-medium text-green-400">
+                <div className="text-sm font-medium text-green-500">
                     {formatCurrency(stage.total_value)}
                 </div>
             </div>
@@ -94,7 +94,7 @@ export default function PipelineColumn({ stage, onDrop, onOppClick, onUpdate }: 
                 ))}
 
                 {stage.opportunities.length === 0 && (
-                    <div className="text-center text-zinc-600 py-8 text-sm">
+                    <div className="text-center text-[var(--text-secondary)] py-8 text-sm">
                         No opportunities
                     </div>
                 )}

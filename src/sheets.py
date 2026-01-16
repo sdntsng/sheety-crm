@@ -15,17 +15,35 @@ class SheetManager:
 
     @sheets_api_retry
     def list_files(self):
-        """Lists all spreadsheets available to the user."""
-        files = self.gc.list_spreadsheet_files()
-        table = Table(title="Google Sheets")
-        table.add_column("ID", style="dim", no_wrap=True)
-        table.add_column("Name", style="bold")
+        """Lists the 50 most recently modified spreadsheets."""
+        # Use Drive API v3 directly to filter and sort
+        url = "https://www.googleapis.com/drive/v3/files"
+        params = {
+            "q": "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
+            "orderBy": "modifiedTime desc",
+            "pageSize": 50,
+            "fields": "files(id, name, modifiedTime)"
+        }
         
-        for file in files:
-            table.add_row(file['id'], file['name'])
-        
-        console.print(table)
-        return files
+        try:
+            # gspread Client exposes request method which handles auth
+            res = self.gc.request("get", url, params=params)
+            files = res.json().get("files", [])
+            
+            table = Table(title="Recent Google Sheets")
+            table.add_column("ID", style="dim", no_wrap=True)
+            table.add_column("Name", style="bold")
+            table.add_column("Modified", style="cyan")
+            
+            for file in files:
+                table.add_row(file.get('id'), file.get('name'), file.get('modifiedTime'))
+            
+            console.print(table)
+            return files
+        except Exception as e:
+            console.print(f"[red]Error listing files: {e}[/red]")
+            # Fallback to default if custom request fails (compatibility)
+            return self.gc.list_spreadsheet_files()
 
     @sheets_api_retry
     def get_sheet(self, name_or_url: str):

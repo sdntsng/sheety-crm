@@ -67,12 +67,12 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                        <span className="text-green-400 text-lg">🚀</span>
+                    <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                        <span className="text-green-600 text-lg">🚀</span>
                     </div>
                     <div>
-                        <h2 className="text-lg font-semibold text-zinc-100">Convert to Opportunity</h2>
-                        <p className="text-sm text-zinc-500">Create a new opportunity from {lead.company_name}</p>
+                        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Convert to Opportunity</h2>
+                        <p className="text-sm text-[var(--text-secondary)]">Create a new opportunity from {lead.company_name}</p>
                     </div>
                 </div>
 
@@ -84,21 +84,21 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Lead Info Summary */}
-                    <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                        <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Lead Information</p>
+                    <div className="p-4 bg-[var(--bg-surface)] rounded-lg border border-[var(--border-color)]">
+                        <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-2">Lead Information</p>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                                <span className="text-zinc-500">Company:</span>{' '}
-                                <span className="text-zinc-200">{lead.company_name}</span>
+                                <span className="text-[var(--text-secondary)]">Company:</span>{' '}
+                                <span className="text-[var(--text-primary)]">{lead.company_name}</span>
                             </div>
                             <div>
-                                <span className="text-zinc-500">Contact:</span>{' '}
-                                <span className="text-zinc-200">{lead.contact_name}</span>
+                                <span className="text-[var(--text-secondary)]">Contact:</span>{' '}
+                                <span className="text-[var(--text-primary)]">{lead.contact_name}</span>
                             </div>
                             {lead.contact_email && (
                                 <div className="col-span-2">
-                                    <span className="text-zinc-500">Email:</span>{' '}
-                                    <span className="text-zinc-200">{lead.contact_email}</span>
+                                    <span className="text-[var(--text-secondary)]">Email:</span>{' '}
+                                    <span className="text-[var(--text-primary)]">{lead.contact_email}</span>
                                 </div>
                             )}
                         </div>
@@ -176,11 +176,11 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-3 justify-end pt-4 border-t border-zinc-800">
+                    <div className="flex gap-3 justify-end pt-4 border-t border-[var(--border-color)]">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-zinc-400 hover:text-zinc-100 transition-colors"
+                            className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                             disabled={loading}
                         >
                             Cancel
