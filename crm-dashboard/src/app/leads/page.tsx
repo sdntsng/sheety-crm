@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getLeads, createLead, Lead, getConfig, Config } from '@/lib/api';
+import ConvertLeadModal from '@/components/modals/ConvertLeadModal';
 
 export default function LeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -10,6 +11,16 @@ export default function LeadsPage() {
     const [error, setError] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [statusFilter, setStatusFilter] = useState<string>('');
+    const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
+
+    const fetchLeads = async () => {
+        try {
+            const leadsData = await getLeads();
+            setLeads(leadsData.leads);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch leads');
+        }
+    };
 
     useEffect(() => {
         async function fetchData() {
@@ -95,13 +106,14 @@ export default function LeadsPage() {
                             <th className="text-left p-4 text-sm font-medium text-zinc-400">Status</th>
                             <th className="text-left p-4 text-sm font-medium text-zinc-400">Source</th>
                             <th className="text-left p-4 text-sm font-medium text-zinc-400">Created</th>
+                            <th className="text-left p-4 text-sm font-medium text-zinc-400">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredLeads.map(lead => (
                             <tr
                                 key={lead.lead_id}
-                                className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors cursor-pointer"
+                                className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
                             >
                                 <td className="p-4">
                                     <span className="font-medium text-zinc-100">{lead.company_name}</span>
@@ -115,11 +127,24 @@ export default function LeadsPage() {
                                 <td className="p-4 text-zinc-500 text-sm">
                                     {new Date(lead.created_at).toLocaleDateString()}
                                 </td>
+                                <td className="p-4">
+                                    {lead.status !== 'Qualified' && lead.status !== 'Lost' && lead.status !== 'Unqualified' && (
+                                        <button
+                                            className="px-3 py-1.5 text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/20 transition-colors"
+                                            onClick={() => setLeadToConvert(lead)}
+                                        >
+                                            🚀 Convert
+                                        </button>
+                                    )}
+                                    {lead.status === 'Qualified' && (
+                                        <span className="text-xs text-zinc-500">Converted</span>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                         {filteredLeads.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="p-8 text-center text-zinc-500">
+                                <td colSpan={7} className="p-8 text-center text-zinc-500">
                                     No leads found
                                 </td>
                             </tr>
@@ -136,6 +161,18 @@ export default function LeadsPage() {
                     onAdded={(lead) => {
                         setLeads([...leads, lead]);
                         setShowModal(false);
+                    }}
+                />
+            )}
+
+            {/* Convert Lead Modal */}
+            {leadToConvert && (
+                <ConvertLeadModal
+                    lead={leadToConvert}
+                    onClose={() => setLeadToConvert(null)}
+                    onSuccess={() => {
+                        setLeadToConvert(null);
+                        fetchLeads(); // Refresh to show updated status
                     }}
                 />
             )}
