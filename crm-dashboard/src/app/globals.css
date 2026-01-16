@@ -1,0 +1,259 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: var(--font-playfair), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-paper: var(--bg-paper);
+  --color-surface: var(--bg-surface);
+  --color-ink: var(--text-primary);
+  --color-ink-muted: var(--text-secondary);
+  --color-border-subtle: var(--border-color);
+}
+
+:root {
+  /* DARK MODE (Default - VSCode-ish) */
+  --bg-paper: #0f1115;
+  /* Very Deep Grey (Not pure black) */
+  --bg-surface: #181a1f;
+  /* Panel/Sidebar */
+  --text-primary: #e0e0e0;
+  --text-secondary: #858585;
+  /* VSCode Grey */
+  --border-color: #2b2d31;
+
+  --accent: #3b82f6;
+  /* Bright Blue for Dark Mode */
+  --accent-muted: rgba(59, 130, 246, 0.15);
+  --accent-text: #ffffff;
+
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --glass-bg: rgba(24, 26, 31, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='light'] {
+  /* LIGHT MODE (Clean Single-Accent) */
+  --bg-paper: #ffffff;
+  /* Pure White for crispness */
+  --bg-surface: #f3f3f3;
+  /* Very light grey sidebar */
+  --text-primary: #202020;
+  /* Almost Black */
+  --text-secondary: #606060;
+  --border-color: #e5e5e5;
+
+  --accent: #2e3b55;
+  /* Dark Slate Blue (Single Dark Accent) */
+  --accent-muted: rgba(46, 59, 85, 0.1);
+  --accent-text: #ffffff;
+
+  --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(0, 0, 0, 0.06);
+}
+
+body {
+  background-color: var(--bg-paper);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-serif);
+  color: var(--text-primary);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+/* Components */
+
+/* Ghost Button (Monochromatic) */
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  padding: 8px 16px;
+  border-radius: 4px;
+  /* More squared for VS Code vibe */
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.1s ease;
+  box-shadow: none;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+
+.btn-ghost:hover {
+  background: var(--bg-surface);
+}
+
+/* Inputs */
+.input {
+  background: var(--bg-paper);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  transition: border-color 0.1s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Cards */
+.glass-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.opp-card {
+  background: var(--bg-paper);
+  /* Contrast against surface column */
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 12px;
+  cursor: grab;
+  transition: all 0.1s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  /* Very subtle */
+}
+
+.opp-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Pipeline Column */
+.pipeline-column {
+  background: var(--bg-surface);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.pipeline-column:hover {
+  /* No semantic hover, keep it clean */
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-color);
+}
+
+.sidebar-link {
+  color: var(--text-secondary);
+  border-radius: 4px;
+}
+
+.sidebar-link:hover {
+  background: var(--bg-paper);
+  color: var(--text-primary);
+}
+
+.sidebar-link.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  /* Inverted active state like VS Code */
+  font-weight: 500;
+}
+
+/* Utilities */
+.text-zinc-100 {
+  color: var(--text-primary) !important;
+}
+
+.text-zinc-200 {
+  color: var(--text-primary) !important;
+}
+
+.text-zinc-400 {
+  color: var(--text-secondary) !important;
+}
+
+.text-zinc-500 {
+  color: var(--text-secondary) !important;
+}
+
+.text-zinc-600 {
+  color: var(--text-secondary) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Stage Indicators - UNIFIED */
+[class^="stage-"] {
+  border-left-width: 3px;
+  border-left-style: solid;
+  border-left-color: var(--accent) !important;
+  /* Uniform accent */
+  opacity: 0.9;
+}
+
+/* Helper to possibly colorize ONLY the tag text if needed, but keeping borders uniform */
+/* We can remove specific colors or keep them only for "Closed Won/Lost" semantic meaning? 
+   User said "just need one accent color". So ALL uniform. */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out forwards;
+}

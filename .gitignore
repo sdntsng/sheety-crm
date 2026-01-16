@@ -1,0 +1,17 @@
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+.next/
+.vercel/
+
+# Env
+.env
+.env.local
+token.json
+credentials.json
+.DS_Store
