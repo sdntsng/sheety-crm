@@ -1,74 +1,75 @@
----
-description: Design system rules for High-Quality Editorial UI ("Digital Paper")
----
+# design_system.md: "Digital Paper" Aesthetic
 
-# High-Quality Editorial UI ("Digital Paper") Rules
+This document outlines the design principles and tokens for the SheetyCRM "Digital Paper" aesthetic. This visual language mimics a physical workspace, treating the screen as a desk and UI elements as paper artifacts.
 
-This design system aims for a content-first, distraction-free, and typographical aesthetic similar to Notion, Claude, or Medium.
+## 1. Core Philosophy: "Retro-Modern Office"
 
-## Core Philosophy
-- **Digital Paper**: Interface feels like a premium sheet of paper.
-- **Chrome Recedes**: Buttons, nav bars, and containers should be minimal.
-- **Content First**: Typography is the main design element.
-- **Monochromatic Pro**: Single accent color. Functional, not decorative.
+The aesthetic combines the tactility of physical paper workflows with the precision of modern Swiss typography.
 
-## 1. Typography System
+*   **The Metaphor:** The screen is a desk.
+*   **The Materials:** Rice paper, cardstock, ink, graphite, tape, and highlighters.
+*   **The Vibe:** An organized, analog workspace digitized.
 
-### Font Stack
-- **Primary (UI/Sans)**: `Inter` (or Geist/SF Pro). Used for UI controls, inputs, metadata.
-- **Secondary (Headings/Editorial)**: `Playfair Display` (or Merriweather/Tiempos). Used for Page Titles, Section Headers.
-- **Mono**: `JetBrains Mono` or `SF Mono`.
+## 2. Typography
 
-### Scale & Leading
-| Element | Font | Size | Weight | Line Height | Tracking |
-|---|---|---|---|---|---|
-| H1 | Serif | 2rem (32px) | Semibold (600) | 1.2 | -0.02em |
-| H2 | Serif | 1.5rem (24px) | Medium (500) | 1.3 | -0.01em |
-| Body | Sans | 1rem (16px) | Regular (400) | **1.6** | 0em |
-| Caption | Sans | 0.8125rem | Regular | 1.5 | +0.01em |
+We use a distinctive pairing:
 
-**Constraint**: Body text max-width ~60-80 chars (600-700px).
+*   **Primary (UI/Body):** `Outfit`
+    *   **Usage:** Headings, labels, body text.
+    *   **Why:** A modern geometric sans-serif that brings personality and a premium feel, avoiding the generic look of Inter/Roboto.
+    *   **Styling:** Bold weights, clean geometry.
 
-## 2. Color Palette (Monochromatic Focus)
+*   **Secondary (Data/Code):** `JetBrains Mono`
+    *   **Usage:** Data values, dates, badges, inputs, status indicators.
+    *   **Why:** Evokes typewriters and technical ledgers.
+    *   **Styling:** All-caps for labels, distinct borders.
 
-### Backgrounds
-- **Dark Mode (Default)**: `#0F1115` (Deep Grey) + `#181A1F` (Surface).
-- **Light Mode**: `#FFFFFF` (Pure White) + `#F3F3F3` (Surface).
-- **Hover**: Subtle darkening.
+## 3. Color Palette
 
-### Ink (Text)
-- **Primary**: `#E0E0E0` (Dark Mode) / `#202020` (Light Mode).
-- **Secondary**: `#858585` (VS Code Grey).
-- **Borders**: Minimal, `#2B2D31`.
+### Surfaces
+*   **`--bg-paper` (#F9F7F1):** The desk surface. Warm, natural white/beige with a grain texture.
+*   **`--bg-card` (#FFFFFF):** Fresh sheets of paper or index cards. Pure white to pop against the warm background.
+*   **`--bg-hover` (#F0EFE9):** A slightly darkened paper tone for interactive states.
 
-### Accent (Single Color)
-- **Primary Action**: 
-    - Dark Mode: **Royal Blue** (`#3B82F6`).
-    - Light Mode: **Dark Slate Blue** (`#2E3B55`).
-- **Usage**: Active states, primary buttons, focus rings.
-- **Pipeline Stages**: All use the Single Accent. No rainbow colors.
+### Ink & Pencil
+*   **`--text-primary` (#1A1918):** "Ink Black". Start, high contrast, non-pure black.
+*   **`--text-secondary` (#5A5855):** "Graphite". For secondary text, borders, and dashed lines.
+*   **`--text-muted` (#8C8984):** "Faded Ink". For placeholders and disabled states.
 
-## 3. Components
+### Highlighters (Accents)
+*   **`--accent-blue` (#2A5D94):** Fountain pen blue (Links, Primary Actions).
+*   **`--accent-red` (#C53030):** Grading pen red (Errors, Alerts).
+*   **`--accent-yellow` (#FEF08A):** Highlighter yellow (Badges, Emphasis).
 
-### Buttons ("Ghost" Style)
-- **Default**: Transparent bg, `#333` text, hover `#F0F0F0` bg.
-- **Call to Action**: Solid Single Accent. 
-- **Radius**: `4px` (Sharp/Technical).
+## 4. Visual Elements
 
-### Inputs
-- **Style**: Minimal. Bordered.
-- **Focus**: Accent border.
+### Shadows
+We avoid soft, diffuse shadows in favor of **hard, directional shadows** to simulate physical depth (paper cutouts).
+*   **Card:** `2px 2px 0px rgba(0,0,0,0.08)`
+*   **Hover:** `4px 4px 0px rgba(0,0,0,0.12)` (The paper "lifts" closer to the light)
 
-### Cards
-- **Border**: 1px solid subtle.
-- **Shadow**: NONE by default. Subtle on hover.
-- **Radius**: `4px` - `6px`.
+### Borders
+*   **Solid:** Defined edges (`1px solid var(--border-pencil)`).
+*   **Dashed:** For perforated lines or "tear-off" sections.
+*   **Double:** For structural emphasis (Headers, Important Sections).
 
-## 4. Spacing & Rhythm
-- **Grid**: 4pt baseline.
-- **Rhythm**: 24px/32px between sections. 4px/8px between related items.
+### Texture
+A global SVG noise filter is applied to `--bg-paper` opacity `0.04` to create grain without compromising readability.
 
-## 5. Motion
-- **Speed**: Very Fast (100-150ms).
-- **Easing**: `ease-out`. 
-- **Effect**: Snappy, functional.
+## 5. Components
+
+### The Binder Header
+Replaces the traditional sidebar. A horizontal strip that feels like the spine of a binder or a ruler on a desk.
+*   **Nav Items:** Uppercase, monospace, underlined on hover.
+*   **Logo:** Stark, bold sans-serif.
+
+### Index Cards (Opportunities)
+Represents discrete units of work.
+*   **Layout:** Information arranged in a grid or list.
+*   **Interaction:** Subtle rotation (`0.5deg`) on hover to feel organic.
+*   **Stamps:** Statuses are styled as ink stamps (rotated, bordered).
+
+### The Ledger (Leads Table)
+Represents a record book.
+*   **Styling:** Strong horizontal lines, dashed vertical separators.
+*   **Font:** Monospace for all cell data.

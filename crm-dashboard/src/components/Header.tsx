@@ -57,7 +57,7 @@ export default function Header() {
             <div className="w-full max-w-7xl mx-auto flex items-center gap-6">
                 {/* Logo & Brand - Ink Stamp Style */}
                 <Link href="/" className="header-logo group">
-                    <span className="font-serif italic text-2xl group-hover:text-[var(--accent-blue)] transition-colors">
+                    <span className="font-sans italic text-2xl group-hover:text-[var(--accent-blue)] transition-colors">
                         Sheety<span className="font-light text-[var(--text-secondary)]">CRM</span>
                     </span>
                 </Link>
@@ -114,7 +114,7 @@ export default function Header() {
                                         className="w-full h-full rounded-full grayscale hover:grayscale-0 transition-all"
                                     />
                                 ) : (
-                                    <span className="w-full h-full flex items-center justify-center font-serif font-bold bg-[var(--text-primary)] text-white rounded-full">
+                                    <span className="w-full h-full flex items-center justify-center font-sans font-bold bg-[var(--text-primary)] text-white rounded-full">
                                         {session.user.name?.[0] || 'U'}
                                     </span>
                                 )}
@@ -123,7 +123,7 @@ export default function Header() {
                             {showUserMenu && (
                                 <div className="absolute top-full right-0 mt-3 w-56 paper-card z-50 p-2 bg-[var(--bg-card)]">
                                     <div className="px-3 py-2 border-b border-[var(--border-pencil)] mb-2">
-                                        <p className="font-serif font-bold text-sm">{session.user.name}</p>
+                                        <p className="font-sans font-bold text-sm">{session.user.name}</p>
                                         <p className="font-mono text-xs text-[var(--text-secondary)]">{session.user.email}</p>
                                     </div>
                                     <button

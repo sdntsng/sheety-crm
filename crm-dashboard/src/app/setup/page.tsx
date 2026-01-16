@@ -13,7 +13,7 @@ interface Sheet {
 
 export default function SetupPage() {
     const router = useRouter();
-    const { data: session } = useSession();
+    const { data: session, status } = useSession(); // Get status to check loading/unauth
     const [openPicker, authResponse] = useDrivePicker();
 
     // State
@@ -29,7 +29,7 @@ export default function SetupPage() {
     }, []);
 
     const handleOpenPicker = () => {
-        // @ts-ignore - session.accessToken is injected by our auth config
+        // @ts-ignore
         const token = session?.accessToken;
 
         if (!token) {
@@ -39,33 +39,25 @@ export default function SetupPage() {
 
         openPicker({
             clientId: process.env.GOOGLE_CLIENT_ID || "",
-            developerKey: "", // Not strictly needed if using valid OAuth token for many scopes, but good to have if issues arise. 
-            // For this lib with OAuth token, usually apiKey is optional or can be empty if token provided.
+            developerKey: "",
             viewId: "SPREADSHEETS",
             token: token,
             showUploadView: false,
             supportDrives: true,
             multiselect: false,
             callbackFunction: (data) => {
-                console.log('Picker Callback Data:', data);
                 if (data.action === 'picked') {
                     const doc = data.docs[0];
-                    console.log('Selected Doc:', doc);
                     handleSelect({ id: doc.id, name: doc.name });
-                } else if (data.action === 'cancel') {
-                    console.log('User cancelled picker');
-                } else {
-                    console.warn('Unexpected picker action:', data.action);
                 }
             },
         });
     };
 
     const handleSelect = (sheet: Sheet) => {
-        localStorage.setItem('selected_sheet_id', sheet.id); // Save ID for backend headers
+        localStorage.setItem('selected_sheet_id', sheet.id);
         localStorage.setItem('selected_sheet_name', sheet.name);
         setSelectedSheet(sheet.name);
-        // Slight delay for UX
         setTimeout(() => router.push('/'), 500);
     };
 
@@ -76,18 +68,8 @@ export default function SetupPage() {
         try {
             const result = await createSheet(newSheetName.trim());
             if (result.success && result.sheet) {
-                // Auto-select the new sheet
-                localStorage.setItem('selected_sheet_id', result.sheet.url); // For created ones we might use URL or ID? 
-                // Backend create returns ID and URL. 
-                // Existing logic uses name/id. 
-                // Let's stick to ID usage for consistency if possible, 
-                // but backend mainly cares about opening it.
-                // Sheets API open() takes name/url/key.
-
-                // Ideally we store the ID.
-                localStorage.setItem('selected_sheet_id', result.sheet.id);
+                localStorage.setItem('selected_sheet_id', result.sheet.number_opt ? result.sheet.id : result.sheet.id);
                 localStorage.setItem('selected_sheet_name', result.sheet.name);
-
                 setNewSheetName('');
                 router.push('/');
             }
@@ -98,119 +80,146 @@ export default function SetupPage() {
         }
     };
 
+    // Unauthenticated State
+    if (status === 'unauthenticated') {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-paper)]">
+                <div className="text-center max-w-md">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 text-red-500 mb-6 text-3xl">
+                        🔒
+                    </div>
+                    <h1 className="text-2xl font-sans font-bold text-[var(--color-ink)] mb-3">
+                        Authentication Required
+                    </h1>
+                    <p className="text-[var(--color-ink-muted)] mb-8">
+                        You need to sign in with Google to access your sheets.
+                    </p>
+                    <button
+                        onClick={() => router.push('/login')}
+                        className="px-8 py-3 rounded-xl bg-[var(--accent)] text-white font-medium hover:bg-[var(--accent-hover)] transition-all shadow-sm hover:shadow-md"
+                    >
+                        Sign In
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === 'loading') {
+        return <div className="min-h-screen flex items-center justify-center bg-[var(--bg-paper)] text-[var(--color-ink-muted)]">Loading...</div>;
+    }
+
     return (
         <div className="min-h-screen p-8 bg-[var(--bg-paper)]">
             {/* Header */}
-            <div className="max-w-4xl mx-auto mb-10 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--accent-muted)] mb-4 text-3xl">
+            <div className="max-w-4xl mx-auto mb-12 text-center animate-fade-in-up">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white shadow-sm border border-[var(--border-color)] mb-6 text-4xl">
                     📊
                 </div>
-                <h1 className="text-3xl font-serif font-bold text-[var(--color-ink)] mb-3">
+                <h1 className="text-4xl font-sans font-bold text-[var(--color-ink)] mb-4 tracking-tight">
                     Choose Your Database
                 </h1>
-                <p className="text-[var(--color-ink-muted)] text-lg max-w-xl mx-auto">
-                    SheetyCRM connects directly to your Google Sheets. Select an existing sheet or create a new one to get started.
+                <p className="text-[var(--color-ink-muted)] text-xl max-w-2xl mx-auto font-light leading-relaxed">
+                    Connect SheetyCRM to a Google Sheet. Select an existing one from your Drive or let us create a optimized template for you.
                 </p>
             </div>
 
-            {/* Main Action Card */}
-            <div className="max-w-md mx-auto">
+            {/* Main Action Cards */}
+            <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6">
                 {/* 1. Pick from Drive */}
                 <button
                     onClick={handleOpenPicker}
-                    className="w-full group relative flex items-center p-6 mb-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-surface)] hover:border-[var(--accent)] hover:shadow-md transition-all text-left"
+                    className="group relative flex flex-col p-8 rounded-2xl border border-[var(--border-color)] bg-white hover:border-[var(--accent)] hover:shadow-xl transition-all duration-300 text-left"
                 >
-                    <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-2xl shadow-sm mr-4 group-hover:scale-110 transition-transform">
+                    <div className="absolute top-6 right-6 text-[var(--border-strong)] group-hover:text-[var(--accent)] transition-colors">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    </div>
+
+                    <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform duration-300">
                         📂
                     </div>
-                    <div className="flex-1">
-                        <h3 className="font-semibold text-[var(--color-ink)] text-lg group-hover:text-[var(--accent)] transition-colors">Select from Google Drive</h3>
-                        <p className="text-sm text-[var(--color-ink-muted)]">Open the Google Picker to choose a sheet</p>
-                    </div>
-                    <div className="text-[var(--border-strong)] group-hover:text-[var(--accent)] transition-colors">
-                        →
-                    </div>
-                </button>
 
-                {/* Divider */}
-                <div className="relative flex items-center py-4">
-                    <div className="flex-grow border-t border-[var(--border-color)]"></div>
-                    <span className="flex-shrink-0 mx-4 text-[var(--color-ink-muted)] text-sm uppercase tracking-wider">or</span>
-                    <div className="flex-grow border-t border-[var(--border-color)]"></div>
-                </div>
+                    <h3 className="font-bold text-[var(--color-ink)] text-xl mb-2 group-hover:text-blue-600 transition-colors">Select from Drive</h3>
+                    <p className="text-[var(--color-ink-muted)] leading-relaxed">
+                        Already have a sheet? Open the Google Picker to select any spreadsheet from your Google Drive.
+                    </p>
+                </button>
 
                 {/* 2. Create New */}
                 {!showCreateForm ? (
                     <button
                         onClick={() => setShowCreateForm(true)}
-                        className="w-full group flex items-center p-6 rounded-xl border border-[var(--border-color)] bg-[var(--bg-surface)] hover:border-[var(--accent)] hover:shadow-md transition-all text-left"
+                        className="group relative flex flex-col p-8 rounded-2xl border border-[var(--border-color)] bg-white hover:border-[var(--accent)] hover:shadow-xl transition-all duration-300 text-left"
                     >
-                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-2xl shadow-sm mr-4 group-hover:scale-110 transition-transform">
+                        <div className="absolute top-6 right-6 text-[var(--border-strong)] group-hover:text-[var(--accent)] transition-colors">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        </div>
+
+                        <div className="w-16 h-16 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform duration-300">
                             ✨
                         </div>
-                        <div className="flex-1">
-                            <h3 className="font-semibold text-[var(--color-ink)] text-lg group-hover:text-[var(--accent)] transition-colors">Create New CRM Sheet</h3>
-                            <p className="text-sm text-[var(--color-ink-muted)]">We'll set up the columns for you</p>
-                        </div>
-                        <div className="text-[var(--border-strong)] group-hover:text-[var(--accent)] transition-colors">
-                            +
-                        </div>
+
+                        <h3 className="font-bold text-[var(--color-ink)] text-xl mb-2 group-hover:text-purple-600 transition-colors">Create New CRM</h3>
+                        <p className="text-[var(--color-ink-muted)] leading-relaxed">
+                            Start fresh. We'll create a new spreadsheet with the perfect schema for Leads, Opportunities, and Activities.
+                        </p>
                     </button>
                 ) : (
-                    <div className="p-6 rounded-xl border border-[var(--accent)] bg-[var(--bg-paper)] shadow-sm animate-fade-in">
-                        <h3 className="font-semibold text-[var(--color-ink)] mb-4">Name your new sheet</h3>
-                        <div className="flex gap-2">
+                    <div className="relative flex flex-col p-8 rounded-2xl border-2 border-[var(--accent)] bg-[var(--bg-surface)] shadow-lg animate-fade-in">
+                        <div className="w-16 h-16 rounded-2xl bg-[var(--accent-muted)] text-[var(--accent)] flex items-center justify-center text-3xl mb-6">
+                            ✏️
+                        </div>
+                        <h3 className="font-bold text-[var(--color-ink)] text-xl mb-4">Name your new sheet</h3>
+
+                        <div className="space-y-4">
                             <input
                                 type="text"
                                 value={newSheetName}
                                 onChange={(e) => setNewSheetName(e.target.value)}
-                                placeholder="My Sales Pipeline"
+                                placeholder="e.g. Sales Pipeline 2026"
                                 autoFocus
-                                className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border-color)] focus:border-[var(--accent)] focus:outline-none"
+                                className="w-full px-5 py-3 rounded-xl border border-[var(--border-color)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-muted)] focus:outline-none text-lg transition-all"
                             />
-                            <button
-                                onClick={handleCreateSheet}
-                                disabled={creating || !newSheetName.trim()}
-                                className="px-4 py-2.5 rounded-lg bg-[var(--accent)] text-white font-medium hover:bg-[var(--accent-hover)] disabled:opacity-50"
-                            >
-                                {creating ? '...' : 'Create'}
-                            </button>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleCreateSheet}
+                                    disabled={creating || !newSheetName.trim()}
+                                    className="flex-1 py-3 rounded-xl bg-[var(--accent)] text-white font-medium hover:bg-[var(--accent-hover)] disabled:opacity-50 transition-all shadow-md hover:shadow-lg active:scale-95"
+                                >
+                                    {creating ? 'Creating...' : 'Create Sheet'}
+                                </button>
+                                <button
+                                    onClick={() => setShowCreateForm(false)}
+                                    className="px-6 py-3 rounded-xl border border-[var(--border-color)] hover:bg-gray-50 text-[var(--color-ink-muted)] transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
-                        <button
-                            onClick={() => setShowCreateForm(false)}
-                            className="text-xs text-[var(--color-ink-muted)] mt-3 hover:text-[var(--color-ink)]"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                )}
-
-                {/* Templates */}
-                <div className="mt-8 flex justify-center gap-4 text-sm text-[var(--accent)]">
-                    <a href="/templates/leads-template.csv" download className="hover:underline">Detailed Leads Template</a>
-                    <span>•</span>
-                    <a href="/templates/opportunities-template.csv" download className="hover:underline">Opportunities Template</a>
-                </div>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="mt-6 p-4 rounded-lg bg-red-50 border border-red-100 text-red-600 text-sm text-center">
-                        {error}
                     </div>
                 )}
             </div>
 
-            {/* Selected Indicator (Bottom fixed or simple status) */}
-            {selectedSheet && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-[var(--color-ink)] text-white rounded-full shadow-lg flex items-center gap-3 animate-fade-in">
-                    <span className="text-green-400">✓</span>
-                    <span className="font-medium">Connected: {selectedSheet}</span>
-                    <button
-                        onClick={() => router.push('/')}
-                        className="ml-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-full text-xs uppercase tracking-wide transition-colors"
-                    >
-                        Go
-                    </button>
+            {/* Footer / Templates */}
+            <div className="max-w-md mx-auto mt-12 text-center">
+                <p className="text-sm text-[var(--color-ink-muted)] mb-4">Need manual setup?</p>
+                <div className="flex justify-center gap-6 text-sm">
+                    <a href="/templates/leads.csv" className="text-[var(--accent)] hover:underline flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Leads Template
+                    </a>
+                    <a href="/templates/opps.csv" className="text-[var(--accent)] hover:underline flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Opps Template
+                    </a>
+                </div>
+            </div>
+
+            {/* Error Toast */}
+            {error && (
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-4 bg-red-white border border-red-200 rounded-xl shadow-lg flex items-center gap-3 animate-bounce-in text-red-600 bg-white">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    {error}
                 </div>
             )}
         </div>

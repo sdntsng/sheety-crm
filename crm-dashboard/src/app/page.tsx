@@ -69,7 +69,7 @@ export default function DashboardPage() {
                 <div className="max-w-lg mx-auto mt-20">
                     <div className="paper-card p-8 text-center bg-white border border-[var(--border-ink)] shadow-[8px_8px_0px_var(--border-ink)]">
                         <span className="text-4xl mb-4 block">⚠️</span>
-                        <h2 className="text-xl font-serif font-bold text-[var(--color-ink)] mb-2">Connection Error</h2>
+                        <h2 className="text-xl font-sans font-bold text-[var(--color-ink)] mb-2">Connection Error</h2>
                         <p className="font-mono text-sm text-[var(--color-ink-muted)] mb-6">{error}</p>
                         <button
                             onClick={() => window.location.reload()}
@@ -94,10 +94,10 @@ export default function DashboardPage() {
                     <div className="w-20 h-20 bg-[var(--bg-paper)] rounded-full flex items-center justify-center mx-auto mb-6 border border-[var(--border-pencil)]">
                         <span className="text-5xl">✨</span>
                     </div>
-                    <h2 className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-4">
+                    <h2 className="text-3xl font-sans font-bold text-[var(--text-primary)] mb-4">
                         A clean desk!
                     </h2>
-                    <p className="font-serif italic text-[var(--text-secondary)] text-lg mb-8">
+                    <p className="font-sans italic text-[var(--text-secondary)] text-lg mb-8">
                         "The secret of getting ahead is getting started."
                     </p>
                     <div className="flex flex-col gap-3">
@@ -123,7 +123,7 @@ export default function DashboardPage() {
         <div className="p-8 space-y-8">
             {/* Header */}
             <div>
-                <h1 className="text-4xl font-serif font-bold text-[var(--text-primary)] mb-2">
+                <h1 className="text-4xl font-sans font-bold text-[var(--text-primary)] mb-2">
                     Start Your Day
                 </h1>
                 <p className="font-mono text-xs text-[var(--text-secondary)] uppercase tracking-widest border-b border-[var(--border-pencil)] pb-2 inline-block">
@@ -161,7 +161,7 @@ export default function DashboardPage() {
                 {/* Pipeline Stages - List on Paper */}
                 <div className="lg:col-span-2 paper-card p-0 bg-white overflow-hidden">
                     <div className="p-4 border-b-2 border-[var(--border-ink)] bg-[var(--bg-paper)] flex justify-between items-center">
-                        <h2 className="font-serif font-bold text-xl">Pipeline Health</h2>
+                        <h2 className="font-sans font-bold text-xl">Pipeline Health</h2>
                         <div className="flex gap-2">
                             <div className="w-3 h-3 rounded-full bg-[var(--accent-red)] border border-black/20"></div>
                             <div className="w-3 h-3 rounded-full bg-[var(--accent-yellow)] border border-black/20"></div>
@@ -183,14 +183,14 @@ export default function DashboardPage() {
                                             style={{ width: `${Math.max(percentage, 2)}%` }}
                                         ></div>
                                     </div>
-                                    <div className="w-24 text-right font-serif font-bold">{formatCurrency(stageData.total_value)}</div>
+                                    <div className="w-24 text-right font-sans font-bold">{formatCurrency(stageData.total_value)}</div>
                                     <div className="w-8 text-center font-mono text-xs bg-[var(--bg-paper)] border border-[var(--border-pencil)] rounded">{stageData.count}</div>
                                 </div>
                             );
                         })}
                     </div>
                     <div className="bg-[var(--bg-paper)] border-t border-[var(--border-pencil)] p-2 text-center">
-                        <span className="font-serif italic text-xs text-[var(--text-secondary)]">Data refreshes automatically</span>
+                        <span className="font-sans italic text-xs text-[var(--text-secondary)]">Data refreshes automatically</span>
                     </div>
                 </div>
 
@@ -200,12 +200,12 @@ export default function DashboardPage() {
                     <div className="absolute top-0 left-6 bottom-0 w-8 border-r-2 border-[var(--border-pencil)] border-double"></div>
 
                     <div className="pl-12">
-                        <h2 className="font-serif font-bold text-xl mb-6 underline decoration-[var(--accent-blue)] decoration-2 underline-offset-4">Lead Status</h2>
+                        <h2 className="font-sans font-bold text-xl mb-6 underline decoration-[var(--accent-blue)] decoration-2 underline-offset-4">Lead Status</h2>
 
                         <div className="space-y-4">
                             {Object.entries(data.leads_by_status).map(([status, count]: [string, number]) => (
                                 <div key={status} className="flex justify-between items-end border-b border-[var(--border-pencil)] border-dashed pb-1">
-                                    <span className="font-serif text-lg">{status}</span>
+                                    <span className="font-sans text-lg">{status}</span>
                                     <span className="font-mono font-bold text-xl">{count}</span>
                                 </div>
                             ))}

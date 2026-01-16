@@ -53,13 +53,13 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
                 {/* Close Button - X Mark */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--accent-red)] font-serif font-bold text-xl leading-none z-10"
+                    className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--accent-red)] font-sans font-bold text-xl leading-none z-10"
                 >
                     ×
                 </button>
 
                 <div className="p-8">
-                    <h2 className="font-serif font-bold text-3xl text-[var(--text-primary)] mb-8 border-b-4 border-[var(--accent-yellow)] inline-block">
+                    <h2 className="font-sans font-bold text-3xl text-[var(--text-primary)] mb-8 border-b-4 border-[var(--accent-yellow)] inline-block">
                         New Deal
                     </h2>
 
@@ -69,7 +69,7 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
                             <div className="relative">
                                 <select
                                     required
-                                    className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-serif appearance-none focus:border-[var(--accent-blue)] focus:outline-none"
+                                    className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-sans appearance-none focus:border-[var(--accent-blue)] focus:outline-none"
                                     value={formData.lead_id}
                                     onChange={(e) => setFormData({ ...formData, lead_id: e.target.value })}
                                 >
@@ -91,7 +91,7 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
                             <input
                                 required
                                 type="text"
-                                className="w-full bg-transparent border-b-2 border-[var(--border-pencil)] px-2 py-1 font-serif text-lg focus:border-[var(--accent-blue)] focus:outline-none placeholder:italic placeholder:text-[var(--text-muted)]"
+                                className="w-full bg-transparent border-b-2 border-[var(--border-pencil)] px-2 py-1 font-sans text-lg focus:border-[var(--accent-blue)] focus:outline-none placeholder:italic placeholder:text-[var(--text-muted)]"
                                 placeholder="e.g. Q1 Enterprise Contract"
                                 value={formData.title}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}

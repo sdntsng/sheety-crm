@@ -140,6 +140,13 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   if (typeof window !== 'undefined') {
     const session = await getSession();
 
+    // Check if session exists at all
+    if (!session || !session.user) {
+      console.error('[API] No active session - redirecting to login');
+      await signOut({ callbackUrl: '/login' });
+      throw new AuthError('Authentication required. Please sign in.');
+    }
+
     // Check if session has a refresh error - sign out if so
     // @ts-ignore
     if (session?.error === 'RefreshAccessTokenError') {
@@ -159,8 +166,9 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
         headers['x-sheet-id'] = sheetId;
       }
     } else {
-      // No access token available
-      console.warn('[API] No access token in session');
+      // No access token available despite session??
+      console.warn('[API] Session exists but no access token found');
+      throw new AuthError('Invalid session configuration.');
     }
   }
 

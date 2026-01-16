@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import { Crimson_Pro, JetBrains_Mono } from "next/font/google"; // Distinctive Typography
+import { Outfit, JetBrains_Mono } from "next/font/google"; // Distinctive Geometric Sans
 import "./globals.css";
 import Header from "@/components/Header";
 import SessionProvider from "@/providers/SessionProvider";
 
-const serif = Crimson_Pro({
+const sans = Outfit({
     subsets: ["latin"],
-    variable: "--font-serif",
-    weight: ["400", "600", "700"],
+    variable: "--font-sans",
     display: "swap",
 });
 
@@ -29,7 +28,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className={`${serif.variable} ${mono.variable} antialiased font-serif`}>
+            <body className={`${sans.variable} ${mono.variable} antialiased font-sans`}>
                 <SessionProvider>
                     <div className="min-h-screen flex flex-col bg-paper text-ink">
                         <Header />

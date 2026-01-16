@@ -62,7 +62,7 @@ export default function LeadsPage() {
             {/* Header */}
             <div className="mb-8 flex justify-between items-end border-b-4 border-[var(--text-primary)] pb-4">
                 <div>
-                    <h1 className="text-4xl font-serif font-bold text-[var(--text-primary)] leading-none">Values Ledger</h1>
+                    <h1 className="text-4xl font-sans font-bold text-[var(--text-primary)] leading-none">Values Ledger</h1>
                     <p className="font-mono text-sm text-[var(--text-secondary)] mt-2 uppercase tracking-widest">
                         {leads.length} Records Found • {new Date().toLocaleDateString()}
                     </p>
@@ -98,22 +98,22 @@ export default function LeadsPage() {
                 <table className="w-full text-left border-collapse">
                     <thead className="bg-[var(--bg-paper)] border-b-2 border-[var(--border-ink)]">
                         <tr>
-                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Company</th>
-                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Person</th>
-                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Info</th>
-                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">Status</th>
-                            <th className="p-4 font-serif font-bold text-[var(--text-primary)] w-32 text-center">Actions</th>
+                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Company</th>
+                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Person</th>
+                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Info</th>
+                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">Status</th>
+                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] w-32 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-pencil)] divide-dashed">
                         {filteredLeads.map(lead => (
                             <tr key={lead.lead_id} className="hover:bg-[var(--bg-hover)] transition-colors group">
                                 <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
-                                    <span className="font-serif font-bold text-lg text-[var(--text-primary)]">{lead.company_name}</span>
+                                    <span className="font-sans font-bold text-lg text-[var(--text-primary)]">{lead.company_name}</span>
                                     <div className="font-mono text-[10px] text-[var(--text-secondary)] uppercase mt-1">{lead.source}</div>
                                 </td>
                                 <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
-                                    <span className="font-serif text-[var(--text-primary)]">{lead.contact_name}</span>
+                                    <span className="font-sans text-[var(--text-primary)]">{lead.contact_name}</span>
                                 </td>
                                 <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
                                     <div className="font-mono text-xs text-[var(--text-secondary)]">
@@ -134,14 +134,14 @@ export default function LeadsPage() {
                                         </button>
                                     )}
                                     {lead.status === 'Qualified' && (
-                                        <span className="font-serif italic text-xs text-green-600">✓ In Pipeline</span>
+                                        <span className="font-sans italic text-xs text-green-600">✓ In Pipeline</span>
                                     )}
                                 </td>
                             </tr>
                         ))}
                         {filteredLeads.length === 0 && (
                             <tr>
-                                <td colSpan={5} className="p-12 text-center text-[var(--text-secondary)] font-serif italic border-b border-[var(--border-pencil)]">
+                                <td colSpan={5} className="p-12 text-center text-[var(--text-secondary)] font-sans italic border-b border-[var(--border-pencil)]">
                                     No entries found in the ledger.
                                 </td>
                             </tr>
@@ -231,7 +231,7 @@ function AddLeadModal({ config, onClose, onAdded }: { config: Config | null; onC
         <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 animate-fade-in" onClick={onClose}>
             <div className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] shadow-[8px_8px_0px_rgba(0,0,0,0.1)] w-full max-w-md relative" onClick={e => e.stopPropagation()}>
                 <div className="bg-[var(--bg-paper)] p-4 border-b-2 border-[var(--border-ink)] flex justify-between items-center">
-                    <h2 className="font-serif font-bold text-xl">New Lead Entry</h2>
+                    <h2 className="font-sans font-bold text-xl">New Lead Entry</h2>
                     <button onClick={onClose} className="font-bold text-xl hover:text-red-500">×</button>
                 </div>
 
@@ -240,7 +240,7 @@ function AddLeadModal({ config, onClose, onAdded }: { config: Config | null; onC
                         <label className="block font-mono text-xs font-bold uppercase mb-1">Company Name *</label>
                         <input
                             type="text"
-                            className="w-full bg-transparent border-b-2 border-[var(--border-pencil)] px-2 py-1 font-serif text-lg focus:border-[var(--accent-blue)] focus:outline-none"
+                            className="w-full bg-transparent border-b-2 border-[var(--border-pencil)] px-2 py-1 font-sans text-lg focus:border-[var(--accent-blue)] focus:outline-none"
                             value={formData.company_name}
                             onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                             required
@@ -251,7 +251,7 @@ function AddLeadModal({ config, onClose, onAdded }: { config: Config | null; onC
                         <label className="block font-mono text-xs font-bold uppercase mb-1">Contact Name *</label>
                         <input
                             type="text"
-                            className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-serif"
+                            className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-sans"
                             value={formData.contact_name}
                             onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
                             required

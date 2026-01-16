@@ -71,7 +71,7 @@ export default function PipelineColumn({ stage, onDrop, onOppClick, onUpdate }: 
             <div className="p-3 border-b-2 border-[var(--text-primary)] bg-[var(--bg-paper)] relative">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--border-pencil)] opacity-20"></div>
                 <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-serif font-bold text-lg text-[var(--text-primary)] tracking-tight uppercase border-b-2 border-[var(--accent-yellow)] inline-block leading-none pb-1">
+                    <h3 className="font-sans font-bold text-lg text-[var(--text-primary)] tracking-tight uppercase border-b-2 border-[var(--accent-yellow)] inline-block leading-none pb-1">
                         {stage.stage}
                     </h3>
                     <span className="font-mono text-xs font-bold text-[var(--text-primary)] border border-[var(--text-primary)] px-2 py-0.5 rounded-full bg-white shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">
@@ -100,7 +100,7 @@ export default function PipelineColumn({ stage, onDrop, onOppClick, onUpdate }: 
                         <div className="w-12 h-12 border-2 border-dashed border-[var(--border-pencil)] rounded-full flex items-center justify-center mb-2">
                             <span className="text-xl">?</span>
                         </div>
-                        <span className="font-serif italic text-sm">Empty Pile</span>
+                        <span className="font-sans italic text-sm">Empty Pile</span>
                     </div>
                 )}
             </div>

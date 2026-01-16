@@ -139,11 +139,11 @@ export default function SearchBar() {
                                                 }`}
                                             onClick={() => navigateToResult({ ...lead, _type: 'lead' })}
                                         >
-                                            <div className="w-6 h-6 flex items-center justify-center font-serif font-bold text-[var(--text-primary)] border border-[var(--border-pencil)] bg-white group-hover:border-[var(--accent-blue)] group-hover:text-[var(--accent-blue)]">
+                                            <div className="w-6 h-6 flex items-center justify-center font-sans font-bold text-[var(--text-primary)] border border-[var(--border-pencil)] bg-white group-hover:border-[var(--accent-blue)] group-hover:text-[var(--accent-blue)]">
                                                 {lead.company_name.charAt(0)}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-serif font-semibold text-[var(--text-primary)] truncate">
+                                                <p className="text-sm font-sans font-semibold text-[var(--text-primary)] truncate">
                                                     {lead.company_name}
                                                 </p>
                                                 <p className="text-xs font-mono text-[var(--text-secondary)] truncate">
@@ -174,7 +174,7 @@ export default function SearchBar() {
                                                     $
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-serif font-semibold text-[var(--text-primary)] truncate">
+                                                    <p className="text-sm font-sans font-semibold text-[var(--text-primary)] truncate">
                                                         {opp.title}
                                                     </p>
                                                     <p className="text-xs font-mono text-[var(--text-secondary)] truncate">
@@ -188,7 +188,7 @@ export default function SearchBar() {
                             )}
                         </div>
                     ) : results && results.total === 0 ? (
-                        <div className="px-4 py-6 text-center text-[var(--text-muted)] font-serif italic">
+                        <div className="px-4 py-6 text-center text-[var(--text-muted)] font-sans italic">
                             No matching records found.
                         </div>
                     ) : null}

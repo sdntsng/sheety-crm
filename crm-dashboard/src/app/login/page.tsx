@@ -7,7 +7,7 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-[var(--bg-paper)] p-4">
             <div className="glass-card max-w-md w-full p-8 text-center space-y-6">
                 <div>
-                    <h1 className="text-3xl font-serif font-bold text-[var(--accent)] mb-2">
+                    <h1 className="text-3xl font-sans font-bold text-[var(--accent)] mb-2">
                         Vinci CRM
                     </h1>
                     <p className="text-[var(--color-ink-muted)]">

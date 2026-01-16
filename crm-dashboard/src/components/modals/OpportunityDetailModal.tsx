@@ -70,7 +70,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                 {/* Header - Folder Tab Style */}
                 <div className="bg-[var(--bg-paper)] border-b-2 border-[var(--border-ink)] p-6 relative">
                     {/* Close Button */}
-                    <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center border border-[var(--border-pencil)] hover:bg-[var(--bg-hover)] rounded-full transition-colors font-serif font-bold mb-4">
+                    <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center border border-[var(--border-pencil)] hover:bg-[var(--bg-hover)] rounded-full transition-colors font-sans font-bold mb-4">
                         ✕
                     </button>
 
@@ -79,7 +79,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                             <div className="font-mono text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-2">
                                 Opportunity File
                             </div>
-                            <h2 className="font-serif font-bold text-3xl text-[var(--text-primary)] leading-none">{opportunity.title}</h2>
+                            <h2 className="font-sans font-bold text-3xl text-[var(--text-primary)] leading-none">{opportunity.title}</h2>
                             <p className="font-mono text-sm text-[var(--text-secondary)] mt-2">
                                 <span className="text-[var(--text-primary)] font-bold">{opportunity.lead?.company_name}</span> • {opportunity.lead?.contact_name}
                             </p>
@@ -90,11 +90,11 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                     <div className="flex gap-4 mt-6">
                         <div className="flex flex-col border-r border-[var(--border-pencil)] pr-6">
                             <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase">Pipeline Value</span>
-                            <span className="font-serif font-bold text-xl text-[var(--text-primary)]">{formatCurrency(opportunity.value)}</span>
+                            <span className="font-sans font-bold text-xl text-[var(--text-primary)]">{formatCurrency(opportunity.value)}</span>
                         </div>
                         <div className="flex flex-col border-r border-[var(--border-pencil)] pr-6">
                             <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase">Probability</span>
-                            <span className="font-serif font-bold text-xl text-[var(--text-primary)]">{opportunity.probability}%</span>
+                            <span className="font-sans font-bold text-xl text-[var(--text-primary)]">{opportunity.probability}%</span>
                         </div>
                         <div className="flex flex-col">
                             <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase">Current Stage</span>
@@ -106,7 +106,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                 {/* Body - Lined Paper Background */}
                 <div className="flex-1 overflow-y-auto p-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjI0IiBmaWxsPSJub25lIj48bGluZSB4MT0iMCIgeTE9IjI0IiB4Mj0iMTAwJSIgeTI9IjI0IiBzdHJva2U9IiNlNWU1ZTUiIHN0cm9rZS13aWR0aD0iMSIvPjwvc3ZnPg==')]">
                     <div className="p-8">
-                        <h3 className="font-serif font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
+                        <h3 className="font-sans font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
                             <span>Activity Log</span>
                             <div className="h-px bg-[var(--border-pencil)] flex-1"></div>
                         </h3>
@@ -114,7 +114,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                         {/* Timeline */}
                         <div className="space-y-8 pl-4 border-l-2 border-[var(--border-pencil)] border-dotted ml-2">
                             {activities.length === 0 && (
-                                <p className="font-serif italic text-[var(--text-muted)] pl-4">No notes or activities recorded yet.</p>
+                                <p className="font-sans italic text-[var(--text-muted)] pl-4">No notes or activities recorded yet.</p>
                             )}
 
                             {activities.map((activity) => (
@@ -124,7 +124,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
 
                                     <div className="flex flex-col gap-1">
                                         <div className="flex justify-between items-baseline">
-                                            <span className="font-serif text-[var(--text-primary)] text-lg leading-snug">{activity.description || activity.subject}</span>
+                                            <span className="font-sans text-[var(--text-primary)] text-lg leading-snug">{activity.description || activity.subject}</span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-1">
                                             <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.5 border border-[var(--border-pencil)] rounded bg-white text-[var(--text-secondary)]">
@@ -147,7 +147,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                         <input
                             type="text"
                             placeholder="Type a new note here..."
-                            className="flex-1 bg-white border border-[var(--border-pencil)] px-4 py-3 font-serif shadow-inner focus:border-[var(--accent-blue)] focus:outline-none"
+                            className="flex-1 bg-white border border-[var(--border-pencil)] px-4 py-3 font-sans shadow-inner focus:border-[var(--accent-blue)] focus:outline-none"
                             value={newNote}
                             onChange={(e) => setNewNote(e.target.value)}
                             autoFocus

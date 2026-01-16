@@ -91,7 +91,7 @@ export default function PipelinePage() {
             {/* Header */}
             <div className="mb-6 flex justify-between items-center bg-[var(--bg-paper)] py-2 border-b-4 border-[var(--text-primary)]">
                 <div>
-                    <h1 className="text-3xl font-serif font-bold text-[var(--text-primary)]">Pipeline</h1>
+                    <h1 className="text-3xl font-sans font-bold text-[var(--text-primary)]">Pipeline</h1>
                     <p className="font-mono text-xs text-[var(--text-secondary)] uppercase tracking-widest mt-1">
                         Drag cards to update status
                     </p>

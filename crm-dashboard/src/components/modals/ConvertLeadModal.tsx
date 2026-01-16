@@ -74,7 +74,7 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
                             <span className="text-2xl">🚀</span>
                         </div>
                         <div>
-                            <h2 className="font-serif font-bold text-2xl text-[var(--text-primary)]">Convert Lead</h2>
+                            <h2 className="font-sans font-bold text-2xl text-[var(--text-primary)]">Convert Lead</h2>
                             <p className="font-mono text-xs text-[var(--text-secondary)] mt-1">
                                 Turning <span className="underline decoration-dotted">{lead.company_name}</span> into gold.
                             </p>
@@ -98,11 +98,11 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
                             </div>
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
-                                    <span className="font-serif italic text-[var(--text-secondary)] block">Company</span>
+                                    <span className="font-sans italic text-[var(--text-secondary)] block">Company</span>
                                     <span className="font-mono font-bold text-[var(--text-primary)]">{lead.company_name}</span>
                                 </div>
                                 <div>
-                                    <span className="font-serif italic text-[var(--text-secondary)] block">Contact</span>
+                                    <span className="font-sans italic text-[var(--text-secondary)] block">Contact</span>
                                     <span className="font-mono font-bold text-[var(--text-primary)]">{lead.contact_name}</span>
                                 </div>
                             </div>
@@ -114,7 +114,7 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
                                 <label className="block font-mono text-xs font-bold uppercase mb-1">Opportunity Title <span className="text-[var(--accent-red)]">*</span></label>
                                 <input
                                     type="text"
-                                    className="w-full bg-transparent border-b-2 border-[var(--border-pencil)] px-2 py-1 font-serif text-lg focus:border-[var(--accent-blue)] focus:outline-none transition-colors"
+                                    className="w-full bg-transparent border-b-2 border-[var(--border-pencil)] px-2 py-1 font-sans text-lg focus:border-[var(--accent-blue)] focus:outline-none transition-colors"
                                     value={formData.title}
                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                     required
@@ -149,7 +149,7 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
                             <div>
                                 <label className="block font-mono text-xs font-bold uppercase mb-1">Notes</label>
                                 <textarea
-                                    className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-serif text-sm focus:border-[var(--accent-blue)] focus:outline-none min-h-[80px] resize-none"
+                                    className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-sans text-sm focus:border-[var(--accent-blue)] focus:outline-none min-h-[80px] resize-none"
                                     value={formData.notes}
                                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                 />

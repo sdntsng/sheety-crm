@@ -38,13 +38,13 @@ export default function OpportunityCard({ opportunity, onDragStart, onUpdate }: 
 
                 <div className="relative z-10">
                     <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-serif font-bold text-lg text-[var(--text-primary)] leading-tight group-hover:text-[var(--accent-blue)] transition-colors">
+                        <h4 className="font-sans font-bold text-lg text-[var(--text-primary)] leading-tight group-hover:text-[var(--accent-blue)] transition-colors">
                             {opportunity.title}
                         </h4>
                     </div>
 
                     <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 flex items-center justify-center border border-[var(--text-primary)] rounded-full bg-white font-serif font-bold text-xs text-[var(--text-primary)] shadow-[1px_1px_0px_rgba(0,0,0,0.1)]">
+                        <div className="w-6 h-6 flex items-center justify-center border border-[var(--text-primary)] rounded-full bg-white font-sans font-bold text-xs text-[var(--text-primary)] shadow-[1px_1px_0px_rgba(0,0,0,0.1)]">
                             {opportunity.lead?.company_name?.substring(0, 1) || 'C'}
                         </div>
                         <div className="font-mono text-xs text-[var(--text-secondary)] tracking-tight truncate border-b border-[var(--border-pencil)] border-dashed">
@@ -55,7 +55,7 @@ export default function OpportunityCard({ opportunity, onDragStart, onUpdate }: 
                     <div className="flex justify-between items-end pt-2 border-t-2 border-[var(--border-pencil)] border-double">
                         <div className="flex flex-col">
                             <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase">Value</span>
-                            <span className="font-serif font-bold text-[var(--text-primary)] text-lg">
+                            <span className="font-sans font-bold text-[var(--text-primary)] text-lg">
                                 {formatCurrency(opportunity.value)}
                             </span>
                         </div>

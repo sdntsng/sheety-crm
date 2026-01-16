@@ -32,7 +32,7 @@ export default function StatCard({ title, value, subtitle, variant = 'default' }
                 <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1">
                     {title}
                 </h3>
-                <div className={`font-serif font-bold text-3xl tracking-tight ${variant === 'success' ? 'text-green-700' : 'text-[var(--text-primary)]'}`}>
+                <div className={`font-sans font-bold text-3xl tracking-tight ${variant === 'success' ? 'text-green-700' : 'text-[var(--text-primary)]'}`}>
                     {value}
                 </div>
             </div>
