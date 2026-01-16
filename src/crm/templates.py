@@ -26,28 +26,50 @@ class CRMTemplates:
         # Rename default sheet to Leads
         leads_ws = sh.sheet1
         leads_ws.update_title("Leads")
-        self._setup_leads_sheet(leads_ws)
+        self.setup_leads_sheet(leads_ws)
         console.print("[green]✓ Set up Leads worksheet[/green]")
 
         # Create Opportunities worksheet
         opps_ws = sh.add_worksheet(title="Opportunities", rows=1000, cols=20)
-        self._setup_opportunities_sheet(opps_ws)
+        opps_ws = sh.add_worksheet(title="Opportunities", rows=1000, cols=20)
+        self.setup_opportunities_sheet(opps_ws)
         console.print("[green]✓ Set up Opportunities worksheet[/green]")
 
         # Create Activities worksheet
         activities_ws = sh.add_worksheet(title="Activities", rows=1000, cols=10)
-        self._setup_activities_sheet(activities_ws)
+        activities_ws = sh.add_worksheet(title="Activities", rows=1000, cols=10)
+        self.setup_activities_sheet(activities_ws)
         console.print("[green]✓ Set up Activities worksheet[/green]")
 
         # Create Summary/Dashboard worksheet
         summary_ws = sh.add_worksheet(title="Summary", rows=50, cols=10)
-        self._setup_summary_sheet(summary_ws)
+        summary_ws = sh.add_worksheet(title="Summary", rows=50, cols=10)
+        self.setup_summary_sheet(summary_ws)
         console.print("[green]✓ Set up Summary dashboard[/green]")
 
         console.print(f"\n[bold green]CRM ready! Open: {sh.url}[/bold green]")
         return sh
 
-    def _setup_leads_sheet(self, ws: gspread.Worksheet):
+    def ensure_worksheet(self, sh: gspread.Spreadsheet, name: str) -> gspread.Worksheet:
+        """Ensure a worksheet exists, creating and setting it up if not."""
+        try:
+            return sh.worksheet(name)
+        except gspread.exceptions.WorksheetNotFound:
+            console.print(f"[yellow]Worksheet '{name}' missing. Creating...[/yellow]")
+            ws = sh.add_worksheet(title=name, rows=1000, cols=20)
+            
+            if name == "Leads":
+                self.setup_leads_sheet(ws)
+            elif name == "Opportunities":
+                self.setup_opportunities_sheet(ws)
+            elif name == "Activities":
+                self.setup_activities_sheet(ws)
+            elif name == "Summary":
+                self.setup_summary_sheet(ws)
+            
+            return ws
+
+    def setup_leads_sheet(self, ws: gspread.Worksheet):
         """Set up the Leads worksheet with headers and formatting."""
         headers = Lead.headers()
         ws.append_row(headers)
@@ -76,7 +98,7 @@ class CRMTemplates:
         size_values = [s.value for s in CompanySize]
         self._add_dropdown_validation(ws, "I2:I1000", size_values)
 
-    def _setup_opportunities_sheet(self, ws: gspread.Worksheet):
+    def setup_opportunities_sheet(self, ws: gspread.Worksheet):
         """Set up the Opportunities worksheet."""
         headers = Opportunity.headers()
         ws.append_row(headers)
@@ -103,7 +125,7 @@ class CRMTemplates:
         # Note: We'll set this as a formula that auto-calculates
         ws.format("G2:G1000", {"numberFormat": {"type": "CURRENCY", "pattern": "$#,##0.00"}})
 
-    def _setup_activities_sheet(self, ws: gspread.Worksheet):
+    def setup_activities_sheet(self, ws: gspread.Worksheet):
         """Set up the Activities worksheet."""
         headers = Activity.headers()
         ws.append_row(headers)
@@ -116,7 +138,7 @@ class CRMTemplates:
         ws.freeze(rows=1)
         ws.set_basic_filter()
 
-    def _setup_summary_sheet(self, ws: gspread.Worksheet):
+    def setup_summary_sheet(self, ws: gspread.Worksheet):
         """Set up the Summary/Dashboard worksheet with aggregate formulas."""
         try:
             # Header

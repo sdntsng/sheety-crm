@@ -126,10 +126,22 @@ def main():
     try:
         gc, _ = authenticate()
         sm = SheetManager(gc)
+        
+        # Check if sheet exists, if not create it
+        sh = sm.get_sheet(args.sheet)
+        if not sh:
+             if console.input(f"[yellow]Sheet '{args.sheet}' not found. Create it? (y/n): [/yellow]").lower() == 'y':
+                 from src.crm.templates import CRMTemplates
+                 templates = CRMTemplates(gc)
+                 sh = templates.create_crm_sheet(args.sheet)
+             else:
+                 console.print("[red]Aborting.[/red]")
+                 return
+
         crm = CRMManager(sm, sheet_name=args.sheet)
         console.print(f"[green]Connected to sheet: {args.sheet}[/green]")
     except Exception as e:
-        console.print(f"[red]Authentication failed: {e}[/red]")
+        console.print(f"[red]Connection failed: {e}[/red]")
         return
 
     # Clear data if requested

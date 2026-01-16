@@ -141,13 +141,12 @@ class SheetManager:
     def append_row(self, sheet_name: str, row_data: list, worksheet_name: str = "Sheet1"):
         """Appends a single row to the worksheet."""
         sh = self.get_sheet(sheet_name)
-        if not sh: return None
-        try:
-            ws = sh.worksheet(worksheet_name)
-            ws.append_row(row_data)
-            console.print(f"[green]Appended row to {sheet_name}: {row_data!r}[/green]")
-        except Exception as e:
-            console.print(f"[red]Error appending row: {e}[/red]")
+        if not sh:
+            raise gspread.exceptions.SpreadsheetNotFound(sheet_name)
+        
+        ws = sh.worksheet(worksheet_name)
+        ws.append_row(row_data)
+        console.print(f"[green]Appended row to {sheet_name}: {row_data!r}[/green]")
 
     @sheets_api_retry
     def append_rows(self, sheet_name: str, rows_data: list, worksheet_name: str = "Sheet1"):

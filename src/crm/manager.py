@@ -11,6 +11,8 @@ from .models import (
     Lead, Opportunity, Activity,
     LeadStatus, PipelineStage, ActivityType, LeadSource
 )
+from .templates import CRMTemplates
+import gspread
 
 console = Console()
 
@@ -32,7 +34,18 @@ class CRMManager:
         # Caching
         self._cache: Dict[str, List[Any]] = {}
         self._last_fetch: Dict[str, datetime] = {}
+        self.templates = CRMTemplates(self.sm.gc)
+        
+        # Caching
+        self._cache: Dict[str, List[Any]] = {}
+        self._last_fetch: Dict[str, datetime] = {}
         self.CACHE_TTL = 30  # seconds
+
+    def _ensure_worksheet_exists(self, worksheet_name: str):
+        """Ensure worksheet exists using templates."""
+        sh = self.sm.get_sheet(self.sheet_name)
+        if sh:
+            self.templates.ensure_worksheet(sh, worksheet_name)
 
     def _get_cached_data(self, worksheet: str) -> Optional[List[List[str]]]:
         """Get cached data if valid."""
@@ -61,7 +74,12 @@ class CRMManager:
         """Add a new lead to the CRM."""
         lead.created_at = datetime.now()
         lead.updated_at = datetime.now()
-        self.sm.append_row(self.sheet_name, lead.to_row(), LEADS_WS)
+        try:
+            self.sm.append_row(self.sheet_name, lead.to_row(), LEADS_WS)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(LEADS_WS)
+            self.sm.append_row(self.sheet_name, lead.to_row(), LEADS_WS)
+            
         self._invalidate_cache(LEADS_WS)
         return lead
 
@@ -69,7 +87,16 @@ class CRMManager:
         """Retrieve all leads."""
         data = self._get_cached_data(LEADS_WS)
         if data is None:
-            data = self.sm.read_data(self.sheet_name, LEADS_WS)
+            try:
+                data = self.sm.read_data(self.sheet_name, LEADS_WS)
+            except gspread.exceptions.WorksheetNotFound:
+                # If reading fails, just return empty list, don't auto-create on read
+                # unless we strictly want to validata schema.
+                # Auto-creating on read might be annoying if user just wants to peak.
+                # But consistent behavior suggests we should maybe initialized?
+                # For now, let's just return None/Empty and let WRITE operations fix it.
+                return []
+                
             if data:
                 self._set_cached_data(LEADS_WS, data)
         
@@ -117,7 +144,12 @@ class CRMManager:
         """Add a new opportunity."""
         opp.created_at = datetime.now()
         opp.updated_at = datetime.now()
-        self.sm.append_row(self.sheet_name, opp.to_row(), OPPS_WS)
+        try:
+            self.sm.append_row(self.sheet_name, opp.to_row(), OPPS_WS)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(OPPS_WS)
+            self.sm.append_row(self.sheet_name, opp.to_row(), OPPS_WS)
+            
         self._invalidate_cache(OPPS_WS)
         return opp
 
@@ -184,7 +216,12 @@ class CRMManager:
     def log_activity(self, activity: Activity) -> Activity:
         """Log a new activity."""
         activity.date = datetime.now()
-        self.sm.append_row(self.sheet_name, activity.to_row(), ACTIVITIES_WS)
+        try:
+            self.sm.append_row(self.sheet_name, activity.to_row(), ACTIVITIES_WS)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(ACTIVITIES_WS)
+            self.sm.append_row(self.sheet_name, activity.to_row(), ACTIVITIES_WS)
+            
         self._invalidate_cache(ACTIVITIES_WS)
         return activity
 

@@ -85,6 +85,16 @@ export default function Header() {
                     <div className="h-6 w-px bg-[var(--border-pencil)] mx-2" />
 
                     {/* Sheet Indicator - Sticky Note Style */}
+                    {selectedSheet && (
+                        <a
+                            href={`https://docs.google.com/spreadsheets/d/${localStorage.getItem('selected_sheet_id')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-mono text-[var(--accent-blue)] hover:underline mr-2"
+                        >
+                            ↗ OPEN
+                        </a>
+                    )}
                     <Link href="/setup" className="header-sheet-badge font-mono text-xs bg-[var(--accent-yellow)] text-[var(--text-primary)] border border-black/10 px-3 py-1 -rotate-1 hover:-rotate-2 transition-transform shadow-sm" title="Change connected sheet">
                         <span className="font-bold mr-2">SHEET:</span>
                         <span className="border-b border-black/20 dashed">{selectedSheet || 'Select...'}</span>
