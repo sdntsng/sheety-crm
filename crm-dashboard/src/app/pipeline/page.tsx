@@ -70,10 +70,10 @@ export default function PipelinePage() {
         return (
             <div className="p-8">
                 <div className="animate-pulse">
-                    <div className="h-8 bg-zinc-800 rounded w-1/4 mb-6"></div>
+                    <div className="h-8 bg-[var(--bg-surface)] rounded w-1/4 mb-6"></div>
                     <div className="flex gap-4 overflow-x-auto">
                         {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="w-72 h-96 bg-zinc-800 rounded-xl shrink-0"></div>
+                            <div key={i} className="w-72 h-96 bg-[var(--bg-surface)] rounded-xl shrink-0"></div>
                         ))}
                     </div>
                 </div>
@@ -86,8 +86,8 @@ export default function PipelinePage() {
             <div className="p-8">
                 <div className="glass-card p-6 text-center">
                     <p className="text-red-400 mb-4">⚠️ {error}</p>
-                    <p className="text-zinc-500 text-sm">
-                        Make sure the API server is running: <code className="bg-zinc-800 px-2 py-1 rounded">uvicorn api.server:app --reload</code>
+                    <p className="text-[var(--text-secondary)] text-sm">
+                        Make sure the API server is running: <code className="bg-[var(--bg-surface)] px-2 py-1 rounded">uvicorn api.server:app --reload</code>
                     </p>
                 </div>
             </div>

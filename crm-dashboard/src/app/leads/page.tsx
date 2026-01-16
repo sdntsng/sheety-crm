@@ -48,8 +48,8 @@ export default function LeadsPage() {
         return (
             <div className="p-8">
                 <div className="animate-pulse space-y-4">
-                    <div className="h-8 bg-zinc-800 rounded w-1/4"></div>
-                    <div className="h-64 bg-zinc-800 rounded-xl"></div>
+                    <div className="h-8 bg-[var(--bg-surface)] rounded w-1/4"></div>
+                    <div className="h-64 bg-[var(--bg-surface)] rounded-xl"></div>
                 </div>
             </div>
         );
@@ -73,8 +73,8 @@ export default function LeadsPage() {
             {/* Header */}
             <div className="mb-6 flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-100">Leads</h1>
-                    <p className="text-zinc-500">{leads.length} total leads</p>
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">Leads</h1>
+                    <p className="text-[var(--text-secondary)]">{leads.length} total leads</p>
                 </div>
                 <button className="btn-primary" onClick={() => setShowModal(true)}>
                     + Add Lead

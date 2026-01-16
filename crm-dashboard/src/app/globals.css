@@ -1,223 +1,471 @@
 @import "tailwindcss";
 
 @theme {
-  --font-serif: var(--font-playfair), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --color-paper: var(--bg-paper);
   --color-surface: var(--bg-surface);
   --color-ink: var(--text-primary);
   --color-ink-muted: var(--text-secondary);
-  --color-border-subtle: var(--border-color);
 }
 
-:root {
-  /* DARK MODE (Default - VSCode-ish) */
-  --bg-paper: #0f1115;
-  /* Very Deep Grey (Not pure black) */
-  --bg-surface: #181a1f;
-  /* Panel/Sidebar */
-  --text-primary: #e0e0e0;
-  --text-secondary: #858585;
-  /* VSCode Grey */
-  --border-color: #2b2d31;
+/* ========================================================================
+   DESIGN TOKENS - Notion/Gmail/Claude Inspired
+   ======================================================================== */
 
-  --accent: #3b82f6;
-  /* Bright Blue for Dark Mode */
-  --accent-muted: rgba(59, 130, 246, 0.15);
+:root {
+  /* Light Mode (Default) - Clean, warm, approachable */
+  --bg-paper: #ffffff;
+  --bg-surface: #f7f7f5;
+  --bg-hover: #f0f0ee;
+  --text-primary: #37352f;
+  --text-secondary: #6b6b6b;
+  --border-color: #e5e5e3;
+  --border-strong: #d4d4d2;
+
+  --accent: #2383e2;
+  --accent-hover: #1a73d1;
+  --accent-muted: rgba(35, 131, 226, 0.08);
   --accent-text: #ffffff;
 
-  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-  --glass-bg: rgba(24, 26, 31, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --header-height: 52px;
 }
 
 [data-theme='light'] {
-  /* LIGHT MODE (Clean Single-Accent) */
-  --bg-paper: #ffffff;
-  /* Pure White for crispness */
-  --bg-surface: #f3f3f3;
-  /* Very light grey sidebar */
-  --text-primary: #202020;
-  /* Almost Black */
-  --text-secondary: #606060;
-  --border-color: #e5e5e5;
-
-  --accent: #2e3b55;
-  /* Dark Slate Blue (Single Dark Accent) */
-  --accent-muted: rgba(46, 59, 85, 0.1);
-  --accent-text: #ffffff;
-
-  --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  --glass-bg: rgba(255, 255, 255, 0.95);
-  --glass-border: rgba(0, 0, 0, 0.06);
+  /* Same as default - light mode */
 }
+
+html:not([data-theme='light']) {
+  /* Dark Mode - Modern, easy on eyes */
+  --bg-paper: #191919;
+  --bg-surface: #202020;
+  --bg-hover: #2a2a2a;
+  --text-primary: #ebebeb;
+  --text-secondary: #9b9b9b;
+  --border-color: #333333;
+  --border-strong: #444444;
+
+  --accent: #529cca;
+  --accent-hover: #6bb3de;
+  --accent-muted: rgba(82, 156, 202, 0.15);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ========================================================================
+   BASE STYLES
+   ======================================================================== */
 
 body {
   background-color: var(--bg-paper);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Typography */
-h1,
-h2,
-h3,
-h4 {
-  font-family: var(--font-serif);
+/* ========================================================================
+   TYPOGRAPHY - Clean sans-serif throughout
+   ======================================================================== */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 600;
   color: var(--text-primary);
-  line-height: 1.3;
+  line-height: 1.25;
   letter-spacing: -0.01em;
 }
 
-h1 {
-  font-size: 2rem;
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1rem; }
+
+/* ========================================================================
+   HEADER - Notion/Gmail inspired sticky header
+   ======================================================================== */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--header-height);
+  background: var(--bg-paper);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+}
+
+.header-content {
+  width: 100%;
+  max-width: 100%;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 8px;
+  border-radius: var(--radius-md);
+  transition: background 0.15s;
+  text-decoration: none;
+}
+
+.header-logo:hover {
+  background: var(--bg-hover);
+}
+
+.header-logo-icon {
+  font-size: 20px;
+}
+
+.header-logo-text {
   font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
-h2 {
-  font-size: 1.5rem;
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 12px;
+}
+
+.header-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
   font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.15s;
 }
 
-/* Components */
+.header-nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
 
-/* Ghost Button (Monochromatic) */
+.header-nav-item.active {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.header-nav-icon {
+  font-size: 14px;
+}
+
+.header-nav-label {
+  display: block;
+}
+
+@media (max-width: 640px) {
+  .header-nav-label {
+    display: none;
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.header-sheet-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  max-width: 160px;
+  transition: all 0.15s;
+}
+
+.header-sheet-badge:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.header-sheet-icon {
+  font-size: 12px;
+}
+
+.header-sheet-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  transition: background 0.15s;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.header-icon-btn:hover {
+  background: var(--bg-hover);
+}
+
+.header-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+  background: transparent;
+  padding: 0;
+}
+
+.header-avatar:hover {
+  border-color: var(--border-strong);
+}
+
+.header-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.header-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.header-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  min-width: 200px;
+  background: var(--bg-paper);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 200;
+}
+
+.header-dropdown-header {
+  padding: 12px 14px;
+}
+
+.header-dropdown-name {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.header-dropdown-email {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.header-dropdown-divider {
+  height: 1px;
+  background: var(--border-color);
+}
+
+.header-dropdown-item {
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.header-dropdown-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.header-signin-btn {
+  padding: 6px 14px;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.header-signin-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* ========================================================================
+   BUTTONS
+   ======================================================================== */
+
 .btn-primary {
   background: var(--accent);
-  color: var(--accent-text);
-  padding: 8px 16px;
-  border-radius: 4px;
-  /* More squared for VS Code vibe */
+  color: white;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
   font-weight: 500;
-  font-size: 0.9rem;
-  transition: all 0.1s ease;
-  box-shadow: none;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
-  transform: none;
+  background: var(--accent-hover);
 }
 
 .btn-ghost {
   background: transparent;
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
 .btn-ghost:hover {
-  background: var(--bg-surface);
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
 }
 
-/* Inputs */
+/* ========================================================================
+   INPUTS
+   ======================================================================== */
+
 .input {
   background: var(--bg-paper);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   padding: 8px 12px;
+  font-size: 13px;
   color: var(--text-primary);
-  transition: border-color 0.1s ease;
+  transition: all 0.15s;
 }
 
 .input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
-/* Cards */
+.input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ========================================================================
+   CARDS
+   ======================================================================== */
+
 .glass-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  box-shadow: none;
+  border-radius: var(--radius-lg);
 }
 
 .opp-card {
   background: var(--bg-paper);
-  /* Contrast against surface column */
   border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 12px;
+  border-radius: var(--radius-md);
+  padding: 14px;
   cursor: grab;
-  transition: all 0.1s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  /* Very subtle */
+  transition: all 0.15s;
+  box-shadow: var(--shadow-sm);
 }
 
 .opp-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
-/* Pipeline Column */
+/* ========================================================================
+   PIPELINE
+   ======================================================================== */
+
 .pipeline-column {
   background: var(--bg-surface);
-  border: 1px solid transparent;
-  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
-.pipeline-column:hover {
-  /* No semantic hover, keep it clean */
+/* Stage indicators - single accent */
+[class^="stage-"] {
+  border-left-width: 3px;
+  border-left-style: solid;
+  border-left-color: var(--accent) !important;
 }
 
-/* Sidebar */
-.sidebar {
-  background: var(--bg-surface);
-  border-right: 1px solid var(--border-color);
-}
+/* ========================================================================
+   UTILITIES
+   ======================================================================== */
 
-.sidebar-link {
-  color: var(--text-secondary);
-  border-radius: 4px;
-}
-
-.sidebar-link:hover {
-  background: var(--bg-paper);
-  color: var(--text-primary);
-}
-
-.sidebar-link.active {
-  background: var(--accent);
-  color: var(--accent-text);
-  /* Inverted active state like VS Code */
-  font-weight: 500;
-}
-
-/* Utilities */
-.text-zinc-100 {
+.text-zinc-100, .text-zinc-200 {
   color: var(--text-primary) !important;
 }
 
-.text-zinc-200 {
-  color: var(--text-primary) !important;
-}
-
-.text-zinc-400 {
+.text-zinc-400, .text-zinc-500, .text-zinc-600 {
   color: var(--text-secondary) !important;
 }
 
-.text-zinc-500 {
-  color: var(--text-secondary) !important;
-}
+/* ========================================================================
+   SCROLLBAR
+   ======================================================================== */
 
-.text-zinc-600 {
-  color: var(--text-secondary) !important;
-}
-
-/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-surface);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -229,25 +477,15 @@ h2 {
   background: var(--text-secondary);
 }
 
-/* Stage Indicators - UNIFIED */
-[class^="stage-"] {
-  border-left-width: 3px;
-  border-left-style: solid;
-  border-left-color: var(--accent) !important;
-  /* Uniform accent */
-  opacity: 0.9;
-}
-
-/* Helper to possibly colorize ONLY the tag text if needed, but keeping borders uniform */
-/* We can remove specific colors or keep them only for "Closed Won/Lost" semantic meaning? 
-   User said "just need one accent color". So ALL uniform. */
+/* ========================================================================
+   ANIMATIONS
+   ======================================================================== */
 
 @keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(2px);
+    transform: translateY(4px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
@@ -255,5 +493,5 @@ h2 {
 }
 
 .animate-fade-in {
-  animation: fade-in 0.15s ease-out forwards;
+  animation: fade-in 0.2s ease-out forwards;
 }

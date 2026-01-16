@@ -53,13 +53,13 @@ export default function DashboardPage() {
         return (
             <div className="p-8">
                 <div className="animate-pulse space-y-6">
-                    <div className="h-10 bg-[var(--bg-default)] rounded-lg w-1/3"></div>
+                    <div className="h-10 bg-[var(--bg-surface)] rounded-lg w-1/3"></div>
                     <div className="grid grid-cols-4 gap-6">
                         {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="h-32 bg-[var(--bg-default)] rounded-xl"></div>
+                            <div key={i} className="h-32 bg-[var(--bg-surface)] rounded-xl"></div>
                         ))}
                     </div>
-                    <div className="h-64 bg-[var(--bg-default)] rounded-xl"></div>
+                    <div className="h-64 bg-[var(--bg-surface)] rounded-xl"></div>
                 </div>
             </div>
         );
@@ -188,7 +188,7 @@ export default function DashboardPage() {
                             <div key={stage} className="flex items-center gap-4">
                                 <div className="w-28 text-sm text-[var(--color-ink-muted)]">{stage}</div>
                                 <div className="flex-1">
-                                    <div className="h-6 bg-[var(--bg-default)] rounded-full overflow-hidden">
+                                    <div className="h-6 bg-[var(--bg-surface)] rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
                                             style={{ width: `${Math.max(percentage, 2)}%` }}
@@ -212,7 +212,7 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold mb-4 text-[var(--color-ink)]">Leads by Status</h2>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {Object.entries(data.leads_by_status).map(([status, count]: [string, number]) => (
-                        <div key={status} className="text-center p-4 bg-[var(--bg-default)] rounded-lg border border-[var(--border)]">
+                        <div key={status} className="text-center p-4 bg-[var(--bg-surface)] rounded-lg border border-[var(--border)]">
                             <p className="text-2xl font-bold text-[var(--color-ink)]">{count}</p>
                             <p className="text-sm text-[var(--color-ink-muted)]">{status}</p>
                         </div>

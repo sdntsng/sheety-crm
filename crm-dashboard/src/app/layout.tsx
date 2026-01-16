@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
 import SessionProvider from "@/providers/SessionProvider";
 
 const inter = Inter({
@@ -9,14 +9,9 @@ const inter = Inter({
     variable: "--font-inter",
 });
 
-const playfair = Playfair_Display({
-    subsets: ["latin"],
-    variable: "--font-playfair",
-});
-
 export const metadata: Metadata = {
-    title: "Sales Pipeline 2026 | CRM Dashboard",
-    description: "Sales CRM powered by Google Sheets",
+    title: "SheetyCRM - Sales Pipeline powered by Google Sheets",
+    description: "A modern CRM that uses Google Sheets as its database",
 };
 
 export default function RootLayout({
@@ -26,11 +21,11 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className={`${inter.variable} ${playfair.variable} antialiased transition-colors duration-300`}>
+            <body className={`${inter.variable} antialiased`}>
                 <SessionProvider>
-                    <div className="flex min-h-screen">
-                        <Sidebar />
-                        <main className="flex-1 overflow-auto bg-[var(--bg-paper)]">
+                    <div className="min-h-screen flex flex-col">
+                        <Header />
+                        <main className="flex-1 bg-[var(--bg-paper)]">
                             {children}
                         </main>
                     </div>

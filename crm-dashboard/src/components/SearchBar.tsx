@@ -11,6 +11,7 @@ export default function SearchBar() {
     const [loading, setLoading] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
 
     // Debounced search
@@ -89,14 +90,14 @@ export default function SearchBar() {
     };
 
     return (
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
             {/* Search Input */}
             <div className="relative">
                 <input
                     ref={inputRef}
                     type="text"
-                    placeholder="Search leads, opportunities..."
-                    className="input w-64 pl-9 pr-8 text-sm"
+                    placeholder="Search..."
+                    className="input w-48 pl-8 pr-7 h-8 text-[13px]"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => setIsOpen(true)}
@@ -104,7 +105,7 @@ export default function SearchBar() {
                     onKeyDown={handleKeyDown}
                 />
                 <svg
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -118,12 +119,12 @@ export default function SearchBar() {
                 </svg>
                 {/* Keyboard hint */}
                 {!query && (
-                    <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+                    <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-secondary)] bg-[var(--bg-surface)] px-1 py-0.5 rounded border border-[var(--border-color)]">
                         /
                     </kbd>
                 )}
                 {loading && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 animate-spin">
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-xs animate-spin">
                         ⏳
                     </span>
                 )}
@@ -131,30 +132,30 @@ export default function SearchBar() {
 
             {/* Results Dropdown */}
             {isOpen && query.length >= 2 && (
-                <div className="absolute top-full mt-2 w-80 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden">
+                <div className="absolute top-full mt-2 w-72 bg-[var(--bg-paper)] border border-[var(--border-color)] rounded-lg shadow-lg z-50 overflow-hidden">
                     {results && results.total > 0 ? (
-                        <div className="max-h-80 overflow-y-auto">
+                        <div className="max-h-72 overflow-y-auto">
                             {/* Leads Section */}
                             {results.results.leads.length > 0 && (
                                 <div>
-                                    <div className="px-3 py-2 text-xs font-medium text-zinc-500 bg-zinc-800/50">
+                                    <div className="px-3 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--bg-surface)] uppercase tracking-wider">
                                         Leads
                                     </div>
                                     {results.results.leads.map((lead, idx) => (
                                         <button
                                             key={lead.lead_id}
-                                            className={`w-full px-3 py-2 text-left hover:bg-zinc-800 transition-colors flex items-center gap-3 ${selectedIndex === idx ? 'bg-zinc-800' : ''
+                                            className={`w-full px-3 py-2 text-left hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5 ${selectedIndex === idx ? 'bg-[var(--bg-hover)]' : ''
                                                 }`}
                                             onClick={() => navigateToResult({ ...lead, _type: 'lead' })}
                                         >
-                                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-sm font-bold">
+                                            <div className="w-7 h-7 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)] text-xs font-semibold">
                                                 {lead.company_name.charAt(0)}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-zinc-100 truncate">
+                                                <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">
                                                     {lead.company_name}
                                                 </p>
-                                                <p className="text-xs text-zinc-500 truncate">
+                                                <p className="text-[11px] text-[var(--text-secondary)] truncate">
                                                     {lead.contact_name} • {lead.status}
                                                 </p>
                                             </div>
@@ -166,7 +167,7 @@ export default function SearchBar() {
                             {/* Opportunities Section */}
                             {results.results.opportunities.length > 0 && (
                                 <div>
-                                    <div className="px-3 py-2 text-xs font-medium text-zinc-500 bg-zinc-800/50">
+                                    <div className="px-3 py-1.5 text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--bg-surface)] uppercase tracking-wider">
                                         Opportunities
                                     </div>
                                     {results.results.opportunities.map((opp, idx) => {
@@ -174,18 +175,18 @@ export default function SearchBar() {
                                         return (
                                             <button
                                                 key={opp.opp_id}
-                                                className={`w-full px-3 py-2 text-left hover:bg-zinc-800 transition-colors flex items-center gap-3 ${selectedIndex === actualIdx ? 'bg-zinc-800' : ''
+                                                className={`w-full px-3 py-2 text-left hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2.5 ${selectedIndex === actualIdx ? 'bg-[var(--bg-hover)]' : ''
                                                     }`}
                                                 onClick={() => navigateToResult({ ...opp, _type: 'opportunity' })}
                                             >
-                                                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-sm">
+                                                <div className="w-7 h-7 rounded-full bg-green-500/10 flex items-center justify-center text-green-600 text-xs">
                                                     💰
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium text-zinc-100 truncate">
+                                                    <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">
                                                         {opp.title}
                                                     </p>
-                                                    <p className="text-xs text-zinc-500 truncate">
+                                                    <p className="text-[11px] text-[var(--text-secondary)] truncate">
                                                         {opp.lead?.company_name || 'Unknown'} • ${opp.value.toLocaleString()}
                                                     </p>
                                                 </div>
@@ -196,7 +197,7 @@ export default function SearchBar() {
                             )}
                         </div>
                     ) : results && results.total === 0 ? (
-                        <div className="px-4 py-6 text-center text-zinc-500 text-sm">
+                        <div className="px-4 py-5 text-center text-[var(--text-secondary)] text-[13px]">
                             No results for "{query}"
                         </div>
                     ) : null}
@@ -205,3 +206,4 @@ export default function SearchBar() {
         </div>
     );
 }
+
