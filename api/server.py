@@ -30,18 +30,26 @@ async def get_sheet_manager(authorization: Optional[str] = Header(None)):
     from google.oauth2.credentials import Credentials
     from src.sheets import SheetManager
     
-    if not authorization:
-        # Local fallback
+    # Try token-based auth first if provided
+    if authorization:
+        token = authorization.replace("Bearer ", "").strip()
+        if token:
+            try:
+                creds = Credentials(token=token)
+                gc = gspread.authorize(creds)
+                # Test the connection
+                gc.list_spreadsheet_files()
+                return SheetManager(gc)
+            except Exception as e:
+                print(f"Token auth failed: {e}, falling back to local auth")
+                # Fall through to local auth
+    
+    # Local fallback (uses token.json or env credentials)
+    try:
         gc, _ = authenticate()
         return SheetManager(gc)
-    
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        creds = Credentials(token=token)
-        gc = gspread.authorize(creds)
-        return SheetManager(gc)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 app = FastAPI(
     title="Sales CRM API",
