@@ -10,6 +10,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@fontsource/playfair-display": "^5.2.8",
     "next": "16.1.2",
     "next-auth": "^4.24.13",
