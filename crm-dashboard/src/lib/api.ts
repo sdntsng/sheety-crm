@@ -1,6 +1,24 @@
-import { getSession } from 'next-auth/react';
+import { getSession, signOut } from 'next-auth/react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8026';
+
+// Custom error class for authentication failures
+export class AuthError extends Error {
+  constructor(message: string = 'Authentication required') {
+    super(message);
+    this.name = 'AuthError';
+  }
+}
+
+// Custom error class for rate limit failures
+export class RateLimitError extends Error {
+  retryAfter: number;
+  constructor(retryAfter: number = 60) {
+    super(`Rate limited. Please try again in ${retryAfter} seconds.`);
+    this.name = 'RateLimitError';
+    this.retryAfter = retryAfter;
+  }
+}
 
 export interface Lead {
   lead_id: string;
@@ -91,8 +109,23 @@ export interface Config {
   company_sizes: string[];
 }
 
-// Helper for handling fetch responses
+// Helper for handling fetch responses with auth and rate limit detection
 async function handleResponse<T>(response: Response): Promise<T> {
+  // Handle 401 Unauthorized - token expired or invalid
+  if (response.status === 401) {
+    console.error('[API] 401 Unauthorized - signing out');
+    if (typeof window !== 'undefined') {
+      await signOut({ callbackUrl: '/login' });
+    }
+    throw new AuthError('Session expired. Please sign in again.');
+  }
+
+  // Handle 429 Rate Limit
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('Retry-After') || '60', 10);
+    throw new RateLimitError(retryAfter);
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
     throw new Error(error.detail || 'Request failed');
@@ -100,12 +133,21 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
-// Helper for authenticated requests
+// Helper for authenticated requests with session error detection
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   let headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
 
   if (typeof window !== 'undefined') {
     const session = await getSession();
+
+    // Check if session has a refresh error - sign out if so
+    // @ts-ignore
+    if (session?.error === 'RefreshAccessTokenError') {
+      console.error('[API] Refresh token error detected - signing out');
+      await signOut({ callbackUrl: '/login' });
+      throw new AuthError('Session expired. Please sign in again.');
+    }
+
     // @ts-ignore
     if (session?.accessToken) {
       // @ts-ignore
@@ -116,6 +158,9 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
       if (sheetId) {
         headers['x-sheet-id'] = sheetId;
       }
+    } else {
+      // No access token available
+      console.warn('[API] No access token in session');
     }
   }
 
