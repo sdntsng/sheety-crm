@@ -174,10 +174,13 @@ class CreateSheetRequest(BaseModel):
 def create_crm_sheet(request: CreateSheetRequest, sm: SheetManager = Depends(get_sheet_manager)):
     """Create a new CRM spreadsheet with all required worksheets."""
     from src.crm.templates import CRMTemplates
+    import traceback
     
     try:
+        print(f"[CreateSheet] Creating CRM sheet: {request.name}")
         templates = CRMTemplates(sm.gc)
         sh = templates.create_crm_sheet(request.name)
+        print(f"[CreateSheet] Successfully created: {sh.url}")
         return {
             "success": True,
             "sheet": {
@@ -187,6 +190,8 @@ def create_crm_sheet(request: CreateSheetRequest, sm: SheetManager = Depends(get
             }
         }
     except Exception as e:
+        print(f"[CreateSheet] ERROR: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
