@@ -11,6 +11,7 @@ export const config = {
         "/",
         "/leads",
         "/pipeline",
+        "/setup",
         "/settings"
     ]
 }
