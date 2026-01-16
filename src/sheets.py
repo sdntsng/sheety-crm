@@ -3,13 +3,17 @@ from rich.table import Table
 from rich.console import Console
 from typing import List, Optional
 
+from .retry import sheets_api_retry
+
 console = Console()
+
 
 class SheetManager:
     def __init__(self, gc: gspread.Client):
         self.gc = gc
         self._sh_cache = {}  # Cache for opened Spreadsheet objects
 
+    @sheets_api_retry
     def list_files(self):
         """Lists all spreadsheets available to the user."""
         files = self.gc.list_spreadsheet_files()
@@ -23,6 +27,7 @@ class SheetManager:
         console.print(table)
         return files
 
+    @sheets_api_retry
     def get_sheet(self, name_or_url: str):
         """Opens a spreadsheet by name, URL, or ID (cached)."""
         if name_or_url in self._sh_cache:
@@ -47,6 +52,7 @@ class SheetManager:
             console.print(f"[red]Spreadsheet '{name_or_url}' not found.[/red]")
             return None
 
+    @sheets_api_retry
     def read_data(self, sheet_name: str, worksheet_name: str = "Sheet1"):
         """Reads all records from a worksheet."""
         sh = self.get_sheet(sheet_name)
@@ -73,12 +79,14 @@ class SheetManager:
             console.print(f"[red]Worksheet '{worksheet_name}' not found in '{sheet_name}'.[/red]")
             return None
 
+    @sheets_api_retry
     def create_sheet(self, title: str):
         """Creates a new spreadsheet."""
         sh = self.gc.create(title)
         console.print(f"[green]Created new sheet: {sh.title} ({sh.url})[/green]")
         return sh
 
+    @sheets_api_retry
     def update_cell(self, sheet_name: str, cell_address: str, value: str, worksheet_name: str = "Sheet1"):
         """Updates a single cell in a worksheet."""
         sh = self.get_sheet(sheet_name)
@@ -90,6 +98,7 @@ class SheetManager:
         except Exception as e:
             console.print(f"[red]Error updating cell: {e}[/red]")
 
+    @sheets_api_retry
     def update_row(self, sheet_name: str, row_index: int, row_data: list, worksheet_name: str = "Sheet1"):
         """Updates an entire row efficiently."""
         sh = self.get_sheet(sheet_name)
@@ -110,6 +119,7 @@ class SheetManager:
         except Exception as e:
             console.print(f"[red]Error updating row: {e}[/red]")
 
+    @sheets_api_retry
     def append_row(self, sheet_name: str, row_data: list, worksheet_name: str = "Sheet1"):
         """Appends a single row to the worksheet."""
         sh = self.get_sheet(sheet_name)
@@ -121,6 +131,7 @@ class SheetManager:
         except Exception as e:
             console.print(f"[red]Error appending row: {e}[/red]")
 
+    @sheets_api_retry
     def append_rows(self, sheet_name: str, rows_data: list, worksheet_name: str = "Sheet1"):
         """Appends multiple rows to the worksheet in one batch."""
         sh = self.get_sheet(sheet_name)
@@ -132,6 +143,7 @@ class SheetManager:
         except Exception as e:
             console.print(f"[red]Error appending rows: {e}[/red]")
             
+    @sheets_api_retry
     def clear_range(self, sheet_name: str, range_name: str, worksheet_name: str = "Sheet1"):
         """Clears a specific range of cells."""
         sh = self.get_sheet(sheet_name)
@@ -143,6 +155,7 @@ class SheetManager:
         except Exception as e:
             console.print(f"[red]Error clearing range: {e}[/red]")
 
+    @sheets_api_retry
     def delete_row(self, sheet_name: str, row_index: int, worksheet_name: str = "Sheet1"):
         """Deletes a specific row."""
         sh = self.get_sheet(sheet_name)
