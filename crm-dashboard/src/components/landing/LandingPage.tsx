@@ -19,26 +19,26 @@ const item: Variants = {
     show: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 50 } },
 };
 
-// Feature demo data with videos
+// Feature demo data with videos - Google-style copy
 const featureDemos = [
     {
-        title: "Drag & Drop Pipeline",
-        description: "Move deals between stages with a simple drag. Changes sync instantly to your sheet.",
+        title: "Drag. Drop. Done.",
+        description: "Move deals through your pipeline with a simple drag. Sheety syncs every change to your sheet instantly.",
         video: "/assets/DragDropBetweenStages_web.mp4",
     },
     {
-        title: "Convert Leads to Opportunities",
-        description: "One click to turn a qualified lead into a pipeline opportunity.",
+        title: "Lead to Opportunity",
+        description: "Qualify a lead with one click. Sheety creates the opportunity and keeps everything linked.",
         video: "/assets/TurnLeadIntoOpportunity_web.mp4",
     },
     {
-        title: "Switch Databases Instantly",
-        description: "Work with multiple sheets. Switch between them without losing context.",
+        title: "Multiple Sheets. One App.",
+        description: "Switch between different CRM sheets instantly. Sheety keeps your context across all your databases.",
         video: "/assets/EasilySwitchDatabaseSheets_web.mp4",
     },
     {
-        title: "Log Activities",
-        description: "Track calls, emails, and meetings. Everything stays organized.",
+        title: "Track Every Interaction",
+        description: "Calls, emails, meetings—log them all. Sheety organizes your activity history automatically.",
         video: "/assets/UpdateActivity_web.mp4",
     },
 ];
@@ -64,14 +64,14 @@ export default function LandingPage() {
                     </span>
                 </motion.div>
 
-                <motion.h1 variants={item} className="font-serif text-5xl md:text-7xl font-bold leading-[0.9] text-[var(--color-ink)] mb-6 tracking-tight">
-                    Your Spreadsheet,<br />
-                    <span className="italic text-[var(--accent)]">Supercharged.</span>
+                <motion.h1 variants={item} className="font-serif text-5xl md:text-7xl font-bold leading-[0.95] text-[var(--color-ink)] mb-6 tracking-tight">
+                    Your Spreadsheet<br />
+                    <span className="italic text-[var(--accent)]">Is Your CRM.</span>
                 </motion.h1>
 
                 <motion.p variants={item} className="font-sans text-lg md:text-xl text-[var(--color-ink-muted)] max-w-2xl mx-auto mb-8 font-light leading-relaxed">
-                    The &quot;Stateless&quot; CRM for solopreneurs. Zero database lock-in.
-                    Everything lives in your Google Sheet. We just make it beautiful.
+                    Sheety turns your Google Sheet into a beautiful CRM.
+                    No database lock-in. No learning curve. Your data, your rules.
                 </motion.p>
 
                 <motion.div variants={item}>
@@ -147,8 +147,8 @@ export default function LandingPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
                             </svg>
                         </div>
-                        <h3 className="font-serif text-2xl font-bold mb-3">You Own The Data</h3>
-                        <p className="text-[var(--color-ink-muted)]">Typical CRMs hold your data hostage. We work directly with your Google Sheet.</p>
+                        <h3 className="font-serif text-2xl font-bold mb-3">Your Data. Your Sheet.</h3>
+                        <p className="text-[var(--color-ink-muted)]">Sheety reads and writes directly to your Google Sheet. No proprietary database. Export anytime.</p>
                     </motion.div>
 
                     <motion.div
@@ -163,8 +163,8 @@ export default function LandingPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
                             </svg>
                         </div>
-                        <h3 className="font-serif text-2xl font-bold mb-3">Instant UI</h3>
-                        <p className="text-[var(--color-ink-muted)]">No more wrestling with spreadsheet cells. Get a Kanban board, stats, and filters instantly.</p>
+                        <h3 className="font-serif text-2xl font-bold mb-3">Instant Interface</h3>
+                        <p className="text-[var(--color-ink-muted)]">Sheety gives you a Kanban pipeline, lead cards, and activity logs—no spreadsheet wrestling.</p>
                     </motion.div>
 
                     <motion.div
@@ -179,28 +179,27 @@ export default function LandingPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
                             </svg>
                         </div>
-                        <h3 className="font-serif text-2xl font-bold mb-3">Multi-Player</h3>
-                        <p className="text-[var(--color-ink-muted)]">Invite your team to the sheet. They log in with their Google account and see the same data.</p>
+                        <h3 className="font-serif text-2xl font-bold mb-3">Team Ready</h3>
+                        <p className="text-[var(--color-ink-muted)]">Share your sheet. Teammates sign in with Google and Sheety shows everyone the same live data.</p>
                     </motion.div>
                 </div>
             </div>
 
-            {/* Feature Demos Section */}
-            <div className="relative z-10 bg-[var(--color-ink)] text-white py-24">
+            {/* Feature Demos Section - Themed, not black */}
+            <div className="relative z-10 bg-[var(--accent-blue)] text-white py-32">
                 <div className="max-w-6xl mx-auto px-6">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="text-center mb-20"
+                        className="text-center mb-24"
                     >
-                        <span className="font-mono text-xs uppercase tracking-widest text-white/40 mb-4 block">
-                            See It In Action
-                        </span>
-                        <h2 className="font-serif text-4xl md:text-5xl font-bold mb-4">
-                            Workflows That<br />
-                            <span className="italic text-[var(--accent-yellow)]">Just Work</span>
+                        <h2 className="font-serif text-5xl md:text-7xl font-bold mb-6 leading-tight">
+                            Sheety in Action
                         </h2>
+                        <p className="text-xl md:text-2xl text-white/70 max-w-2xl mx-auto font-light">
+                            See how simple CRM workflows become.
+                        </p>
                     </motion.div>
 
                     {/* Alternating Feature Rows */}
@@ -230,14 +229,14 @@ export default function LandingPage() {
                                 </div>
 
                                 {/* Text */}
-                                <div className={`flex-1 ${index % 2 === 0 ? 'md:pl-8' : 'md:pr-8'}`}>
-                                    <span className="font-mono text-6xl font-bold text-white/10 mb-4 block">
+                                <div className={`flex-1 ${index % 2 === 0 ? 'md:pl-12' : 'md:pr-12'}`}>
+                                    <span className="font-mono text-8xl font-bold text-white/20 mb-2 block">
                                         0{index + 1}
                                     </span>
-                                    <h3 className="font-serif text-2xl md:text-3xl font-bold mb-4">
+                                    <h3 className="font-serif text-3xl md:text-4xl font-bold mb-4">
                                         {demo.title}
                                     </h3>
-                                    <p className="text-white/60 text-lg leading-relaxed">
+                                    <p className="text-white/80 text-xl leading-relaxed">
                                         {demo.description}
                                     </p>
                                 </div>
