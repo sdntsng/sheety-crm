@@ -54,8 +54,10 @@ export default function Header() {
     const { data: session, status } = useSession();
     const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showSheetMenu, setShowSheetMenu] = useState(false);
     const [imgError, setImgError] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const sheetMenuRef = useRef<HTMLDivElement>(null);
 
     const isAuthenticated = status === 'authenticated';
 
@@ -68,11 +70,14 @@ export default function Header() {
         }
     }, [pathname, isAuthenticated]);
 
-    // Close menu on outside click
+    // Close menus on outside click
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
                 setShowUserMenu(false);
+            }
+            if (sheetMenuRef.current && !sheetMenuRef.current.contains(e.target as Node)) {
+                setShowSheetMenu(false);
             }
         };
         document.addEventListener('mousedown', handleClick);
@@ -148,27 +153,57 @@ export default function Header() {
                         </>
                     )}
 
-                    {/* Sheet Indicator - Only when authenticated and sheet selected */}
+                    {/* Sheet Indicator - Dropdown with Open/Change */}
                     {isAuthenticated && selectedSheet && (
-                        <>
-                            <a
-                                href={`https://docs.google.com/spreadsheets/d/${localStorage.getItem('selected_sheet_id')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs font-mono text-[var(--accent-blue)] hover:underline mr-2 flex items-center gap-1"
+                        <div className="relative" ref={sheetMenuRef}>
+                            <button
+                                onClick={() => setShowSheetMenu(!showSheetMenu)}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--accent-yellow)]/20 hover:bg-[var(--accent-yellow)]/30 border border-[var(--accent-yellow)]/50 transition-colors"
                             >
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" strokeLinecap="round" strokeLinejoin="round" />
-                                    <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
-                                    <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
+                                <svg className="w-4 h-4 text-[var(--accent-yellow)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    <line x1="3" y1="9" x2="21" y2="9" />
+                                    <line x1="3" y1="15" x2="21" y2="15" />
+                                    <line x1="9" y1="3" x2="9" y2="21" />
                                 </svg>
-                                OPEN
-                            </a>
-                            <Link href="/setup" className="header-sheet-badge font-mono text-xs bg-[var(--accent-yellow)] text-[var(--text-primary)] border border-black/10 px-3 py-1 -rotate-1 hover:-rotate-2 transition-transform shadow-sm" title="Change connected sheet">
-                                <span className="font-bold mr-2">SHEET:</span>
-                                <span className="border-b border-black/20 dashed">{selectedSheet}</span>
-                            </Link>
-                        </>
+                                <span className="font-mono text-xs font-medium max-w-[120px] truncate">
+                                    {selectedSheet}
+                                </span>
+                                <svg className={`w-3 h-3 transition-transform ${showSheetMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+
+                            {/* Sheet Dropdown */}
+                            {showSheetMenu && (
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-[var(--border-pencil)] rounded-xl shadow-lg py-1 z-50">
+                                    <a
+                                        href={`https://docs.google.com/spreadsheets/d/${localStorage.getItem('selected_sheet_id')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() => setShowSheetMenu(false)}
+                                        className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--bg-paper)] transition-colors"
+                                    >
+                                        <svg className="w-4 h-4 text-[var(--accent-blue)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" strokeLinecap="round" strokeLinejoin="round" />
+                                            <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
+                                            <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        <span>Open in Sheets</span>
+                                    </a>
+                                    <Link
+                                        href="/setup"
+                                        onClick={() => setShowSheetMenu(false)}
+                                        className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--bg-paper)] transition-colors"
+                                    >
+                                        <svg className="w-4 h-4 text-[var(--color-ink-muted)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                            <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 0 0 4.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0 1-15.357-2m15.357 2H15" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        <span>Change Sheet</span>
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {/* User Avatar */}
