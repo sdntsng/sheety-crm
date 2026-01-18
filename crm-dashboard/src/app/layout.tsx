@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Outfit, JetBrains_Mono } from "next/font/google"; // Distinctive Geometric Sans
+import { Outfit, JetBrains_Mono, Playfair_Display } from "next/font/google"; // Distinctive Geometric Sans + Editorial Serif
 import "./globals.css";
 import Header from "@/components/Header";
 import SessionProvider from "@/providers/SessionProvider";
+import Footer from "@/components/Footer";
 
 const sans = Outfit({
     subsets: ["latin"],
@@ -13,6 +14,12 @@ const sans = Outfit({
 const mono = JetBrains_Mono({
     subsets: ["latin"],
     variable: "--font-mono",
+    display: "swap",
+});
+
+const serif = Playfair_Display({
+    subsets: ["latin"],
+    variable: "--font-serif",
     display: "swap",
 });
 
@@ -28,13 +35,14 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className={`${sans.variable} ${mono.variable} antialiased font-sans`}>
+            <body className={`${sans.variable} ${mono.variable} ${serif.variable} antialiased font-sans`}>
                 <SessionProvider>
                     <div className="min-h-screen flex flex-col bg-paper text-ink">
                         <Header />
                         <main className="flex-1 relative">
                             {children}
                         </main>
+                        <Footer />
                     </div>
                 </SessionProvider>
             </body>
