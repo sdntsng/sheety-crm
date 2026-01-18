@@ -13,3 +13,35 @@ Sheety CRM is an open-source, "stateless" CRM that uses Google Sheets as its bac
 - **Repository**: https://github.com/sdntsng/sheety-crm
 - **Documentation**: https://github.com/sdntsng/sheety-crm/tree/master/docs
 - **Landing Page**: /
+
+## FAQ
+
+**Q: How does Sheety integrate with Google Sheets?**
+Sheety connects directly to your Google Sheet via OAuth, reading and writing data in real-time without importing or exporting. Simply share your sheet link during setup, and it transforms into a Kanban-style CRM. No coding required.
+
+**Q: What are the benefits of using Sheety for solopreneurs?**
+Solopreneurs get a lightweight, no-cost CRM that leverages familiar Google Sheets for lead tracking, without the bloat of enterprise tools. It saves time on data entry and keeps everything in one accessible place.
+
+**Q: Can I customize pipeline stages in Sheety?**
+Yes, you can define custom stages in your Google Sheet (e.g., columns for "Lead," "Qualified," "Closed"), and Sheety automatically reflects them in the Kanban view. Add or rename as needed.
+
+**Q: How do I get started with Sheety?**
+Sign in with Google, connect your sheet, and you're ready. No installation—it's web-based. Check our quick-start guide for tips on formatting your sheet.
+
+**Q: Does Sheety support mobile access?**
+Sheety is fully responsive and works on mobile browsers, allowing you to drag deals, log activities, and search leads on the go. No app download needed.
+
+**Q: How does Sheety compare to Airtable or Notion?**
+Unlike Airtable's proprietary database or Notion's all-in-one workspace, Sheety focuses solely on sales pipelines using your existing Google Sheet. It's simpler, free, and avoids vendor lock-in.
+
+**Q: What kind of customer support does Sheety offer?**
+As an open-source tool, support comes via our GitHub community, documentation, and email. For hosted versions (coming soon), we'll add priority chat support.
+
+**Q: Can Sheety be used for project management or non-sales tasks?**
+Absolutely—adapt your sheet for tasks like content pipelines or client onboarding. The Kanban interface works for any columnar workflow in Google Sheets.
+
+**Q: How does Sheety handle data syncing and backups?**
+Changes sync instantly to your Google Sheet, which handles versioning and backups automatically via Drive. No extra setup needed.
+
+**Q: Is Sheety suitable for teams larger than tiny ones?**
+While optimized for solopreneurs and small teams, it scales with Google Sheets' sharing features. For larger groups, consider our upcoming enterprise add-ons.
