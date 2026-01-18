@@ -13,7 +13,7 @@ export default function Footer() {
                         Sheety
                     </span>
                     <p className="font-mono text-xs text-[var(--color-ink-muted)]">
-                        &copy; {new Date().getFullYear()} Open Source.
+                        &copy; {new Date().getFullYear()} Open Source. <span className="opacity-50 ml-1">v0.51.0</span>
                     </p>
                 </div>
 

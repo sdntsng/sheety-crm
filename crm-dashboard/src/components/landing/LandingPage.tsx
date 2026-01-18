@@ -63,11 +63,7 @@ export default function LandingPage() {
                 animate="show"
                 className="relative z-10 max-w-6xl mx-auto px-6 py-16 md:py-24 flex flex-col items-center text-center"
             >
-                <motion.div variants={item} className="mb-6 inline-block">
-                    <span className="px-4 py-1.5 rounded-full border border-[var(--color-ink)] font-mono text-xs uppercase tracking-widest bg-white shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
-                        v1.0 Beta
-                    </span>
-                </motion.div>
+
 
                 <motion.h1 variants={item} className="font-serif text-5xl md:text-7xl font-bold leading-[0.95] text-[var(--color-ink)] mb-6 tracking-tight">
                     Your Spreadsheet<br />
