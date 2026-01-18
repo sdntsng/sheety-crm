@@ -146,10 +146,16 @@ make crm-dev
 
 ### Google OAuth Production Checklist
 
-- [ ] Add production domain to OAuth consent screen
-- [ ] Add production redirect URIs to OAuth credentials
-- [ ] Publish OAuth consent screen (move from Testing to Production)
-- [ ] Request verification if using sensitive scopes
+- [ ] **Verify Domain Ownership**:
+    1. Go to [Google Search Console](https://search.google.com/search-console).
+    2. Add `https://sheety.site` (and any other domains).
+    3. Verify ownership via DNS TXT record (recommended) or HTML file.
+    4. **Crucial**: Use the *same* Google Account as your Cloud Project.
+    5. Return to GCP > **APIs & Services > Domain verification** and click "Add domain".
+- [ ] Add production domain to OAuth consent screen.
+- [ ] Add production redirect URIs to OAuth credentials.
+- [ ] Publish OAuth consent screen (move from Testing to Production).
+- [ ] Request verification if using sensitive scopes.
 
 ---
 
