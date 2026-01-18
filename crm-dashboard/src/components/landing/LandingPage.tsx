@@ -2,6 +2,7 @@
 
 import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import FAQ from './FAQ';
 
 const container: Variants = {
@@ -50,6 +51,8 @@ const featureDemos = [
 ];
 
 export default function LandingPage() {
+    const { status } = useSession();
+
     return (
         <div className="min-h-screen bg-[var(--bg-paper)] text-[var(--color-ink)] overflow-hidden relative selection:bg-[var(--accent)] selection:text-white">
             {/* Background Texture */}
@@ -78,10 +81,10 @@ export default function LandingPage() {
 
                 <motion.div variants={item}>
                     <Link
-                        href="/login"
+                        href={status === 'authenticated' ? "/dashboard" : "/login"}
                         className="group relative inline-flex items-center gap-3 px-8 py-4 bg-[var(--color-ink)] text-white rounded-full text-lg font-medium shadow-[0px_4px_12px_rgba(0,0,0,0.2)] hover:shadow-[0px_6px_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1"
                     >
-                        Go to App
+                        {status === 'authenticated' ? "Go to Dashboard" : "Go to App"}
                         <span className="opacity-70 group-hover:translate-x-1 transition-transform">→</span>
                     </Link>
                     <p className="mt-4 font-mono text-xs text-[var(--color-ink-muted)] opacity-60">
@@ -266,10 +269,10 @@ export default function LandingPage() {
                         Connect your Google account and start managing your leads in seconds.
                     </p>
                     <Link
-                        href="/login"
+                        href={status === 'authenticated' ? "/dashboard" : "/login"}
                         className="group inline-flex items-center gap-3 px-8 py-4 bg-[var(--color-ink)] text-white rounded-full text-lg font-medium shadow-[0px_4px_12px_rgba(0,0,0,0.2)] hover:shadow-[0px_6px_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1"
                     >
-                        Get Started Free
+                        {status === 'authenticated' ? "Go to Dashboard" : "Get Started Free"}
                         <span className="opacity-70 group-hover:translate-x-1 transition-transform">→</span>
                     </Link>
                 </motion.div>

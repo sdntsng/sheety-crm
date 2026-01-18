@@ -32,7 +32,7 @@ const LeadsIcon = () => (
 );
 
 const navItems = [
-    { href: '/', label: 'Dashboard', icon: DashboardIcon },
+    { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
     { href: '/pipeline', label: 'Pipeline', icon: PipelineIcon },
     { href: '/leads', label: 'Leads', icon: LeadsIcon },
 ];
