@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createSheet } from '@/lib/api';
+import { createSheet, addSchemaToSheet } from '@/lib/api';
 import { useSession } from 'next-auth/react';
 import useDrivePicker from 'react-google-drive-picker';
 
@@ -49,6 +49,40 @@ export default function SetupPage() {
                 if (data.action === 'picked') {
                     const doc = data.docs[0];
                     handleSelect({ id: doc.id, name: doc.name });
+                }
+            },
+        });
+    };
+
+    const handleOpenSchemaPicker = () => {
+        // @ts-ignore
+        const token = session?.accessToken;
+
+        if (!token) {
+            setError("Authentication token missing. Please sign in again.");
+            return;
+        }
+
+        openPicker({
+            clientId: process.env.GOOGLE_CLIENT_ID || "",
+            developerKey: "",
+            viewId: "SPREADSHEETS",
+            token: token,
+            showUploadView: false,
+            supportDrives: true,
+            multiselect: false,
+            callbackFunction: async (data) => {
+                if (data.action === 'picked') {
+                    const doc = data.docs[0];
+                    setCreating(true); // Re-use blocking state
+                    try {
+                        await addSchemaToSheet(doc.id);
+                        alert("Schema sheet added successfully!");
+                    } catch (err: any) {
+                        setError(err.message || "Failed to add schema sheet");
+                    } finally {
+                        setCreating(false);
+                    }
                 }
             },
         });
@@ -243,6 +277,19 @@ export default function SetupPage() {
                         Opps.csv
                     </a>
                 </div>
+            </div>
+
+            {/* Tools */}
+            <div className="max-w-xl mx-auto mt-8 text-center pt-8 border-t border-[var(--border-color)]">
+                <h3 className="font-serif text-lg text-[var(--color-ink)] mb-4">Tools & Troubleshooting</h3>
+                <button
+                    onClick={handleOpenSchemaPicker}
+                    disabled={creating}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[var(--border-color)] rounded-lg text-sm font-medium hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors shadow-sm disabled:opacity-50"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Add Schema Sheet to Existing CRM
+                </button>
             </div>
 
             {/* Error Toast */}

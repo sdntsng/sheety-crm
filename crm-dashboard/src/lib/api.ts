@@ -208,6 +208,13 @@ export async function createSheet(name: string): Promise<{ success: boolean; she
   return handleResponse(response);
 }
 
+export async function addSchemaToSheet(sheetId: string): Promise<{ success: boolean }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/sheets/${sheetId}/schema`, {
+    method: 'POST',
+  });
+  return handleResponse(response);
+}
+
 // ============================================================================
 // Leads
 // ============================================================================

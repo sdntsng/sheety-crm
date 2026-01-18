@@ -43,6 +43,9 @@ class CRMTemplates:
         
         self.ensure_worksheet(sh, "Summary")
         console.print("[green]✓ Set up Summary dashboard[/green]")
+        
+        self.ensure_worksheet(sh, "_Schema")
+        console.print("[green]✓ Set up Schema reference[/green]")
 
         console.print(f"\n[bold green]CRM ready! Open: {sh.url}[/bold green]")
         return sh
@@ -63,6 +66,8 @@ class CRMTemplates:
                 self.setup_activities_sheet(ws)
             elif name == "Summary":
                 self.setup_summary_sheet(ws)
+            elif name == "_Schema":
+                self.setup_schema_sheet(ws)
             
             return ws
 
@@ -193,6 +198,76 @@ class CRMTemplates:
         except Exception as e:
             console.print(f"[yellow]Warning: Could not fully set up Summary sheet: {e}[/yellow]")
             row += 1
+
+    def setup_schema_sheet(self, ws: gspread.Worksheet):
+        """Set up the Schema reference worksheet."""
+        try:
+            # Title
+            ws.update_acell("A1", "CRM Data Schema Reference")
+            ws.format("A1", {"textFormat": {"bold": True, "fontSize": 14}})
+            
+            # --- 1. Pipeline Stages ---
+            ws.update_acell("A3", "Pipeline Stages (Opportunities)")
+            ws.format("A3", {"textFormat": {"bold": True, "fontSize": 11, "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8}}})
+            ws.update("A4:B4", [["Stage Name", "Description"]])
+            ws.format("A4:B4", {"textFormat": {"bold": True}, "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9}})
+            
+            stages = [
+                ("Prospecting", "Initial research and outreach"),
+                ("Discovery", "First meeting/call to understand needs"),
+                ("Proposal", "Sent proposal or quote"),
+                ("Negotiation", "Discussing terms and pricing"),
+                ("Closed Won", "Contract signed"),
+                ("Closed Lost", "Deal lost (competitor, budget, etc.)"),
+                ("Delivery", "Product/Service delivered"),
+                ("Invoicing", "Invoice sent"),
+                ("Cash in Bank", "Payment received"),
+                ("Unknown", "Fallback for unrecognized stages"),
+            ]
+            ws.update(f"A5:B{4+len(stages)}", stages)
+            
+            # --- 2. Lead Statuses ---
+            start_row = 6 + len(stages)
+            ws.update_acell(f"A{start_row}", "Lead Statuses")
+            ws.format(f"A{start_row}", {"textFormat": {"bold": True, "fontSize": 11, "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8}}})
+            ws.update(f"A{start_row+1}:B{start_row+1}", [["Status", "Description"]])
+            ws.format(f"A{start_row+1}:B{start_row+1}", {"textFormat": {"bold": True}, "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9}})
+            
+            statuses = [
+                ("New", "Just added, no action yet"),
+                ("Contacted", "Outreach attempted or conversation started"),
+                ("Qualified", "Good fit, potential opportunity"),
+                ("Unqualified", "Not a fit"),
+                ("Lost", "No longer pursuing"),
+                ("Unknown", "Fallback for unrecognized statuses"),
+            ]
+            ws.update(f"A{start_row+2}:B{start_row+1+len(statuses)}", statuses)
+            
+            # --- 3. Lead Sources ---
+            start_row = start_row + len(statuses) + 3
+            ws.update_acell(f"A{start_row}", "Lead Sources")
+            ws.format(f"A{start_row}", {"textFormat": {"bold": True, "fontSize": 11, "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8}}})
+            ws.update(f"A{start_row+1}:B{start_row+1}", [["Source", "Description"]])
+            ws.format(f"A{start_row+1}:B{start_row+1}", {"textFormat": {"bold": True}, "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9}})
+            
+            sources = [[s.value, ""] for s in LeadSource]
+            ws.update(f"A{start_row+2}:B{start_row+1+len(sources)}", sources)
+
+            # --- 4. Company Sizes ---
+            start_row = start_row + len(sources) + 3
+            ws.update_acell(f"A{start_row}", "Company Sizes")
+            ws.format(f"A{start_row}", {"textFormat": {"bold": True, "fontSize": 11, "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8}}})
+            ws.update(f"A{start_row+1}:B{start_row+1}", [["Size Bucket", "Description"]])
+            ws.format(f"A{start_row+1}:B{start_row+1}", {"textFormat": {"bold": True}, "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9}})
+            
+            sizes = [[s.value, ""] for s in CompanySize]
+            ws.update(f"A{start_row+2}:B{start_row+1+len(sizes)}", sizes)
+            
+            # Auto-resize columns
+            # ws.columns_auto_resize(0, 1)
+            
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not fully populate Schema sheet: {e}[/yellow]")
 
     def _add_dropdown_validation(self, ws: gspread.Worksheet, range_str: str, values: list):
         """Add dropdown data validation to a range."""

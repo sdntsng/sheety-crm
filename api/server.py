@@ -200,6 +200,25 @@ def create_crm_sheet(request: CreateSheetRequest, sm: SheetManager = Depends(get
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/sheets/{sheet_id}/schema")
+def ensure_schema_sheet(sheet_id: str, sm: SheetManager = Depends(get_sheet_manager)):
+    """Add the Schema reference sheet to an existing CRM."""
+    from src.crm.templates import CRMTemplates
+    import traceback
+    
+    try:
+        print(f"[SchemaSheet] Adding schema to sheet: {sheet_id}")
+        sh = sm.gc.open_by_key(sheet_id)
+        templates = CRMTemplates(sm.gc)
+        # Force creation if missing
+        templates.setup_schema_sheet(templates.ensure_worksheet(sh, "_Schema"))
+        return {"success": True}
+    except Exception as e:
+        print(f"[SchemaSheet] ERROR: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # =============================================================================
 # Leads Endpoints
 # =============================================================================
