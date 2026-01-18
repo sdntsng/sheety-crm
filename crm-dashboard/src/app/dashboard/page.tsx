@@ -78,18 +78,7 @@ export default function DashboardPage() {
     };
 
     if (loading) {
-        return (
-            <div className="p-8">
-                <div className="animate-pulse space-y-6">
-                    <div className="h-10 bg-[var(--bg-surface)] rounded w-1/3"></div>
-                    <div className="grid grid-cols-4 gap-6">
-                        {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="h-32 bg-[var(--bg-surface)] rounded"></div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
+        return <Loader text="Fetching your data..." />;
     }
 
     if (error) {
