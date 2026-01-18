@@ -135,11 +135,13 @@ export default function SetupPage() {
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                     </div>
 
-                    <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform duration-300">
-                        📂
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--bg-surface)] text-[var(--color-ink)] border border-[var(--border-pencil)] flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[var(--accent-blue)]/10 group-hover:border-[var(--accent-blue)] group-hover:text-[var(--accent-blue)] transition-all duration-300">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
                     </div>
 
-                    <h3 className="font-bold text-[var(--color-ink)] text-xl mb-2 group-hover:text-blue-600 transition-colors">Select from Drive</h3>
+                    <h3 className="font-bold text-[var(--color-ink)] text-xl mb-2 group-hover:text-[var(--accent-blue)] transition-colors">Select from Drive</h3>
                     <p className="text-[var(--color-ink-muted)] leading-relaxed">
                         Already have a sheet? Open the Google Picker to select any spreadsheet from your Google Drive.
                     </p>
@@ -155,19 +157,23 @@ export default function SetupPage() {
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                         </div>
 
-                        <div className="w-16 h-16 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform duration-300">
-                            ✨
+                        <div className="w-16 h-16 rounded-2xl bg-[var(--bg-surface)] text-[var(--color-ink)] border border-[var(--border-pencil)] flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[var(--accent)]/10 group-hover:border-[var(--accent)] group-hover:text-[var(--accent)] transition-all duration-300">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                         </div>
 
-                        <h3 className="font-bold text-[var(--color-ink)] text-xl mb-2 group-hover:text-purple-600 transition-colors">Create New CRM</h3>
+                        <h3 className="font-bold text-[var(--color-ink)] text-xl mb-2 group-hover:text-[var(--accent)] transition-colors">Create New CRM</h3>
                         <p className="text-[var(--color-ink-muted)] leading-relaxed">
                             Start fresh. We'll create a new spreadsheet with the perfect schema for Leads, Opportunities, and Activities.
                         </p>
                     </button>
                 ) : (
                     <div className="relative flex flex-col p-8 rounded-2xl border-2 border-[var(--accent)] bg-[var(--bg-surface)] shadow-lg animate-fade-in">
-                        <div className="w-16 h-16 rounded-2xl bg-[var(--accent-muted)] text-[var(--accent)] flex items-center justify-center text-3xl mb-6">
-                            ✏️
+                        <div className="w-16 h-16 rounded-2xl bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)] flex items-center justify-center mb-6">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
                         </div>
                         <h3 className="font-bold text-[var(--color-ink)] text-xl mb-4">Name your new sheet</h3>
 
