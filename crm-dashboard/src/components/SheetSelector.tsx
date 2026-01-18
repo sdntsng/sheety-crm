@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createSheet } from '@/lib/api';
 import useDrivePicker from 'react-google-drive-picker';
 import { useSession } from 'next-auth/react';
+import SheetyIcon from './icons/SheetyIcon';
 
 interface Sheet {
     id: string;
@@ -88,8 +89,9 @@ export default function SheetSelector({ onSheetSelected }: SheetSelectorProps) {
         <div className="min-h-screen p-8 bg-[var(--bg-paper)]">
             {/* Header */}
             <div className="max-w-4xl mx-auto mb-12 text-center animate-fade-in-up">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white shadow-sm border border-[var(--border-color)] mb-6 text-4xl">
-                    📊
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-white shadow-[8px_8px_0px_rgba(0,0,0,0.05)] border-2 border-[var(--border-pencil)] mb-6 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[var(--bg-paper)] to-transparent opacity-50"></div>
+                    <SheetyIcon className="w-12 h-12 text-[var(--accent)] relative z-10" />
                 </div>
                 <h1 className="text-4xl font-sans font-bold text-[var(--color-ink)] mb-4 tracking-tight">
                     Choose Your Database

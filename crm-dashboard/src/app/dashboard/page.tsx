@@ -7,6 +7,7 @@ import { getDashboard, DashboardData } from '@/lib/api';
 import StatCard from '@/components/StatCard';
 import Link from 'next/link';
 import SheetSelector from '@/components/SheetSelector';
+import Loader from '@/components/Loader';
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -52,14 +53,7 @@ export default function DashboardPage() {
 
     // 1. Loading State (Init or Auth check)
     if (status === 'loading' || checkingStorage) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[var(--bg-paper)]">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-8 h-8 rounded-full border-2 border-[var(--color-ink)] border-t-[var(--accent)] animate-spin"></div>
-                    <p className="font-mono text-xs text-[var(--color-ink-muted)]">Initializing Dashboard...</p>
-                </div>
-            </div>
-        );
+        return <Loader text="Initializing Dashboard..." />;
     }
 
     // 2. Unauthenticated -> Redirect to Login
