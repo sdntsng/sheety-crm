@@ -17,7 +17,7 @@ export default function LoginPage() {
 
                 <div className="py-4">
                     <button
-                        onClick={() => signIn('google', { callbackUrl: '/' })}
+                        onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
                         className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-all font-medium shadow-sm hover:shadow-md"
                     >
                         {/* Google Icon */}
