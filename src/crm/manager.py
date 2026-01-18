@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from rich.console import Console
 from rich.table import Table
+from google.oauth2.credentials import Credentials
 
 from ..sheets import SheetManager
 from .models import (
@@ -27,18 +28,20 @@ SUMMARY_WS = "Summary"
 class CRMManager:
     """Manages CRM operations against Google Sheets."""
 
-    def __init__(self, sheet_manager: SheetManager, sheet_name: str = SHEET_NAME):
+    def __init__(
+        self,
+        sheet_manager: SheetManager,
+        sheet_name: str = SHEET_NAME,
+        google_creds: Optional[Credentials] = None
+    ):
         self.sm = sheet_manager
         self.sheet_name = sheet_name
+        self.google_creds = google_creds
         
         # Caching
         self._cache: Dict[str, List[Any]] = {}
         self._last_fetch: Dict[str, datetime] = {}
         self.templates = CRMTemplates(self.sm.gc)
-        
-        # Caching
-        self._cache: Dict[str, List[Any]] = {}
-        self._last_fetch: Dict[str, datetime] = {}
         self.CACHE_TTL = 30  # seconds
 
     def _ensure_worksheet_exists(self, worksheet_name: str):
@@ -335,3 +338,154 @@ class CRMManager:
         console.print(table)
         console.print(f"\n[bold]Total Pipeline Value:[/bold] ${summary['total_pipeline_value']:,.0f}")
         console.print(f"[bold]Cash in Bank:[/bold] [green]${summary['cash_in_bank']:,.0f}[/green]")
+
+    # -------------------------------------------------------------------------
+    # Gmail Integration
+    # -------------------------------------------------------------------------
+
+    def sync_emails_for_lead(
+        self,
+        lead: Lead,
+        days_back: int = 30,
+        auto_log: bool = True
+    ) -> List[Activity]:
+        """Sync emails for a specific lead and optionally auto-log as activities.
+        
+        Args:
+            lead: Lead object with contact email
+            days_back: How many days back to search for emails
+            auto_log: Whether to automatically log emails as activities
+            
+        Returns:
+            List of Activity objects created from emails
+        """
+        if not self.google_creds:
+            raise ValueError("Google credentials required for Gmail sync")
+        
+        if not lead.contact_email:
+            return []
+        
+        from ..gmail import GmailManager
+        
+        gmail = GmailManager(self.google_creds)
+        emails = gmail.search_emails_by_contact(
+            contact_email=lead.contact_email,
+            max_results=50,
+            days_back=days_back
+        )
+        
+        activities = []
+        existing_activities = self.get_activities(lead_id=lead.lead_id)
+        
+        # Create a set of existing email subjects to avoid duplicates
+        existing_subjects = {
+            f"{a.subject}_{a.date.date()}"
+            for a in existing_activities
+            if a.type == ActivityType.EMAIL
+        }
+        
+        for email_data in emails:
+            # Create unique key from subject and date
+            email_key = f"{email_data['subject']}_{email_data['date'].date()}"
+            
+            # Skip if already logged
+            if email_key in existing_subjects:
+                continue
+            
+            # Create activity from email
+            activity = Activity(
+                lead_id=lead.lead_id,
+                type=ActivityType.EMAIL,
+                subject=email_data['subject'],
+                description=email_data['snippet'][:500],  # Limit description length
+                date=email_data['date'],
+                created_by="Gmail Sync"
+            )
+            
+            if auto_log:
+                self.log_activity(activity)
+            
+            activities.append(activity)
+        
+        return activities
+
+    def sync_emails_for_all_leads(
+        self,
+        days_back: int = 7,
+        auto_log: bool = True
+    ) -> Dict[str, int]:
+        """Sync emails for all leads with email addresses.
+        
+        Args:
+            days_back: How many days back to search
+            auto_log: Whether to automatically log emails
+            
+        Returns:
+            Dictionary with sync statistics
+        """
+        if not self.google_creds:
+            raise ValueError("Google credentials required for Gmail sync")
+        
+        leads = self.get_leads()
+        stats = {
+            'total_leads': len(leads),
+            'leads_with_email': 0,
+            'emails_synced': 0,
+            'errors': 0
+        }
+        
+        for lead in leads:
+            if not lead.contact_email:
+                continue
+            
+            stats['leads_with_email'] += 1
+            
+            try:
+                activities = self.sync_emails_for_lead(
+                    lead=lead,
+                    days_back=days_back,
+                    auto_log=auto_log
+                )
+                stats['emails_synced'] += len(activities)
+            except Exception as e:
+                print(f"Error syncing emails for {lead.company_name}: {e}")
+                stats['errors'] += 1
+        
+        return stats
+
+    def get_email_activity_summary(self, lead_id: str) -> Dict[str, Any]:
+        """Get summary of email activities for a lead.
+        
+        Args:
+            lead_id: Lead ID
+            
+        Returns:
+            Dictionary with email activity statistics
+        """
+        activities = self.get_activities(lead_id=lead_id)
+        email_activities = [a for a in activities if a.type == ActivityType.EMAIL]
+        
+        if not email_activities:
+            return {
+                'total_emails': 0,
+                'last_email_date': None,
+                'first_email_date': None,
+            }
+        
+        # Sort by date
+        sorted_emails = sorted(email_activities, key=lambda x: x.date)
+        
+        return {
+            'total_emails': len(email_activities),
+            'last_email_date': sorted_emails[-1].date if sorted_emails else None,
+            'first_email_date': sorted_emails[0].date if sorted_emails else None,
+            'recent_emails': [
+                {
+                    'subject': a.subject,
+                    'date': a.date,
+                    'snippet': a.description[:100] if a.description else ''
+                }
+                for a in sorted_emails[-5:]  # Last 5 emails
+            ]
+        }
+

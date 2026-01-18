@@ -2,7 +2,7 @@
 FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
-from fastapi import FastAPI, HTTPException, Query, Header
+from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -567,4 +567,105 @@ def search_all(
         },
         "total": len(matching_leads) + len(matching_opps),
     }
+
+
+# =============================================================================
+# Gmail Integration Endpoints
+# =============================================================================
+
+class EmailSyncRequest(BaseModel):
+    days_back: int = 7
+    auto_log: bool = True
+
+
+@app.post("/api/leads/{lead_id}/sync-emails")
+def sync_lead_emails(
+    lead_id: str,
+    request: EmailSyncRequest,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Sync emails for a specific lead and log them as activities."""
+    lead = crm.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    if not lead.contact_email:
+        raise HTTPException(status_code=400, detail="Lead has no email address")
+    
+    if not crm.google_creds:
+        raise HTTPException(
+            status_code=400,
+            detail="Gmail access not configured. Please ensure you've granted Gmail permissions."
+        )
+    
+    try:
+        activities = crm.sync_emails_for_lead(
+            lead=lead,
+            days_back=request.days_back,
+            auto_log=request.auto_log
+        )
+        
+        return {
+            "success": True,
+            "lead_id": lead_id,
+            "emails_synced": len(activities),
+            "activities": [a.model_dump() for a in activities]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Email sync failed: {str(e)}")
+
+
+@app.post("/api/sync-emails/all", status_code=202)
+def sync_all_emails_background(
+    background_tasks: BackgroundTasks,
+    request: EmailSyncRequest,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Sync emails for all leads in the background."""
+    if not crm.google_creds:
+        raise HTTPException(
+            status_code=400,
+            detail="Gmail access not configured. Please ensure you've granted Gmail permissions."
+        )
+    
+    # Add sync task to background
+    background_tasks.add_task(
+        _background_email_sync,
+        crm,
+        request.days_back,
+        request.auto_log
+    )
+    
+    return {
+        "success": True,
+        "message": "Email sync started in background",
+        "days_back": request.days_back
+    }
+
+
+def _background_email_sync(crm: CRMManager, days_back: int, auto_log: bool):
+    """Background task for syncing emails."""
+    try:
+        stats = crm.sync_emails_for_all_leads(
+            days_back=days_back,
+            auto_log=auto_log
+        )
+        print(f"[Gmail Sync] Completed: {stats}")
+    except Exception as e:
+        print(f"[Gmail Sync] Error: {e}")
+
+
+@app.get("/api/leads/{lead_id}/email-summary")
+def get_lead_email_summary(
+    lead_id: str,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Get email activity summary for a lead."""
+    lead = crm.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    summary = crm.get_email_activity_summary(lead_id)
+    return summary
+
 
