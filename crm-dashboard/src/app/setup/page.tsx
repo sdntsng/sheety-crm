@@ -200,17 +200,41 @@ export default function SetupPage() {
                 )}
             </div>
 
-            {/* Footer / Templates */}
-            <div className="max-w-md mx-auto mt-12 text-center">
-                <p className="text-sm text-[var(--color-ink-muted)] mb-4">Need manual setup?</p>
-                <div className="flex justify-center gap-6 text-sm">
-                    <a href="/templates/leads.csv" className="text-[var(--accent)] hover:underline flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        Leads Template
+            {/* Footer / Templates / Manual Setup */}
+            <div className="max-w-xl mx-auto mt-16 text-center border-t border-[var(--border-color)] pt-8">
+                <h3 className="font-serif text-lg text-[var(--color-ink)] mb-4">Manual Setup Options</h3>
+
+                <div className="bg-[var(--bg-paper)] border border-[var(--border-pencil)] rounded-xl p-6 text-left mb-6 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--accent-yellow)]"></div>
+                    <h4 className="font-bold text-sm mb-2 flex items-center gap-2">
+                        <svg className="w-4 h-4 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                        Use Master Template
+                    </h4>
+                    <p className="text-xs text-[var(--color-ink-muted)] mb-3 leading-relaxed">
+                        1. Open our read-only template sheet.<br />
+                        2. Click <strong>File &gt; Make a copy</strong> to save it to your Drive.<br />
+                        3. Come back here and "Select from Drive".
+                    </p>
+                    <a
+                        href="https://docs.google.com/spreadsheets/d/1bpkIwtKbDy7E0rwFoOMGWwNtuvHv0Wb-codfvGwMNQ0/edit?usp=sharing"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[var(--border-color)] rounded-lg text-xs font-medium hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors shadow-sm"
+                    >
+                        <span>Open Template Sheet</span>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                     </a>
-                    <a href="/templates/opps.csv" className="text-[var(--accent)] hover:underline flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        Opps Template
+                </div>
+
+                <p className="text-xs text-[var(--color-ink-muted)] mb-3">Or download raw CSV schemas:</p>
+                <div className="flex justify-center gap-4 text-xs">
+                    <a href="/templates/leads.csv" className="px-3 py-1.5 rounded-lg border border-dashed border-[var(--border-strong)] text-[var(--color-ink-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors flex items-center gap-1.5">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Leads.csv
+                    </a>
+                    <a href="/templates/opps.csv" className="px-3 py-1.5 rounded-lg border border-dashed border-[var(--border-strong)] text-[var(--color-ink-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors flex items-center gap-1.5">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Opps.csv
                     </a>
                 </div>
             </div>
