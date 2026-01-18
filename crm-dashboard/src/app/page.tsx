@@ -2,31 +2,41 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { getDashboard, DashboardData } from '@/lib/api';
 import StatCard from '@/components/StatCard';
 import Link from 'next/link';
-import { Lead, Opportunity } from '@/lib/api';
+import LandingPage from '@/components/landing/LandingPage';
+import SheetSelector from '@/components/SheetSelector';
 
 export default function DashboardPage() {
     const router = useRouter();
+    const { data: session, status } = useSession();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
+    const [checkingStorage, setCheckingStorage] = useState(true);
 
     useEffect(() => {
+        // Check for sheet selection in local storage
         const saved = localStorage.getItem('selected_sheet_name');
-        if (!saved) {
-            router.push('/setup');
-            return;
+        if (saved) {
+            setSelectedSheet(saved);
         }
-        setSelectedSheet(saved);
-    }, [router]);
+        setCheckingStorage(false);
+    }, []);
+
+    const handleSheetSelection = (sheet: { id: string; name: string }) => {
+        setSelectedSheet(sheet.name);
+        setLoading(true); // Restart loading to fetch dashboard
+    };
 
     useEffect(() => {
         if (!selectedSheet) return;
 
         async function fetchData() {
+            setLoading(true); // Ensure loading is true when we start fetching
             try {
                 const dashboard = await getDashboard();
                 setData(dashboard);
@@ -36,9 +46,34 @@ export default function DashboardPage() {
                 setLoading(false);
             }
         }
-        fetchData();
-    }, [selectedSheet]);
+        if (status === 'authenticated') {
+            fetchData();
+        }
+    }, [selectedSheet, status]);
 
+    // 1. Loading State (Init or Auth check)
+    if (status === 'loading' || checkingStorage) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[var(--bg-paper)]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 rounded-full border-2 border-[var(--color-ink)] border-t-[var(--accent)] animate-spin"></div>
+                    <p className="font-mono text-xs text-[var(--color-ink-muted)]">Initializing...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // 2. Unauthenticated -> Landing Page
+    if (status === 'unauthenticated') {
+        return <LandingPage />;
+    }
+
+    // 3. Authenticated but No Sheet -> Sheet Selector (Inline)
+    if (!selectedSheet) {
+        return <SheetSelector onSheetSelected={handleSheetSelection} />;
+    }
+
+    // 4. Authenticated & Sheet Selected -> Dashboard
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -107,12 +142,12 @@ export default function DashboardPage() {
                         >
                             Create First Lead
                         </Link>
-                        <Link
-                            href="/setup"
+                        <button
+                            onClick={() => setSelectedSheet(null)}
                             className="font-mono text-xs underline hover:text-[var(--accent-blue)]"
                         >
                             Change Sheet
-                        </Link>
+                        </button>
                     </div>
                 </div>
             </div>

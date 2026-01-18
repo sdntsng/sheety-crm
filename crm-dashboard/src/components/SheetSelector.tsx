@@ -1,32 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSheet } from '@/lib/api';
-import { useSession } from 'next-auth/react';
 import useDrivePicker from 'react-google-drive-picker';
+import { useSession } from 'next-auth/react';
 
 interface Sheet {
     id: string;
     name: string;
 }
 
-export default function SetupPage() {
+interface SheetSelectorProps {
+    onSheetSelected?: (sheet: Sheet) => void;
+}
+
+export default function SheetSelector({ onSheetSelected }: SheetSelectorProps) {
     const router = useRouter();
-    const { data: session, status } = useSession(); // Get status to check loading/unauth
-    const [openPicker, authResponse] = useDrivePicker();
+    const { data: session } = useSession();
+    const [openPicker] = useDrivePicker();
 
     // State
-    const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
     const [newSheetName, setNewSheetName] = useState('');
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const saved = localStorage.getItem('selected_sheet_name');
-        if (saved) setSelectedSheet(saved);
-    }, []);
 
     const handleOpenPicker = () => {
         // @ts-ignore
@@ -57,8 +55,13 @@ export default function SetupPage() {
     const handleSelect = (sheet: Sheet) => {
         localStorage.setItem('selected_sheet_id', sheet.id);
         localStorage.setItem('selected_sheet_name', sheet.name);
-        setSelectedSheet(sheet.name);
-        setTimeout(() => router.push('/'), 500);
+
+        if (onSheetSelected) {
+            onSheetSelected(sheet);
+        } else {
+            // Default behavior if used as a page
+            window.location.reload();
+        }
     };
 
     const handleCreateSheet = async () => {
@@ -68,10 +71,11 @@ export default function SetupPage() {
         try {
             const result = await createSheet(newSheetName.trim());
             if (result.success && result.sheet) {
-                localStorage.setItem('selected_sheet_id', result.sheet.id);
-                localStorage.setItem('selected_sheet_name', result.sheet.name);
-                setNewSheetName('');
-                router.push('/');
+                const sheet = {
+                    id: result.sheet.id,
+                    name: result.sheet.name
+                };
+                handleSelect(sheet);
             }
         } catch (err) {
             setError('Failed to create sheet. Please try again.');
@@ -79,35 +83,6 @@ export default function SetupPage() {
             setCreating(false);
         }
     };
-
-    // Unauthenticated State
-    if (status === 'unauthenticated') {
-        return (
-            <div className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-paper)]">
-                <div className="text-center max-w-md">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 text-red-500 mb-6 text-3xl">
-                        🔒
-                    </div>
-                    <h1 className="text-2xl font-sans font-bold text-[var(--color-ink)] mb-3">
-                        Authentication Required
-                    </h1>
-                    <p className="text-[var(--color-ink-muted)] mb-8">
-                        You need to sign in with Google to access your sheets.
-                    </p>
-                    <button
-                        onClick={() => router.push('/login')}
-                        className="px-8 py-3 rounded-xl bg-[var(--accent)] text-white font-medium hover:bg-[var(--accent-hover)] transition-all shadow-sm hover:shadow-md"
-                    >
-                        Sign In
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    if (status === 'loading') {
-        return <div className="min-h-screen flex items-center justify-center bg-[var(--bg-paper)] text-[var(--color-ink-muted)]">Loading...</div>;
-    }
 
     return (
         <div className="min-h-screen p-8 bg-[var(--bg-paper)]">

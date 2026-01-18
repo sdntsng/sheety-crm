@@ -14,11 +14,14 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource/playfair-display": "^5.2.8",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.26.2",
     "next": "16.1.2",
     "next-auth": "^5.0.0-beta.30",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-google-drive-picker": "^1.2.2"
+    "react-google-drive-picker": "^1.2.2",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.13.16",
