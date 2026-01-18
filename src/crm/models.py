@@ -51,8 +51,8 @@ class PipelineStage(str, Enum):
     CLOSED_LOST = "Closed Lost"
     DELIVERY = "Delivery"
     INVOICING = "Invoicing"
-    INVOICED = "Invoiced"
     CASH_IN_BANK = "Cash in Bank"
+    UNKNOWN = "Unknown"  # Fallback for unrecognized stages
 
 
 class ActivityType(str, Enum):
@@ -151,6 +151,7 @@ class Opportunity(BaseModel):
     lead_id: str
     title: str
     stage: PipelineStage = PipelineStage.PROSPECTING
+    stage_raw: Optional[str] = None  # Original stage text if unrecognized
     value: float = 0.0  # USD
     probability: int = 0  # 0-100
     close_date: Optional[date] = None
@@ -172,7 +173,9 @@ class Opportunity(BaseModel):
             self.opp_id,
             self.lead_id,
             self.title,
-            self.stage.value,
+            self.title,
+            self.stage.value if self.stage != PipelineStage.UNKNOWN else (self.stage_raw or ""),
+            str(self.value),
             str(self.value),
             str(self.probability),
             str(self.expected_value),
@@ -232,11 +235,24 @@ class Opportunity(BaseModel):
                 except (ValueError, TypeError):
                     return None
             
+            # Custom stage parsing logic
+            stage_val = row[3] if len(row) > 3 else None
+            stage = PipelineStage.PROSPECTING
+            stage_raw = None
+            
+            if stage_val:
+                try:
+                    stage = PipelineStage(stage_val)
+                except ValueError:
+                    stage = PipelineStage.UNKNOWN
+                    stage_raw = str(stage_val)
+
             return cls(
                 opp_id=str(row[0]) if row[0] else "",
                 lead_id=str(row[1]) if len(row) > 1 and row[1] else "",
                 title=str(row[2]) if len(row) > 2 else "",
-                stage=safe_enum(PipelineStage, row[3] if len(row) > 3 else None, PipelineStage.PROSPECTING),
+                stage=stage,
+                stage_raw=stage_raw,
                 value=safe_float(row[4] if len(row) > 4 else None),
                 probability=safe_int(row[5] if len(row) > 5 else None),
                 # row[6] is expected_value formula, skip
