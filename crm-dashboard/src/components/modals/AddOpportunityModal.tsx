@@ -11,6 +11,7 @@ interface AddOpportunityModalProps {
 export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportunityModalProps) {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         lead_id: '',
         title: '',
@@ -34,6 +35,11 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+        if (formData.value < 0) {
+            setError('Opportunity value must be 0 or greater.');
+            return;
+        }
         setSubmitting(true);
         try {
             await createOpportunity(formData);
@@ -41,7 +47,7 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
             onClose();
         } catch (err) {
             console.error('Failed to create opportunity', err);
-            alert('Failed to create opportunity');
+            setError(err instanceof Error ? err.message : 'Failed to create opportunity');
         } finally {
             setSubmitting(false);
         }
@@ -62,6 +68,11 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
                     <h2 className="font-sans font-bold text-3xl text-[var(--text-primary)] mb-8 border-b-4 border-[var(--accent-yellow)] inline-block">
                         New Deal
                     </h2>
+                    {error && (
+                        <div className="mb-6 p-3 bg-red-50 border-l-4 border-[var(--accent-red)] text-[var(--accent-red)] font-mono text-xs">
+                            {error}
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>

@@ -4,7 +4,7 @@ Provides REST API endpoints for the Next.js dashboard.
 """
 from fastapi import FastAPI, HTTPException, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Optional
 from datetime import date
 
@@ -124,6 +124,13 @@ class OpportunityCreate(BaseModel):
     product: Optional[str] = None
     notes: Optional[str] = None
     owner: Optional[str] = None
+
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, value: float) -> float:
+        if value < 0:
+            raise ValueError("Opportunity value must be greater than or equal to 0.")
+        return value
 
 
 class OpportunityUpdate(BaseModel):
@@ -567,4 +574,3 @@ def search_all(
         },
         "total": len(matching_leads) + len(matching_opps),
     }
-

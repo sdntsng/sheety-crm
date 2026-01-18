@@ -23,8 +23,12 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
         setError(null);
+        if (formData.value < 0) {
+            setError('Opportunity value must be 0 or greater.');
+            return;
+        }
+        setLoading(true);
 
         try {
             // 1. Create the opportunity
