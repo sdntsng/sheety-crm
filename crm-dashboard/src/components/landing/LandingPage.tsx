@@ -70,8 +70,8 @@ export default function LandingPage() {
                 </motion.h1>
 
                 <motion.p variants={item} className="font-sans text-lg md:text-xl text-[var(--color-ink-muted)] max-w-2xl mx-auto mb-8 font-light leading-relaxed">
-                    Sheety turns your Google Sheet into a beautiful CRM.
-                    No database lock-in. No learning curve. Your data, your rules.
+                    The CRM for solopreneurs and tiny teams. Sheety turns your Google Sheet
+                    into a beautiful sales pipeline. No database lock-in. Your data, your rules.
                 </motion.p>
 
                 <motion.div variants={item}>
@@ -198,7 +198,7 @@ export default function LandingPage() {
                             Sheety in Action
                         </h2>
                         <p className="text-xl md:text-2xl text-white/70 max-w-2xl mx-auto font-light">
-                            See how simple CRM workflows become.
+                            Sheety simplifies your CRM workflows.
                         </p>
                     </motion.div>
 
