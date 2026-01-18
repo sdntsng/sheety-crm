@@ -1,0 +1,15 @@
+# Sheety CRM
+
+Sheety CRM is an open-source, "stateless" CRM that uses Google Sheets as its backend database. It is designed for solopreneurs and tiny teams who want a beautiful Kanban interface without leaving the ecosystem they trust.
+
+## Core Features
+- **Google Sheets Backend**: Reads/writes directly to user's sheet via OAuth. No data retention on our servers.
+- **Kanban Pipeline**: Drag-and-drop interface for Opportunities.
+- **Lead Management**: Detailed views for Leads with status, source, and activities.
+- **Privacy First**: Your data stays in your Drive.
+- **Open Source**: Free to self-host.
+
+## Resources
+- **Repository**: https://github.com/sdntsng/sheety-crm
+- **Documentation**: https://github.com/sdntsng/sheety-crm/tree/master/docs
+- **Landing Page**: /
