@@ -60,14 +60,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS for Next.js frontend (allow all localhost ports)
+# CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        # Local development
         "http://localhost:3000",
         "http://localhost:3026",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3026",
+        # Production
+        "https://sheety.site",
+        "https://www.sheety.site",
+        "https://sheety-crm.pages.dev",
     ],
     allow_credentials=True,
     allow_methods=["*"],
