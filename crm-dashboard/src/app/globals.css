@@ -30,6 +30,10 @@
   --text-muted: #8C8984;
   /* Faded ink */
 
+  /* Aliases for easier theming */
+  --color-ink: #1A1918;
+  --color-ink-muted: #5A5855;
+
   /* HIGHLIGHTERS */
   --accent-blue: #2A5D94;
   /* Fountain pen blue */
@@ -37,12 +41,15 @@
   /* Grading pen red */
   --accent-yellow: #FEF08A;
   /* Highlighter yellow */
+  --accent: #2A5D94;
+  /* Primary accent */
 
   /* STRUCTURE */
   --border-ink: #1A1918;
   /* Sharp, undefined border */
   --border-pencil: #D1D0C9;
   /* Subtle guideline */
+  --border-color: #D1D0C9;
 
   /* SHADOWS - Hard, directional, "cutout" feel */
   --shadow-card: 2px 2px 0px rgba(0, 0, 0, 0.08);

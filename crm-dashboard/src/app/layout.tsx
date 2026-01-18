@@ -26,6 +26,9 @@ const serif = Playfair_Display({
 export const metadata: Metadata = {
     title: "Sheety - Digital CRM Workspace",
     description: "A tactile, paper-inspired CRM built on Google Sheets",
+    icons: {
+        icon: "/icon.svg",
+    },
 };
 
 export default function RootLayout({
