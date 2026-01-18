@@ -33,7 +33,7 @@ const featureDemos = [
     },
     {
         title: "Search Everything",
-        description: "Find any lead or deal instantly. Press ⌘K to search across your entire CRM in milliseconds.",
+        description: "Find any lead or deal instantly. Press / to search across your entire CRM in milliseconds.",
         video: "/assets/QuicklySearchLeadsAndOpps_web.mp4",
     },
     {
