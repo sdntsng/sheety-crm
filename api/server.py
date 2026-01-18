@@ -129,7 +129,7 @@ class OpportunityCreate(BaseModel):
     @classmethod
     def validate_value(cls, value: float) -> float:
         if value < 0:
-            raise ValueError("Opportunity value must be greater than or equal to 0.")
+            raise ValueError("Opportunity value must be 0 or greater.")
         return value
 
 
@@ -149,7 +149,7 @@ class OpportunityUpdate(BaseModel):
         if value is None:
             return value
         if value < 0:
-            raise ValueError("Opportunity value must be greater than or equal to 0.")
+            raise ValueError("Opportunity value must be 0 or greater.")
         return value
 
 
