@@ -51,6 +51,7 @@ class PipelineStage(str, Enum):
     CLOSED_LOST = "Closed Lost"
     DELIVERY = "Delivery"
     INVOICING = "Invoicing"
+    INVOICED = "Invoiced"
     CASH_IN_BANK = "Cash in Bank"
 
 
@@ -100,21 +101,39 @@ class Lead(BaseModel):
     @classmethod
     def from_row(cls, row: list) -> "Lead":
         """Create Lead from sheet row."""
-        return cls(
-            lead_id=row[0],
-            company_name=row[1],
-            contact_name=row[2],
-            contact_email=row[3] if row[3] else None,
-            contact_phone=row[4] if row[4] else None,
-            status=LeadStatus(row[5]) if row[5] else LeadStatus.NEW,
-            source=LeadSource(row[6]) if row[6] else LeadSource.OTHER,
-            industry=row[7] if row[7] else None,
-            company_size=CompanySize(row[8]) if row[8] else None,
-            notes=row[9] if row[9] else None,
-            created_at=datetime.fromisoformat(row[10]) if row[10] else datetime.now(),
-            updated_at=datetime.fromisoformat(row[11]) if row[11] else datetime.now(),
-            owner=row[12] if len(row) > 12 and row[12] else None,
-        )
+        try:
+            # Safe enum parsing
+            def safe_enum(enum_cls, val, default):
+                if not val:
+                    return default
+                try:
+                    return enum_cls(val)
+                except ValueError:
+                    return default
+            
+            return cls(
+                lead_id=str(row[0]) if row[0] else "",
+                company_name=str(row[1]) if len(row) > 1 else "",
+                contact_name=str(row[2]) if len(row) > 2 else "",
+                contact_email=row[3] if len(row) > 3 and row[3] else None,
+                contact_phone=row[4] if len(row) > 4 and row[4] else None,
+                status=safe_enum(LeadStatus, row[5] if len(row) > 5 else None, LeadStatus.NEW),
+                source=safe_enum(LeadSource, row[6] if len(row) > 6 else None, LeadSource.OTHER),
+                industry=row[7] if len(row) > 7 and row[7] else None,
+                company_size=safe_enum(CompanySize, row[8] if len(row) > 8 else None, None),
+                notes=row[9] if len(row) > 9 and row[9] else None,
+                created_at=datetime.fromisoformat(row[10]) if len(row) > 10 and row[10] else datetime.now(),
+                updated_at=datetime.fromisoformat(row[11]) if len(row) > 11 and row[11] else datetime.now(),
+                owner=row[12] if len(row) > 12 and row[12] else None,
+            )
+        except Exception as e:
+            print(f"[Warning] Failed to parse Lead row: {row[:3]}... Error: {e}")
+            # Return a minimal Lead with just the ID
+            return cls(
+                lead_id=str(row[0]) if row and row[0] else "unknown",
+                company_name=str(row[1]) if len(row) > 1 else "Parse Error",
+                contact_name=str(row[2]) if len(row) > 2 else "",
+            )
 
     @classmethod
     def headers(cls) -> list:
@@ -169,22 +188,73 @@ class Opportunity(BaseModel):
     @classmethod
     def from_row(cls, row: list) -> "Opportunity":
         """Create Opportunity from sheet row."""
-        return cls(
-            opp_id=row[0],
-            lead_id=row[1],
-            title=row[2],
-            stage=PipelineStage(row[3]) if row[3] else PipelineStage.PROSPECTING,
-            value=float(row[4]) if row[4] else 0.0,
-            probability=int(row[5]) if row[5] else 0,
-            # row[6] is expected_value formula, skip
-            close_date=date.fromisoformat(row[7]) if row[7] else None,
-            product=row[8] if row[8] else None,
-            notes=row[9] if row[9] else None,
-            created_at=datetime.fromisoformat(row[10]) if row[10] else datetime.now(),
-            updated_at=datetime.fromisoformat(row[11]) if row[11] else datetime.now(),
-            closed_at=datetime.fromisoformat(row[12]) if row[12] else None,
-            owner=row[13] if len(row) > 13 and row[13] else None,
-        )
+        try:
+            # Safe value parsing
+            def safe_float(val, default=0.0):
+                if not val:
+                    return default
+                try:
+                    # Handle currency formatting
+                    clean = str(val).replace(",", "").replace("$", "").strip()
+                    return float(clean) if clean else default
+                except (ValueError, TypeError):
+                    return default
+            
+            def safe_int(val, default=0):
+                if not val:
+                    return default
+                try:
+                    return int(float(str(val)))
+                except (ValueError, TypeError):
+                    return default
+            
+            def safe_enum(enum_cls, val, default):
+                if not val:
+                    return default
+                try:
+                    return enum_cls(val)
+                except ValueError:
+                    return default
+            
+            def safe_date(val):
+                if not val:
+                    return None
+                try:
+                    return date.fromisoformat(str(val)[:10])
+                except (ValueError, TypeError):
+                    return None
+            
+            def safe_datetime(val):
+                if not val:
+                    return None
+                try:
+                    return datetime.fromisoformat(str(val))
+                except (ValueError, TypeError):
+                    return None
+            
+            return cls(
+                opp_id=str(row[0]) if row[0] else "",
+                lead_id=str(row[1]) if len(row) > 1 and row[1] else "",
+                title=str(row[2]) if len(row) > 2 else "",
+                stage=safe_enum(PipelineStage, row[3] if len(row) > 3 else None, PipelineStage.PROSPECTING),
+                value=safe_float(row[4] if len(row) > 4 else None),
+                probability=safe_int(row[5] if len(row) > 5 else None),
+                # row[6] is expected_value formula, skip
+                close_date=safe_date(row[7] if len(row) > 7 else None),
+                product=row[8] if len(row) > 8 and row[8] else None,
+                notes=row[9] if len(row) > 9 and row[9] else None,
+                created_at=safe_datetime(row[10] if len(row) > 10 else None) or datetime.now(),
+                updated_at=safe_datetime(row[11] if len(row) > 11 else None) or datetime.now(),
+                closed_at=safe_datetime(row[12] if len(row) > 12 else None),
+                owner=row[13] if len(row) > 13 and row[13] else None,
+            )
+        except Exception as e:
+            print(f"[Warning] Failed to parse Opportunity row: {row[:3]}... Error: {e}")
+            return cls(
+                opp_id=str(row[0]) if row and row[0] else "unknown",
+                lead_id=str(row[1]) if len(row) > 1 else "",
+                title=str(row[2]) if len(row) > 2 else "Parse Error",
+            )
 
     @classmethod
     def headers(cls) -> list:
