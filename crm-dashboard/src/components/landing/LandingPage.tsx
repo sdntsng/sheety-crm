@@ -32,6 +32,11 @@ const featureDemos = [
         video: "/assets/TurnLeadIntoOpportunity_web.mp4",
     },
     {
+        title: "Search Everything",
+        description: "Find any lead or deal instantly. Press ⌘K to search across your entire CRM in milliseconds.",
+        video: "/assets/QuicklySearchLeadsAndOpps_web.mp4",
+    },
+    {
         title: "Multiple Sheets. One App.",
         description: "Switch between different CRM sheets instantly. Sheety keeps your context across all your databases.",
         video: "/assets/EasilySwitchDatabaseSheets_web.mp4",
