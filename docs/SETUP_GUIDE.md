@@ -44,17 +44,21 @@ Complete setup instructions for local development and production deployment.
 3. Select **Web application**
 4. Configure URIs:
 
-**For Local Development:**
-| Field | Value |
-|-------|-------|
-| Authorized JavaScript origins | `http://localhost:3026` |
-| Authorized redirect URIs | `http://localhost:3026/api/auth/callback/google` |
+**Authorized JavaScript Origins:**
+| Environment | URI |
+|-------------|-----|
+| Local | `http://localhost:3026` |
+| Production | `https://sheety.site` |
+| Production | `http://sheety.site` |
+| Cloudflare | `https://sheety-crm.pages.dev` |
+| Cloudflare | `http://sheety-crm.pages.dev` |
 
-**For Production (add these too):**
-| Field | Value |
-|-------|-------|
-| Authorized JavaScript origins | `https://your-domain.com` |
-| Authorized redirect URIs | `https://your-domain.com/api/auth/callback/google` |
+**Authorized Redirect URIs:**
+| Environment | URI |
+|-------------|-----|
+| Local | `http://localhost:3026/api/auth/callback/google` |
+| Production | `https://sheety.site/api/auth/callback/google` |
+| Cloudflare | `https://sheety-crm.pages.dev/api/auth/callback/google` |
 
 5. Copy the **Client ID** and **Client Secret**
 
