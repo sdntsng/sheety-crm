@@ -190,8 +190,8 @@ export default function LandingPage() {
                 </div>
             </div>
 
-            {/* Feature Demos Section - Warm paper tone */}
-            <div className="relative z-10 bg-[#1A1918] text-[var(--bg-paper)] py-32">
+            {/* Feature Demos Section - Matches page background */}
+            <div className="relative z-10 bg-transparent text-[var(--color-ink)] py-32">
                 <div className="max-w-6xl mx-auto px-6">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -202,7 +202,7 @@ export default function LandingPage() {
                         <h2 className="font-serif text-5xl md:text-7xl font-bold mb-6 leading-tight">
                             Sheety in Action
                         </h2>
-                        <p className="text-xl md:text-2xl text-white/70 max-w-2xl mx-auto font-light">
+                        <p className="text-xl md:text-2xl text-[var(--color-ink-muted)] max-w-2xl mx-auto font-light">
                             Sheety simplifies your CRM workflows.
                         </p>
                     </motion.div>
@@ -220,7 +220,7 @@ export default function LandingPage() {
                             >
                                 {/* Video */}
                                 <div className="flex-1 w-full">
-                                    <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
+                                    <div className="rounded-2xl overflow-hidden border border-[var(--color-ink)]/10 bg-white/40 shadow-xl">
                                         <video
                                             autoPlay
                                             loop
@@ -235,13 +235,13 @@ export default function LandingPage() {
 
                                 {/* Text */}
                                 <div className={`flex-1 ${index % 2 === 0 ? 'md:pl-12' : 'md:pr-12'}`}>
-                                    <span className="font-mono text-8xl font-bold text-white/20 mb-2 block">
+                                    <span className="font-mono text-8xl font-bold text-[var(--color-ink)]/10 mb-2 block">
                                         0{index + 1}
                                     </span>
                                     <h3 className="font-serif text-3xl md:text-4xl font-bold mb-4">
                                         {demo.title}
                                     </h3>
-                                    <p className="text-white/80 text-xl leading-relaxed">
+                                    <p className="text-[var(--color-ink-muted)] text-xl leading-relaxed">
                                         {demo.description}
                                     </p>
                                 </div>
