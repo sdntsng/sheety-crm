@@ -1,7 +1,6 @@
 'use client';
 
 import { motion, Variants } from 'framer-motion';
-import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 
 const container: Variants = {
@@ -20,17 +19,29 @@ const item: Variants = {
     show: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 50 } },
 };
 
-const floating: Variants = {
-    animate: {
-        y: [0, -10, 0],
-        rotate: [0, 2, -2, 0],
-        transition: {
-            duration: 6,
-            repeat: Infinity,
-            ease: "easeInOut"
-        }
-    }
-};
+// Feature demo data with videos
+const featureDemos = [
+    {
+        title: "Drag & Drop Pipeline",
+        description: "Move deals between stages with a simple drag. Changes sync instantly to your sheet.",
+        video: "/assets/DragDropBetweenStages_web.mp4",
+    },
+    {
+        title: "Convert Leads to Opportunities",
+        description: "One click to turn a qualified lead into a pipeline opportunity.",
+        video: "/assets/TurnLeadIntoOpportunity_web.mp4",
+    },
+    {
+        title: "Switch Databases Instantly",
+        description: "Work with multiple sheets. Switch between them without losing context.",
+        video: "/assets/EasilySwitchDatabaseSheets_web.mp4",
+    },
+    {
+        title: "Log Activities",
+        description: "Track calls, emails, and meetings. Everything stays organized.",
+        video: "/assets/UpdateActivity_web.mp4",
+    },
+];
 
 export default function LandingPage() {
     return (
@@ -45,7 +56,7 @@ export default function LandingPage() {
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="relative z-10 max-w-6xl mx-auto px-6 py-24 md:py-32 flex flex-col items-center text-center"
+                className="relative z-10 max-w-6xl mx-auto px-6 py-16 md:py-24 flex flex-col items-center text-center"
             >
                 <motion.div variants={item} className="mb-6 inline-block">
                     <span className="px-4 py-1.5 rounded-full border border-[var(--color-ink)] font-mono text-xs uppercase tracking-widest bg-white shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
@@ -53,13 +64,13 @@ export default function LandingPage() {
                     </span>
                 </motion.div>
 
-                <motion.h1 variants={item} className="font-serif text-6xl md:text-8xl font-bold leading-[0.9] text-[var(--color-ink)] mb-8 tracking-tight">
+                <motion.h1 variants={item} className="font-serif text-5xl md:text-7xl font-bold leading-[0.9] text-[var(--color-ink)] mb-6 tracking-tight">
                     Your Spreadsheet,<br />
                     <span className="italic text-[var(--accent)]">Supercharged.</span>
                 </motion.h1>
 
-                <motion.p variants={item} className="font-sans text-xl md:text-2xl text-[var(--color-ink-muted)] max-w-2xl mx-auto mb-12 font-light leading-relaxed">
-                    The "Stateless" CRM for solopreneurs. Zero database lock-in.
+                <motion.p variants={item} className="font-sans text-lg md:text-xl text-[var(--color-ink-muted)] max-w-2xl mx-auto mb-8 font-light leading-relaxed">
+                    The &quot;Stateless&quot; CRM for solopreneurs. Zero database lock-in.
                     Everything lives in your Google Sheet. We just make it beautiful.
                 </motion.p>
 
@@ -77,38 +88,52 @@ export default function LandingPage() {
                 </motion.div>
             </motion.div>
 
-            {/* Levitating Visuals */}
-            <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
-                {/* Abstract Sheet 1 */}
-                <motion.div
-                    variants={floating}
-                    animate="animate"
-                    className="absolute top-[15%] left-[5%] md:left-[15%] w-64 h-80 bg-white border border-[var(--border-pencil)] shadow-[8px_8px_0px_rgba(0,0,0,0.05)] rounded-xl opacity-40 rotate-[-6deg]"
-                >
-                    <div className="h-full w-full p-4 space-y-4">
-                        <div className="h-4 bg-gray-100 rounded w-3/4"></div>
-                        <div className="h-2 bg-gray-50 rounded w-full"></div>
-                        <div className="h-2 bg-gray-50 rounded w-full"></div>
-                        <div className="h-2 bg-gray-50 rounded w-5/6"></div>
+            {/* Hero Video/Image Preview */}
+            <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.8 }}
+                className="relative z-10 max-w-5xl mx-auto px-6 mb-24"
+            >
+                <div className="relative rounded-2xl overflow-hidden border-2 border-[var(--border-pencil)] shadow-[12px_12px_0px_rgba(0,0,0,0.08)] bg-white">
+                    <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-auto"
+                        poster="/assets/DatabaseHomeStatic.png"
+                    >
+                        <source src="/assets/DashboardOverview_web.mp4" type="video/mp4" />
+                    </video>
+                    {/* Decorative Elements */}
+                    <div className="absolute top-3 left-3 flex gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-red-400" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                        <div className="w-3 h-3 rounded-full bg-green-400" />
                     </div>
-                </motion.div>
+                </div>
+            </motion.div>
 
-                {/* Abstract Sheet 2 */}
-                <motion.div
-                    variants={floating}
-                    animate="animate"
-                    transition={{ delay: 1 }}
-                    className="absolute bottom-[20%] right-[5%] md:right-[15%] w-72 h-64 bg-white border border-[var(--border-pencil)] shadow-[8px_8px_0px_rgba(0,0,0,0.05)] rounded-xl opacity-40 rotate-[3deg]"
+            {/* Value Props - Simple Cards */}
+            <div className="relative z-10 max-w-6xl mx-auto px-6 pb-24">
+                <motion.h2
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="font-serif text-3xl md:text-4xl font-bold text-center mb-4"
                 >
-                    <div className="h-full w-full p-6 grid grid-cols-2 gap-4">
-                        <div className="h-24 bg-blue-50/50 rounded-lg"></div>
-                        <div className="h-24 bg-purple-50/50 rounded-lg"></div>
-                    </div>
-                </motion.div>
-            </div>
+                    Why Sheety?
+                </motion.h2>
+                <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="text-center text-[var(--color-ink-muted)] mb-12 max-w-xl mx-auto"
+                >
+                    A beautiful interface on top of the database you already know.
+                </motion.p>
 
-            {/* Feature Grid */}
-            <div className="relative z-10 max-w-6xl mx-auto px-6 pb-32">
                 <div className="grid md:grid-cols-3 gap-8">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -123,7 +148,7 @@ export default function LandingPage() {
                             </svg>
                         </div>
                         <h3 className="font-serif text-2xl font-bold mb-3">You Own The Data</h3>
-                        <p className="text-[var(--color-ink-muted)]">Typical CRMs hold your data hostage. We check directly into your Google Sheet.</p>
+                        <p className="text-[var(--color-ink-muted)]">Typical CRMs hold your data hostage. We work directly with your Google Sheet.</p>
                     </motion.div>
 
                     <motion.div
@@ -160,6 +185,91 @@ export default function LandingPage() {
                 </div>
             </div>
 
+            {/* Feature Demos Section */}
+            <div className="relative z-10 bg-[var(--color-ink)] text-white py-24">
+                <div className="max-w-6xl mx-auto px-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="text-center mb-20"
+                    >
+                        <span className="font-mono text-xs uppercase tracking-widest text-white/40 mb-4 block">
+                            See It In Action
+                        </span>
+                        <h2 className="font-serif text-4xl md:text-5xl font-bold mb-4">
+                            Workflows That<br />
+                            <span className="italic text-[var(--accent-yellow)]">Just Work</span>
+                        </h2>
+                    </motion.div>
+
+                    {/* Alternating Feature Rows */}
+                    <div className="space-y-24">
+                        {featureDemos.map((demo, index) => (
+                            <motion.div
+                                key={demo.title}
+                                initial={{ opacity: 0, y: 40 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, margin: "-100px" }}
+                                transition={{ duration: 0.6 }}
+                                className={`flex flex-col ${index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-12`}
+                            >
+                                {/* Video */}
+                                <div className="flex-1 w-full">
+                                    <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
+                                        <video
+                                            autoPlay
+                                            loop
+                                            muted
+                                            playsInline
+                                            className="w-full h-auto"
+                                        >
+                                            <source src={demo.video} type="video/mp4" />
+                                        </video>
+                                    </div>
+                                </div>
+
+                                {/* Text */}
+                                <div className={`flex-1 ${index % 2 === 0 ? 'md:pl-8' : 'md:pr-8'}`}>
+                                    <span className="font-mono text-6xl font-bold text-white/10 mb-4 block">
+                                        0{index + 1}
+                                    </span>
+                                    <h3 className="font-serif text-2xl md:text-3xl font-bold mb-4">
+                                        {demo.title}
+                                    </h3>
+                                    <p className="text-white/60 text-lg leading-relaxed">
+                                        {demo.description}
+                                    </p>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Final CTA */}
+            <div className="relative z-10 py-24 text-center">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="max-w-2xl mx-auto px-6"
+                >
+                    <h2 className="font-serif text-3xl md:text-4xl font-bold mb-6">
+                        Ready to try it?
+                    </h2>
+                    <p className="text-[var(--color-ink-muted)] mb-8">
+                        Connect your Google account and start managing your leads in seconds.
+                    </p>
+                    <Link
+                        href="/login"
+                        className="group inline-flex items-center gap-3 px-8 py-4 bg-[var(--color-ink)] text-white rounded-full text-lg font-medium shadow-[0px_4px_12px_rgba(0,0,0,0.2)] hover:shadow-[0px_6px_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1"
+                    >
+                        Get Started Free
+                        <span className="opacity-70 group-hover:translate-x-1 transition-transform">→</span>
+                    </Link>
+                </motion.div>
+            </div>
         </div>
     );
 }
