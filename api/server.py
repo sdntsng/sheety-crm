@@ -143,6 +143,15 @@ class OpportunityUpdate(BaseModel):
     notes: Optional[str] = None
     owner: Optional[str] = None
 
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return value
+        if value < 0:
+            raise ValueError("Opportunity value must be greater than or equal to 0.")
+        return value
+
 
 class ActivityCreate(BaseModel):
     lead_id: str
