@@ -117,7 +117,11 @@ export default function LandingPage() {
                         transition={{ delay: 0.2 }}
                         className="p-8 bg-white border border-[var(--border-color)] rounded-2xl hover:border-[var(--accent)] hover:shadow-lg transition-all"
                     >
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-2xl mb-6">📂</div>
+                        <div className="w-12 h-12 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] rounded-xl flex items-center justify-center mb-6">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
+                            </svg>
+                        </div>
                         <h3 className="font-serif text-2xl font-bold mb-3">You Own The Data</h3>
                         <p className="text-[var(--color-ink-muted)]">Typical CRMs hold your data hostage. We check directly into your Google Sheet.</p>
                     </motion.div>
@@ -129,7 +133,11 @@ export default function LandingPage() {
                         transition={{ delay: 0.4 }}
                         className="p-8 bg-white border border-[var(--border-color)] rounded-2xl hover:border-[var(--accent)] hover:shadow-lg transition-all"
                     >
-                        <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-2xl mb-6">⚡️</div>
+                        <div className="w-12 h-12 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] rounded-xl flex items-center justify-center mb-6">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                            </svg>
+                        </div>
                         <h3 className="font-serif text-2xl font-bold mb-3">Instant UI</h3>
                         <p className="text-[var(--color-ink-muted)]">No more wrestling with spreadsheet cells. Get a Kanban board, stats, and filters instantly.</p>
                     </motion.div>
@@ -141,7 +149,11 @@ export default function LandingPage() {
                         transition={{ delay: 0.6 }}
                         className="p-8 bg-white border border-[var(--border-color)] rounded-2xl hover:border-[var(--accent)] hover:shadow-lg transition-all"
                     >
-                        <div className="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center text-2xl mb-6">👥</div>
+                        <div className="w-12 h-12 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] rounded-xl flex items-center justify-center mb-6">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                            </svg>
+                        </div>
                         <h3 className="font-serif text-2xl font-bold mb-3">Multi-Player</h3>
                         <p className="text-[var(--color-ink-muted)]">Invite your team to the sheet. They log in with their Google account and see the same data.</p>
                     </motion.div>
