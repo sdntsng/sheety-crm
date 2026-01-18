@@ -185,8 +185,8 @@ export default function LandingPage() {
                 </div>
             </div>
 
-            {/* Feature Demos Section - Themed, not black */}
-            <div className="relative z-10 bg-[var(--accent-blue)] text-white py-32">
+            {/* Feature Demos Section - Warm paper tone */}
+            <div className="relative z-10 bg-[#1A1918] text-[var(--bg-paper)] py-32">
                 <div className="max-w-6xl mx-auto px-6">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
