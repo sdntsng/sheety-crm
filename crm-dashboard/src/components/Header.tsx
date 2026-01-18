@@ -18,6 +18,7 @@ export default function Header() {
     const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [isDark, setIsDark] = useState(true);
+    const [imgError, setImgError] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -47,8 +48,8 @@ export default function Header() {
         setIsDark(!isDark);
     };
 
-    // Don't show header on login/setup pages
-    if (pathname === '/login' || pathname === '/setup') {
+    // Don't show header on login page
+    if (pathname === '/login') {
         return null;
     }
 
@@ -58,7 +59,7 @@ export default function Header() {
                 {/* Logo & Brand - Ink Stamp Style */}
                 <Link href="/" className="header-logo group">
                     <span className="font-sans italic text-2xl group-hover:text-[var(--accent-blue)] transition-colors">
-                        Sheety<span className="font-light text-[var(--text-secondary)]">CRM</span>
+                        Sheety
                     </span>
                 </Link>
 
@@ -105,13 +106,14 @@ export default function Header() {
                         <div className="relative" ref={menuRef}>
                             <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
-                                className="w-9 h-9 rounded-full border-2 border-[var(--text-primary)] p-0.5 hover:scale-105 transition-transform bg-white"
+                                className="w-9 h-9 rounded-full border-2 border-[var(--text-primary)] p-0.5 hover:scale-105 transition-transform bg-white overflow-hidden"
                             >
-                                {session.user.image ? (
+                                {session.user.image && !imgError ? (
                                     <img
                                         src={session.user.image}
                                         alt={session.user.name || 'User'}
-                                        className="w-full h-full rounded-full grayscale hover:grayscale-0 transition-all"
+                                        className="w-full h-full rounded-full grayscale hover:grayscale-0 transition-all object-cover"
+                                        onError={() => setImgError(true)}
                                     />
                                 ) : (
                                     <span className="w-full h-full flex items-center justify-center font-sans font-bold bg-[var(--text-primary)] text-white rounded-full">
