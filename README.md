@@ -1,20 +1,34 @@
-# Sheety CRM 📊
+# Sheety
 
-**The CRM for solopreneurs and tiny teams.**
+**The CRM that lives in your Google Sheet.**
 
-> **Problem**: Traditional CRMs are database silos. Expensive, over-engineered, and they hold your data hostage.
->
-> **Solution**: Sheety turns your **Google Sheet** into a beautiful CRM. You own the data. We provide the interface.
+![Sheety Banner](crm-dashboard/public/assets/DatabaseHomeStatic.png)
 
-![Sheety CRM Dashboard](crm-dashboard/public/assets/DatabaseHomeStatic.png)
+A stateless, open-source CRM for solopreneurs and tiny teams who love the flexibility of Google Sheets but need a better UI.
 
-## ✨ Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-0.51.0-blue.svg)](CHANGELOG.md)
+[![Status](https://img.shields.io/badge/status-beta-orange.svg)]()
 
-- **Zero Database Lock-in**: All data lives in your Google Sheet (`Leads`, `Opportunities`, `Activities`).
-- **Stateless Backend**: Reads/writes to your sheet on demand using your OAuth token.
-- **Beautiful UI**: Paper-inspired interface with Kanban pipeline, lead cards, and activity tracking.
-- **Multi-Tenant**: One deployment serves unlimited users, isolated by Google Login.
-- **Google Picker**: Select any spreadsheet from your Drive to use as your CRM.
+---
+
+## Why Sheety?
+
+Most CRMs trap your data in their database. **Sheety is different.** 
+It treats your Google Sheet as the single source of truth. The app is just a beautiful, specialized interface layer on top of your data.
+
+- **You own the data**: It's just a spreadsheet in your Google Drive.
+- **No vendor lock-in**: Stop using Sheety? Your data is still just a spreadsheet.
+- **Infinite flexibility**: Use Google Sheets formulas, charts, and automations alongside the CRM.
+
+## Features
+
+- 🏢 **Pipeline Management**: Kanban board for visual deal tracking.
+- 👥 **Lead Management**: Clean interface for contacts and companies.
+- ⚡ **Global Search**: Find anything instantly with `Cmd+K` (or `/`).
+- 📝 **Activity Feed**: Log calls, emails, and meetings.
+- 🎨 **Paper Theme**: A distraction-free, tactile "digital paper" aesthetic.
+- 🔒 **Privacy First**: We don't store your data. We verify ownership via Google OAuth.
 
 ## 🛠️ Tech Stack
 
