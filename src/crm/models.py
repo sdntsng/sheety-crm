@@ -20,6 +20,7 @@ class LeadStatus(str, Enum):
     QUALIFIED = "Qualified"
     UNQUALIFIED = "Unqualified"
     LOST = "Lost"
+    UNKNOWN = "Unknown"  # Fallback for unrecognized statuses
 
 
 class LeadSource(str, Enum):
@@ -72,6 +73,7 @@ class Lead(BaseModel):
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
     status: LeadStatus = LeadStatus.NEW
+    status_raw: Optional[str] = None  # Original status text if unrecognized
     source: LeadSource = LeadSource.OTHER
     industry: Optional[str] = None
     company_size: Optional[CompanySize] = None
@@ -88,7 +90,7 @@ class Lead(BaseModel):
             self.contact_name,
             self.contact_email or "",
             self.contact_phone or "",
-            self.status.value,
+            self.status.value if self.status != LeadStatus.UNKNOWN else (self.status_raw or ""),
             self.source.value,
             self.industry or "",
             self.company_size.value if self.company_size else "",
@@ -111,13 +113,26 @@ class Lead(BaseModel):
                 except ValueError:
                     return default
             
+            # Custom status parsing logic
+            status_val = row[5] if len(row) > 5 else None
+            status = LeadStatus.NEW
+            status_raw = None
+            
+            if status_val:
+                try:
+                    status = LeadStatus(status_val)
+                except ValueError:
+                    status = LeadStatus.UNKNOWN
+                    status_raw = str(status_val)
+
             return cls(
                 lead_id=str(row[0]) if row[0] else "",
                 company_name=str(row[1]) if len(row) > 1 else "",
                 contact_name=str(row[2]) if len(row) > 2 else "",
                 contact_email=row[3] if len(row) > 3 and row[3] else None,
                 contact_phone=row[4] if len(row) > 4 and row[4] else None,
-                status=safe_enum(LeadStatus, row[5] if len(row) > 5 else None, LeadStatus.NEW),
+                status=status,
+                status_raw=status_raw,
                 source=safe_enum(LeadSource, row[6] if len(row) > 6 else None, LeadSource.OTHER),
                 industry=row[7] if len(row) > 7 and row[7] else None,
                 company_size=safe_enum(CompanySize, row[8] if len(row) > 8 else None, None),
@@ -173,9 +188,7 @@ class Opportunity(BaseModel):
             self.opp_id,
             self.lead_id,
             self.title,
-            self.title,
             self.stage.value if self.stage != PipelineStage.UNKNOWN else (self.stage_raw or ""),
-            str(self.value),
             str(self.value),
             str(self.probability),
             str(self.expected_value),
