@@ -24,6 +24,9 @@ OPPS_WS = "Opportunities"
 ACTIVITIES_WS = "Activities"
 SUMMARY_WS = "Summary"
 
+# Email sync constants
+MAX_EMAIL_DESCRIPTION_LENGTH = 500
+
 
 class CRMManager:
     """Manages CRM operations against Google Sheets."""
@@ -377,19 +380,20 @@ class CRMManager:
         activities = []
         existing_activities = self.get_activities(lead_id=lead.lead_id)
         
-        # Create a set of existing email subjects to avoid duplicates
-        existing_subjects = {
-            f"{a.subject}_{a.date.date()}"
+        # Create a set of existing email IDs to avoid duplicates
+        # Use a combination of subject, date, and snippet for uniqueness
+        existing_email_keys = {
+            f"{a.subject}_{a.date.date()}_{a.description[:50] if a.description else ''}"
             for a in existing_activities
             if a.type == ActivityType.EMAIL
         }
         
         for email_data in emails:
-            # Create unique key from subject and date
-            email_key = f"{email_data['subject']}_{email_data['date'].date()}"
+            # Create unique key from subject, date, and snippet
+            email_key = f"{email_data['subject']}_{email_data['date'].date()}_{email_data['snippet'][:50]}"
             
             # Skip if already logged
-            if email_key in existing_subjects:
+            if email_key in existing_email_keys:
                 continue
             
             # Create activity from email
@@ -397,7 +401,7 @@ class CRMManager:
                 lead_id=lead.lead_id,
                 type=ActivityType.EMAIL,
                 subject=email_data['subject'],
-                description=email_data['snippet'][:500],  # Limit description length
+                description=email_data['snippet'][:MAX_EMAIL_DESCRIPTION_LENGTH],
                 date=email_data['date'],
                 created_by="Gmail Sync"
             )

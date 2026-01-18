@@ -170,7 +170,11 @@ class GmailManager:
                 if part.get('mimeType') == 'text/plain':
                     data = part.get('body', {}).get('data')
                     if data:
-                        return base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+                        try:
+                            return base64.urlsafe_b64decode(data).decode('utf-8')
+                        except UnicodeDecodeError:
+                            # Try with error replacement if strict decoding fails
+                            return base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')
                 # Recursively check nested parts
                 elif 'parts' in part:
                     nested_body = self._get_email_body(part)
@@ -180,7 +184,11 @@ class GmailManager:
             # Single part message
             data = payload.get('body', {}).get('data')
             if data:
-                return base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+                try:
+                    return base64.urlsafe_b64decode(data).decode('utf-8')
+                except UnicodeDecodeError:
+                    # Try with error replacement if strict decoding fails
+                    return base64.urlsafe_b64decode(data).decode('utf-8', errors='replace')
         
         return ''
 
