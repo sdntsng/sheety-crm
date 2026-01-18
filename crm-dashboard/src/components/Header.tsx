@@ -158,17 +158,12 @@ export default function Header() {
                         <div className="relative" ref={sheetMenuRef}>
                             <button
                                 onClick={() => setShowSheetMenu(!showSheetMenu)}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--accent-yellow)]/20 hover:bg-[var(--accent-yellow)]/30 border border-[var(--accent-yellow)]/50 transition-colors"
+                                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-[var(--accent-yellow)]/20 text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] transition-colors"
+                                title={selectedSheet}
                             >
-                                <svg className="w-4 h-4 text-[var(--accent-yellow)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                                    <line x1="3" y1="9" x2="21" y2="9" />
-                                    <line x1="3" y1="15" x2="21" y2="15" />
-                                    <line x1="9" y1="3" x2="9" y2="21" />
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
-                                <span className="font-mono text-xs font-medium max-w-[120px] truncate">
-                                    {selectedSheet}
-                                </span>
                                 <svg className={`w-3 h-3 transition-transform ${showSheetMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                                     <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
@@ -176,7 +171,14 @@ export default function Header() {
 
                             {/* Sheet Dropdown */}
                             {showSheetMenu && (
-                                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-[var(--border-pencil)] rounded-xl shadow-lg py-1 z-50">
+                                <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-[var(--border-pencil)] rounded-xl shadow-lg py-2 z-50">
+                                    {/* Sheet Name Header */}
+                                    <div className="px-4 py-2 border-b border-[var(--border-pencil)]/30 mb-1">
+                                        <p className="text-[10px] uppercase tracking-wider text-[var(--color-ink-muted)] mb-1">Active Sheet</p>
+                                        <p className="font-mono text-sm font-bold truncate text-[var(--color-ink)]" title={selectedSheet}>
+                                            {selectedSheet}
+                                        </p>
+                                    </div>
                                     <a
                                         href={`https://docs.google.com/spreadsheets/d/${localStorage.getItem('selected_sheet_id')}`}
                                         target="_blank"

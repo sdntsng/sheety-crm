@@ -249,6 +249,45 @@ export default function LandingPage() {
 
             {/* Final CTA */}
             <div className="relative z-10 py-24 text-center">
+                {/* FAQ Section */}
+                <div className="max-w-4xl mx-auto px-6 mb-32 text-left">
+                    <h2 className="font-serif text-3xl md:text-5xl font-bold mb-12 text-center">Common Questions</h2>
+
+                    <div className="grid md:grid-cols-2 gap-12">
+                        <div>
+                            <h3 className="font-bold text-xl mb-3">Why choose Sheety over HubSpot/Salesforce?</h3>
+                            <p className="text-[var(--color-ink-muted)] leading-relaxed">
+                                Traditional CRMs are database jails. They lock your data in, charge per user, and overcomplicate simple workflows.
+                                Sheety is for people who love the flexibility of Google Sheets but need a dedicated sales interface.
+                                <strong className="block mt-2 text-[var(--color-ink)]">You own the database (the sheet). We just provide the pretty face.</strong>
+                            </p>
+                        </div>
+
+                        <div>
+                            <h3 className="font-bold text-xl mb-3">Is my data safe?</h3>
+                            <p className="text-[var(--color-ink-muted)] leading-relaxed">
+                                Yes. We don't store your CRM data. Our app is "stateless" — it reads and writes directly to your Google Sheet using your secure OAuth token.
+                                If Sheety disappears tomorrow, you still have 100% of your data in your Drive.
+                            </p>
+                        </div>
+
+                        <div>
+                            <h3 className="font-bold text-xl mb-3">Will you add more features?</h3>
+                            <p className="text-[var(--color-ink-muted)] leading-relaxed">
+                                Absolutely. We're building this in the open (Open Source). Next up: Custom Fields, Calendar View, and Zapier integration.
+                                Check our <a href="https://github.com/sdntsng/sheety-crm" className="underline decoration-[var(--accent)] decoration-2">GitHub roadmap</a>.
+                            </p>
+                        </div>
+
+                        <div>
+                            <h3 className="font-bold text-xl mb-3">Is it really free?</h3>
+                            <p className="text-[var(--color-ink-muted)] leading-relaxed">
+                                Yes, the core product is open source and free to host yourself. We may offer a managed hosted version later for convenience, but the code will always be free.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
