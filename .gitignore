@@ -15,3 +15,5 @@ node_modules/
 token.json
 credentials.json
 .DS_Store
+
+local-files/
