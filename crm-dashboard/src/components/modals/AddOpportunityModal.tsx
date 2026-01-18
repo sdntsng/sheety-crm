@@ -118,7 +118,7 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
                                     min="0"
                                     className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-mono focus:border-[var(--accent-blue)] focus:outline-none"
                                     value={formData.value || ''}
-                                    onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+                                    onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
                                 />
                             </div>
                             <div>
