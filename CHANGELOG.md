@@ -25,6 +25,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Responsiveness**: Improved mobile layout for feature demos.
 - **Linting**: Fixed syntax errors in `Header.tsx`.
 
-## [0.1.0] - 2026-01-12
+## [0.50.0] - 2026-01-17
+
+### Added
+- **Theme**: Implemented "Digital Paper" visual theme with `Outfit` typography and textured backgrounds.
+- **Google Picker**: Integrated Google Picker API for easier sheet selection.
+- **Auth**: Migrated to NextAuth v5 for Cloudflare Edge compatibility.
+- **Deployment**: Added `Edge Runtime` support for Cloudflare Pages.
+
+### Changed
+- **Performance**: Optimized backend sheet operations with caching.
+- **UX**: Switching typography to Outfit and Sans system.
+
+## [0.40.0] - 2026-01-16
+
+### Added
+- **Features**: Global search across leads and opportunities.
+- **Workflow**: Lead-to-Opportunity conversion flow.
+- **Templates**: CSV template download and auto-schema initialization.
+
+### Fixed
+- **Reliability**: Added exponential backoff retry for Google Sheets API rate limits.
+- **Auth**: Improved 401 interceptor and token refresh handling.
+
+## [0.30.0] - 2026-01-16
+
+### Security
+- **Multi-tenancy**: Enforced strict Bearer token authentication (removed local fallback in production).
+- **Scopes**: Switched to `drive.file` scope for better privacy (user selected files only).
+
+## [0.20.0] - 2026-01-16
+
+### Added
+- **Setup**: Created `Setup` page for sheet selection.
+- **API**: Added `api/sheets` endpoint.
+- **UX**: Redesigned Sidebar with active sheet context.
+
+## [0.1.0] - 2026-01-16
+
 ### Initial Release
 - Basic CRM functionality with Google Sheets backend.
+- Leads, Opportunities, and Activity tracking.
+- Kanban pipeline view.
