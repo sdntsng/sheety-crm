@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createSheet } from '@/lib/api';
 import useDrivePicker from 'react-google-drive-picker';
 import { useSession } from 'next-auth/react';
+import { motion } from 'framer-motion';
 import SheetyIcon from './icons/SheetyIcon';
 
 interface Sheet {
@@ -89,10 +90,27 @@ export default function SheetSelector({ onSheetSelected }: SheetSelectorProps) {
         <div className="min-h-screen p-8 bg-[var(--bg-paper)]">
             {/* Header */}
             <div className="max-w-4xl mx-auto mb-12 text-center animate-fade-in-up">
-                <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-white shadow-[8px_8px_0px_rgba(0,0,0,0.05)] border-2 border-[var(--border-pencil)] mb-6 relative overflow-hidden group">
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="inline-flex items-center justify-center w-28 h-28 rounded-3xl bg-white shadow-[8px_8px_0px_rgba(0,0,0,0.05)] border-2 border-[var(--border-pencil)] mb-6 relative overflow-hidden group"
+                >
                     <div className="absolute inset-0 bg-gradient-to-br from-[var(--bg-paper)] to-transparent opacity-50"></div>
-                    <SheetyIcon className="w-12 h-12 text-[var(--accent)] relative z-10" />
-                </div>
+                    <motion.div
+                        animate={{
+                            rotate: [0, 5, -5, 0],
+                            scale: [1, 1.05, 1]
+                        }}
+                        transition={{
+                            duration: 6,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                    >
+                        <SheetyIcon className="w-14 h-14 text-[var(--accent)] relative z-10 drop-shadow-sm" />
+                    </motion.div>
+                </motion.div>
                 <h1 className="text-4xl font-sans font-bold text-[var(--color-ink)] mb-4 tracking-tight">
                     Choose Your Database
                 </h1>
