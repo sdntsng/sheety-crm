@@ -2,6 +2,7 @@
 CRM Sheet Templates - Creates and initializes the CRM Google Sheet structure.
 """
 import gspread
+import time
 from rich.console import Console
 
 from .models import Lead, Opportunity, Activity, PipelineStage, LeadStatus, LeadSource, CompanySize
@@ -30,12 +31,15 @@ class CRMTemplates:
         leads_ws.update_title("Leads")
         self.setup_leads_sheet(leads_ws)
         console.print("[green]✓ Set up Leads worksheet[/green]")
+        time.sleep(1.5)  # Rate limit safety
         
         self.ensure_worksheet(sh, "Opportunities")
         console.print("[green]✓ Set up Opportunities worksheet[/green]")
+        time.sleep(1.5)
         
         self.ensure_worksheet(sh, "Activities")
         console.print("[green]✓ Set up Activities worksheet[/green]")
+        time.sleep(1.5)
         
         self.ensure_worksheet(sh, "Summary")
         console.print("[green]✓ Set up Summary dashboard[/green]")
