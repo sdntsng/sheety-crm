@@ -57,7 +57,7 @@ async def get_sheet_manager(authorization: Optional[str] = Header(None)):
 app = FastAPI(
     title="Sales CRM API",
     description="REST API for Sales Pipeline CRM backed by Google Sheets",
-    version="1.0.0"
+    version="0.51.0"
 )
 
 # CORS for Next.js frontend
