@@ -825,15 +825,32 @@ async def execute_import(
                     continue
 
                 # Create Lead object
+                status_value = mapped_data.get('status', '')
+                if status_value and status_value in [s.value for s in LeadStatus]:
+                    status = LeadStatus(status_value)
+                else:
+                    status = LeadStatus.NEW
+                
+                source_value = mapped_data.get('source', '')
+                if source_value and source_value in [s.value for s in LeadSource]:
+                    source = LeadSource(source_value)
+                else:
+                    source = LeadSource.OTHER
+                
+                company_size_value = mapped_data.get('company_size', '')
+                company_size = None
+                if company_size_value and company_size_value in [s.value for s in CompanySize]:
+                    company_size = CompanySize(company_size_value)
+                
                 lead = Lead(
                     company_name=mapped_data.get('company_name', ''),
                     contact_name=mapped_data.get('contact_name', ''),
                     contact_email=mapped_data.get('contact_email'),
                     contact_phone=mapped_data.get('contact_phone'),
-                    status=LeadStatus(mapped_data.get('status', 'New')) if mapped_data.get('status') in [s.value for s in LeadStatus] else LeadStatus.NEW,
-                    source=LeadSource(mapped_data.get('source', 'Other')) if mapped_data.get('source') in [s.value for s in LeadSource] else LeadSource.OTHER,
+                    status=status,
+                    source=source,
                     industry=mapped_data.get('industry'),
-                    company_size=CompanySize(mapped_data.get('company_size')) if mapped_data.get('company_size') in [s.value for s in CompanySize] else None,
+                    company_size=company_size,
                     notes=mapped_data.get('notes'),
                     owner=mapped_data.get('owner'),
                 )
