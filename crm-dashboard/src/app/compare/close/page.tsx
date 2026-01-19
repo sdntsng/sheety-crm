@@ -1,4 +1,9 @@
-'use client';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Built for Sales Floors | Sheety vs Close',
+    description: 'Close is a weapon for inside sales teams. But you\'re not running a call center. Comparing Sheety CRM vs Close.',
+};
 
 import ArticleLayout from '@/components/comparison/ArticleLayout';
 import ComparisonTable from '@/components/comparison/ComparisonTable';
