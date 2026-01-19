@@ -21,6 +21,7 @@ Navigate to the **Leads** page and click the **Import CSV** button in the top ri
 
 - Click to select a CSV file or drag and drop
 - Your file should include headers in the first row
+- Download a [sample CSV template](sample_import.csv) for reference
 - Example format:
   ```
   Company,Contact,Email,Phone,Status,Source
