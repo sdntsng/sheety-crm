@@ -3,7 +3,10 @@ import { Outfit, JetBrains_Mono, Playfair_Display } from "next/font/google"; // 
 import "./globals.css";
 import Header from "@/components/Header";
 import SessionProvider from "@/providers/SessionProvider";
+import PostHogProvider from "@/providers/PostHogProvider";
+import PostHogPageView from "@/components/PostHogPageView";
 import Footer from "@/components/Footer";
+import { Suspense } from "react";
 
 const sans = Outfit({
     subsets: ["latin"],
@@ -39,15 +42,20 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body className={`${sans.variable} ${mono.variable} ${serif.variable} antialiased font-sans`}>
-                <SessionProvider>
-                    <div className="min-h-screen flex flex-col bg-paper text-ink">
-                        <Header />
-                        <main className="flex-1 relative">
-                            {children}
-                        </main>
-                        <Footer />
-                    </div>
-                </SessionProvider>
+                <PostHogProvider>
+                    <Suspense fallback={null}>
+                        <PostHogPageView />
+                    </Suspense>
+                    <SessionProvider>
+                        <div className="min-h-screen flex flex-col bg-paper text-ink">
+                            <Header />
+                            <main className="flex-1 relative">
+                                {children}
+                            </main>
+                            <Footer />
+                        </div>
+                    </SessionProvider>
+                </PostHogProvider>
             </body>
         </html>
     );
