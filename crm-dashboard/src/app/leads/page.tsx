@@ -61,7 +61,7 @@ export default function LeadsPage() {
 
                 {/* Filters Skeleton */}
                 <div className="mb-6 flex gap-2">
-                    {[1, 2, 3, 4].map(i => (
+                    {Array.from({ length: 4 }, (_, i) => (
                         <div key={i} className="h-10 bg-[var(--bg-surface)] rounded w-24 animate-pulse"></div>
                     ))}
                 </div>
@@ -79,7 +79,7 @@ export default function LeadsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-pencil)] divide-dashed">
-                            {[1, 2, 3, 4, 5].map(i => (
+                            {Array.from({ length: 5 }, (_, i) => (
                                 <SkeletonTableRow key={i} />
                             ))}
                         </tbody>

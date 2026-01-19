@@ -84,7 +84,7 @@ export default function PipelinePage() {
                 {/* Pipeline Skeleton */}
                 <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
                     <div className="flex gap-4 h-full" style={{ minWidth: 'max-content' }}>
-                        {[1, 2, 3, 4, 5].map(i => (
+                        {Array.from({ length: 5 }, (_, i) => (
                             <SkeletonPipelineColumn key={i} />
                         ))}
                     </div>

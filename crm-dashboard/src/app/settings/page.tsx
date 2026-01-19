@@ -39,7 +39,7 @@ export default function SettingsPage() {
                         <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
                             <SkeletonBox className="h-4 w-64 mb-4" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {[1, 2, 3, 4, 5, 6].map(i => (
+                                {Array.from({ length: 6 }, (_, i) => (
                                     <SkeletonBox key={i} className="h-12" />
                                 ))}
                             </div>
@@ -55,7 +55,7 @@ export default function SettingsPage() {
                         <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
                             <SkeletonBox className="h-4 w-64 mb-4" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {[1, 2, 3, 4].map(i => (
+                                {Array.from({ length: 4 }, (_, i) => (
                                     <SkeletonBox key={i} className="h-12" />
                                 ))}
                             </div>

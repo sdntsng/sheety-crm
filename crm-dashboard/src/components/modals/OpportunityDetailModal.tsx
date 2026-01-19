@@ -120,7 +120,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                         <div className="space-y-8 pl-4 border-l-2 border-[var(--border-pencil)] border-dotted ml-2">
                             {loadingActivities ? (
                                 <>
-                                    {[1, 2, 3].map(i => (
+                                    {Array.from({ length: 3 }, (_, i) => (
                                         <SkeletonActivityItem key={i} />
                                     ))}
                                 </>
