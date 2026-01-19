@@ -73,6 +73,15 @@ export default function ImportPage() {
     const handlePreview = async () => {
         if (!file || !uploadData) return;
 
+        // Validate that required fields are mapped
+        const hasCompanyName = mappings.some(m => m.crm_field === 'company_name');
+        const hasContactName = mappings.some(m => m.crm_field === 'contact_name');
+        
+        if (!hasCompanyName || !hasContactName) {
+            setError('Please map both Company Name and Contact Name (required fields)');
+            return;
+        }
+
         setError(null);
         setImporting(true);
 
