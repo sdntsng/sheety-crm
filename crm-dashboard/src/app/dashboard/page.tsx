@@ -32,10 +32,17 @@ export default function DashboardPage() {
         
         // Check if we should run the tour (first login)
         if (saved && !isTourCompleted()) {
-            // Delay tour start to ensure page is loaded
-            setTimeout(() => {
-                setRunTour(true);
-            }, 1000);
+            // Delay tour start to ensure page and elements are loaded
+            const checkElementsAndStartTour = () => {
+                const dashboardLink = document.querySelector('[data-tour="dashboard"]');
+                if (dashboardLink) {
+                    setRunTour(true);
+                } else {
+                    // Retry after a short delay if elements aren't ready
+                    setTimeout(checkElementsAndStartTour, 200);
+                }
+            };
+            setTimeout(checkElementsAndStartTour, 500);
         }
     }, []);
 

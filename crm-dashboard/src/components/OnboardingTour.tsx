@@ -141,24 +141,20 @@ export default function OnboardingTour({ run = false, onComplete }: OnboardingTo
                 },
                 tooltip: {
                     fontSize: 14,
-                    fontFamily: 'var(--font-sans)',
                 },
                 buttonNext: {
                     backgroundColor: '#000',
                     fontSize: 13,
-                    fontFamily: 'var(--font-mono)',
                     padding: '8px 16px',
                     textTransform: 'uppercase',
                 },
                 buttonBack: {
                     color: '#666',
                     fontSize: 13,
-                    fontFamily: 'var(--font-mono)',
                 },
                 buttonSkip: {
                     color: '#999',
                     fontSize: 12,
-                    fontFamily: 'var(--font-mono)',
                 },
             }}
             locale={{
