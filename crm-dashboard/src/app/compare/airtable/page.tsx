@@ -1,4 +1,9 @@
-'use client';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Database Anxiety | Sheety vs Airtable',
+    description: 'Why paying for a spreadsheet that locks you in is a bad idea. Comparing Sheety CRM vs Airtable.',
+};
 
 import ArticleLayout from '@/components/comparison/ArticleLayout';
 import ComparisonTable from '@/components/comparison/ComparisonTable';

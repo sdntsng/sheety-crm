@@ -1,4 +1,9 @@
-'use client';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'The Free CRM Trap | Sheety vs HubSpot',
+    description: 'Why sticking with HubSpot might cost you more than just money. Comparing Sheety CRM vs HubSpot Free.',
+};
 
 import ArticleLayout from '@/components/comparison/ArticleLayout';
 import ComparisonTable from '@/components/comparison/ComparisonTable';

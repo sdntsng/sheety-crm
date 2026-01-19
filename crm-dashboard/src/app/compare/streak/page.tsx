@@ -1,4 +1,9 @@
-'use client';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Who is Reading Your Email? | Sheety vs Streak',
+    description: 'The hidden trade-off of "Inbox CRMs" that nobody talks about. Comparing Sheety CRM vs Streak.',
+};
 
 import ArticleLayout from '@/components/comparison/ArticleLayout';
 import ComparisonTable from '@/components/comparison/ComparisonTable';
