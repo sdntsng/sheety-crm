@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getConfig, Config } from '@/lib/api';
 import { useSettings } from '@/providers/SettingsProvider';
+import { SkeletonBox } from '@/components/SkeletonLoader';
 
 export default function SettingsPage() {
     const { hiddenStages, hiddenStatuses, toggleStage, toggleStatus } = useSettings();
@@ -25,10 +26,41 @@ export default function SettingsPage() {
 
     if (loading) {
         return (
-            <div className="p-8">
-                <div className="animate-pulse space-y-4">
-                    <div className="h-8 bg-[var(--bg-surface)] rounded w-1/4"></div>
-                    <div className="h-64 bg-white rounded border border-gray-200"></div>
+            <div className="p-8 max-w-3xl mx-auto">
+                <div className="h-12 bg-[var(--bg-surface)] rounded w-1/3 mb-8 animate-pulse border-b-4 border-[var(--text-primary)] pb-2"></div>
+
+                <div className="space-y-12">
+                    {/* Pipeline Settings Skeleton */}
+                    <section>
+                        <div className="flex items-center gap-2 mb-4">
+                            <SkeletonBox className="w-6 h-6" />
+                            <SkeletonBox className="h-8 w-48" />
+                        </div>
+                        <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                            <SkeletonBox className="h-4 w-64 mb-4" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {[1, 2, 3, 4, 5, 6].map(i => (
+                                    <SkeletonBox key={i} className="h-12" />
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Lead Settings Skeleton */}
+                    <section>
+                        <div className="flex items-center gap-2 mb-4">
+                            <SkeletonBox className="w-6 h-6" />
+                            <SkeletonBox className="h-8 w-40" />
+                        </div>
+                        <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                            <SkeletonBox className="h-4 w-64 mb-4" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {[1, 2, 3, 4].map(i => (
+                                    <SkeletonBox key={i} className="h-12" />
+                                ))}
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
         );

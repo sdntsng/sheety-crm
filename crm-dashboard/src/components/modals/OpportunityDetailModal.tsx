@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Opportunity, Activity, getActivities, createActivity } from '@/lib/api';
+import { SkeletonActivityItem } from '@/components/SkeletonLoader';
 
 interface OpportunityDetailModalProps {
     opportunity: Opportunity;
@@ -13,18 +14,22 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
     const [activities, setActivities] = useState<Activity[]>([]);
     const [newNote, setNewNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [loadingActivities, setLoadingActivities] = useState(true);
 
     useEffect(() => {
         loadActivities();
     }, [opportunity.opp_id]);
 
     const loadActivities = async () => {
+        setLoadingActivities(true);
         try {
             const data = await getActivities(undefined, opportunity.opp_id);
             // Sort by date desc
             setActivities(data.activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         } catch (err) {
             console.error('Failed to load activities', err);
+        } finally {
+            setLoadingActivities(false);
         }
     };
 
@@ -113,30 +118,36 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
 
                         {/* Timeline */}
                         <div className="space-y-8 pl-4 border-l-2 border-[var(--border-pencil)] border-dotted ml-2">
-                            {activities.length === 0 && (
+                            {loadingActivities ? (
+                                <>
+                                    {[1, 2, 3].map(i => (
+                                        <SkeletonActivityItem key={i} />
+                                    ))}
+                                </>
+                            ) : activities.length === 0 ? (
                                 <p className="font-sans italic text-[var(--text-muted)] pl-4">No notes or activities recorded yet.</p>
-                            )}
+                            ) : (
+                                activities.map((activity) => (
+                                    <div key={activity.activity_id} className="relative pl-6">
+                                        {/* Bullet Point */}
+                                        <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[var(--text-primary)]"></div>
 
-                            {activities.map((activity) => (
-                                <div key={activity.activity_id} className="relative pl-6">
-                                    {/* Bullet Point */}
-                                    <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[var(--text-primary)]"></div>
-
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="font-sans text-[var(--text-primary)] text-lg leading-snug">{activity.description || activity.subject}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.5 border border-[var(--border-pencil)] rounded bg-white text-[var(--text-secondary)]">
-                                                {activity.type}
-                                            </span>
-                                            <span className="font-mono text-xs text-[var(--text-muted)]">
-                                                {new Date(activity.date).toLocaleString()}
-                                            </span>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex justify-between items-baseline">
+                                                <span className="font-sans text-[var(--text-primary)] text-lg leading-snug">{activity.description || activity.subject}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.5 border border-[var(--border-pencil)] rounded bg-white text-[var(--text-secondary)]">
+                                                    {activity.type}
+                                                </span>
+                                                <span className="font-mono text-xs text-[var(--text-muted)]">
+                                                    {new Date(activity.date).toLocaleString()}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
