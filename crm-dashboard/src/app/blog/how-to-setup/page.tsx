@@ -125,8 +125,18 @@ export default function SetupGuidePage() {
             </div>
             <blockquote>
                 <p>
-                    <strong>Tip:</strong> If you're bringing your own sheet, make sure it has the required columns. You can use the "Add Schema Sheet" tool in the setup footer to fix missing tabs.
+                    <strong>Tip:</strong> If you're bringing your own sheet, make sure it has the required columns. You can use the "Add Schema Sheet" tool in the setup footer to fix missing tabs, or download our CSV schemas directly:
                 </p>
+                <div className="flex gap-4 mt-2 font-mono text-sm">
+                    <a href="/templates/leads.csv" className="text-[var(--accent)] hover:underline flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        leads.csv
+                    </a>
+                    <a href="/templates/opps.csv" className="text-[var(--accent)] hover:underline flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        opps.csv
+                    </a>
+                </div>
             </blockquote>
 
             <h2>Manual Setup (Advanced)</h2>
