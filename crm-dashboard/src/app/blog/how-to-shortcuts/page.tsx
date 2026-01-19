@@ -1,7 +1,6 @@
 'use client';
 
 import ArticleLayout from '@/components/comparison/ArticleLayout';
-import Image from 'next/image';
 
 export default function ShortcutsGuidePage() {
     return (
@@ -10,106 +9,86 @@ export default function ShortcutsGuidePage() {
             subtitle="A comprehensive guide to keyboard shortcuts and the Command Palette."
             readingTime="5 min read"
         >
-            <div className="relative w-full h-64 md:h-80 mb-12 border-2 border-[var(--border-ink)] overflow-hidden bg-[#F2F0E9] p-8 flex items-center justify-center">
-                <Image
-                    src="/images/blog/shortcuts-header.png"
-                    alt="The Command Key"
-                    fill
-                    className="object-contain p-8 mix-blend-multiply opacity-90"
-                />
-            </div>
-
             <p className="lead">
-                Speed isn't just about saving time. It's about maintaining flow. When you have to reach for the mouse, you break the connection between your thought and the screen.
-            </p>
-
-            <h2>The Philosophy of "No Mouse"</h2>
-            <p>
-                Professional tools create professional habits. A pianist doesn't look at their hands; a writer doesn't look at the keyboard. CRM operators shouldn't have to hunt for small buttons.
-            </p>
-            <p>
-                We've built Sheety to be navigable almost entirely from your keyboard. This allows you to process leads, update deals, and navigate the app at the speed of thought.
+                The fastest way to use a computer is still the keyboard. Sheety is built for speed, with a Command Palette that lets you navigate, search, and act without touching your mouse.
             </p>
 
             <h2>The Command Palette (Cmd+K)</h2>
             <p>
-                The heart of our keyboard-first navigation is the Command Palette. Think of it as the "Brain" of the application.
+                Press <code>Cmd+K</code> (or <code>Ctrl+K</code> on Windows) anywhere in the app to open the Command Palette. This is your universal remote for Sheety.
             </p>
-            <div className="my-8 p-6 bg-[var(--bg-card)] border border-[var(--border-pencil)] shadow-sm">
-                <p className="font-mono text-sm text-[var(--accent)] mb-2">TRY IT NOW</p>
-                <div className="flex items-center gap-4">
-                    <kbd className="px-3 py-1.5 bg-white border border-[var(--border-ink)] rounded font-mono text-sm shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">⌘</kbd>
-                    <span className="text-[var(--text-secondary)]">+</span>
-                    <kbd className="px-3 py-1.5 bg-white border border-[var(--border-ink)] rounded font-mono text-sm shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">K</kbd>
+
+            <div className="my-12 rounded-2xl overflow-hidden border border-[var(--border-pencil)] shadow-lg bg-[var(--bg-paper)]">
+                <video autoPlay loop muted playsInline className="w-full">
+                    <source src="/assets/QuicklySearchLeadsAndOpps_web.mp4" type="video/mp4" />
+                </video>
+                <div className="p-4 bg-[var(--bg-hover)] border-t border-[var(--border-pencil)] text-center text-sm font-mono text-[var(--color-ink-muted)]">
+                    Search contacts, deals, and pages instantly.
                 </div>
-                <p className="mt-4 text-sm text-[var(--text-secondary)]">
-                    On Windows/Linux, use <kbd className="font-mono">Ctrl + K</kbd>.
-                </p>
             </div>
+
             <p>
-                From the Command Palette, you can:
+                From here, you can:
             </p>
             <ul>
-                <li><strong>Search Everything:</strong> Type "Acme" to find a Lead, or "Big Deal" to find an Opportunity.</li>
-                <li><strong>Navigate:</strong> Jump instantly to the Dashboard, Pipeline, or Settings.</li>
-                <li><strong>Take Action:</strong> Create a new Lead, switch sheets, or even toggle "Dark Mode" (if your eyes need a break).</li>
+                <li><strong>Search</strong>: Type "John" to find a lead instantly.</li>
+                <li><strong>Navigate</strong>: Jump to "Pipeline", "Leads", or "Settings".</li>
+                <li><strong>Act</strong>: Execute commands like "Create Opportunity" or "Switch Sheet".</li>
             </ul>
 
-            <h2>Essential Shortcuts</h2>
+            <h2>Global Shortcuts</h2>
             <p>
-                Beyond the Command Palette, we've engaged specific keys for high-frequency actions. Memorize these three, and you'll be 50% faster.
+                Once you master these, you'll fly through your workflow.
             </p>
 
-            <table className="w-full text-left border-collapse my-8 font-mono text-sm">
-                <thead>
-                    <tr className="border-b-2 border-[var(--border-ink)]">
-                        <th className="py-3 pr-4 font-bold uppercase tracking-wider">Key</th>
-                        <th className="py-3 font-bold uppercase tracking-wider">Action</th>
-                        <th className="py-3 font-bold uppercase tracking-wider hidden md:block">Context</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-pencil)] divide-dashed">
-                    <tr>
-                        <td className="py-3 pr-4"><kbd className="bg-white border border-[var(--border-pencil)] px-2 py-0.5 rounded">?</kbd></td>
-                        <td className="py-3">Show Help</td>
-                        <td className="py-3 text-[var(--text-secondary)] hidden md:block">Global</td>
-                    </tr>
-                    <tr>
-                        <td className="py-3 pr-4"><kbd className="bg-white border border-[var(--border-pencil)] px-2 py-0.5 rounded">/</kbd></td>
-                        <td className="py-3">Focus Search</td>
-                        <td className="py-3 text-[var(--text-secondary)] hidden md:block">Global</td>
-                    </tr>
-                    <tr>
-                        <td className="py-3 pr-4"><kbd className="bg-white border border-[var(--border-pencil)] px-2 py-0.5 rounded">N</kbd></td>
-                        <td className="py-3">New Item</td>
-                        <td className="py-3 text-[var(--text-secondary)] hidden md:block">Leads / Pipeline</td>
-                    </tr>
-                    <tr>
-                        <td className="py-3 pr-4"><kbd className="bg-white border border-[var(--border-pencil)] px-2 py-0.5 rounded">Esc</kbd></td>
-                        <td className="py-3">Close / Cancel</td>
-                        <td className="py-3 text-[var(--text-secondary)] hidden md:block">Modals / Search</td>
-                    </tr>
-                    <tr>
-                        <td className="py-3 pr-4"><kbd className="bg-white border border-[var(--border-pencil)] px-2 py-0.5 rounded">S</kbd></td>
-                        <td className="py-3">Save Form</td>
-                        <td className="py-3 text-[var(--text-secondary)] hidden md:block">Inside Modals</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div className="overflow-x-auto my-8 border border-[var(--border-pencil)] rounded-xl">
+                <table className="w-full text-left font-sans">
+                    <thead className="bg-[var(--bg-hover)] border-b border-[var(--border-pencil)]">
+                        <tr>
+                            <th className="px-6 py-3 font-mono text-xs uppercase tracking-wider">Shortcut</th>
+                            <th className="px-6 py-3 font-mono text-xs uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-pencil)]">
+                        <tr>
+                            <td className="px-6 py-3 font-mono text-[var(--accent)]">/</td>
+                            <td className="px-6 py-3 text-[var(--color-ink-muted)]">Focus global search</td>
+                        </tr>
+                        <tr>
+                            <td className="px-6 py-3 font-mono text-[var(--accent)]">Cmd + K</td>
+                            <td className="px-6 py-3 text-[var(--color-ink-muted)]">Open Command Palette</td>
+                        </tr>
+                        <tr>
+                            <td className="px-6 py-3 font-mono text-[var(--accent)]">G then P</td>
+                            <td className="px-6 py-3 text-[var(--color-ink-muted)]">Go to <strong>P</strong>ipeline</td>
+                        </tr>
+                        <tr>
+                            <td className="px-6 py-3 font-mono text-[var(--accent)]">G then L</td>
+                            <td className="px-6 py-3 text-[var(--color-ink-muted)]">Go to <strong>L</strong>eads</td>
+                        </tr>
+                        <tr>
+                            <td className="px-6 py-3 font-mono text-[var(--accent)]">Cmd + B</td>
+                            <td className="px-6 py-3 text-[var(--color-ink-muted)]">Toggle Sidebar (if active)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-            <h2>Pro Tip: Power Creation</h2>
+            <h2>Context Switching</h2>
             <p>
-                The fastest way to log a new lead after a call:
+                Managing multiple businesses? The Command Palette also lets you switch databases instantly. This is perfect for consultants or serial entrepreneurs managing multiple pipelines.
             </p>
-            <ol>
-                <li>Press <kbd className="font-mono bg-[var(--bg-surface)] px-1 rounded">cmd + k</kbd> to open the palette.</li>
-                <li>Type "new" and hit Enter on "New Lead".</li>
-                <li>Type the details, tab through fields.</li>
-                <li>Press <kbd className="font-mono bg-[var(--bg-surface)] px-1 rounded">S</kbd> to save.</li>
-            </ol>
+
+            <div className="my-12 rounded-2xl overflow-hidden border border-[var(--border-pencil)] shadow-lg bg-[var(--bg-paper)]">
+                <video autoPlay loop muted playsInline className="w-full">
+                    <source src="/assets/EasilySwitchDatabaseSheets_web.mp4" type="video/mp4" />
+                </video>
+            </div>
+
             <p>
-                You never touched the mouse. You never broke eye contact with the customer. That is the power of Sheety.
+                Your brain works fast. Your CRM should too.
             </p>
+
         </ArticleLayout>
     );
 }
