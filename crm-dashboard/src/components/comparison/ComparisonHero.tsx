@@ -1,11 +1,9 @@
-'use client';
-
-import Image from 'next/image';
-
-interface ComparisonHeroProps {
-    competitorName: string;
-    competitorLogo?: string;
-    tagline: string;
+<div className="w-20 h-20 bg-[var(--color-ink)] rounded-2xl flex items-center justify-center text-white shadow-lg">
+    <SheetyIcon className="w-10 h-10" />
+</div>
+competitorName: string;
+competitorLogo ?: string;
+tagline: string;
 }
 
 export default function ComparisonHero({ competitorName, competitorLogo, tagline }: ComparisonHeroProps) {

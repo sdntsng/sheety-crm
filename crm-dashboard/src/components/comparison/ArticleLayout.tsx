@@ -1,15 +1,11 @@
-'use client';
-
-import { motion } from 'framer-motion';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-
-interface ArticleLayoutProps {
-    children: React.ReactNode;
-    title: string;
-    subtitle: string;
-    readingTime?: string;
-    publishedDate?: string;
+<div className="w-12 h-12 bg-[var(--color-ink)] rounded-lg flex items-center justify-center text-white shadow-md">
+    <SheetyIcon className="w-6 h-6" />
+</div>
+children: React.ReactNode;
+title: string;
+subtitle: string;
+readingTime ?: string;
+publishedDate ?: string;
 }
 
 export default function ArticleLayout({
