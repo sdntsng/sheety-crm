@@ -74,6 +74,65 @@
 }
 
 /* ========================================================================
+   DARK MODE THEME
+   ======================================================================== */
+
+[data-theme="dark"] {
+  /* PAPER PALETTE - Dark Mode */
+  --bg-paper: #1a1a1a;
+  /* Deep Charcoal */
+  --bg-card: #262626;
+  /* Darker Paper */
+  --bg-hover: #333333;
+  --bg-surface: #262626;
+
+  /* INK & PENCIL - Dark Mode */
+  --text-primary: #e5e5e5;
+  /* Off-white */
+  --text-secondary: #a3a3a3;
+  /* Light Grey */
+  --text-muted: #737373;
+  /* Muted Grey */
+
+  /* Aliases for easier theming */
+  --color-ink: #e5e5e5;
+  --color-ink-muted: #a3a3a3;
+
+  /* HIGHLIGHTERS - Adjusted for dark mode */
+  --accent-blue: #60a5fa;
+  /* Lighter blue for contrast */
+  --accent-red: #f87171;
+  /* Lighter red */
+  --accent-yellow: #fde047;
+  /* Brighter yellow */
+  --accent: #60a5fa;
+
+  /* STRUCTURE - Dark Mode */
+  --border-ink: #e5e5e5;
+  --border-pencil: #404040;
+  /* Subtle grey border */
+  --border-color: #404040;
+  --border-strong: #525252;
+
+  /* SHADOWS - Softer for dark mode */
+  --shadow-card: 2px 2px 0px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 4px 4px 0px rgba(0, 0, 0, 0.4);
+  --shadow-floating: 6px 6px 0px rgba(0, 0, 0, 0.5);
+
+  /* Setup Page Vars - Dark Mode */
+  --accent-hover: #3b82f6;
+  --accent-muted: #1e3a8a;
+}
+
+[data-theme="dark"] body {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] .header {
+  background-color: rgba(26, 26, 26, 0.95);
+}
+
+/* ========================================================================
    BASE STYLES & TEXTURE
    ======================================================================== */
 
