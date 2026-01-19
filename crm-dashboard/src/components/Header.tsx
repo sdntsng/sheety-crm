@@ -46,6 +46,7 @@ export default function Header() {
     const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showSheetMenu, setShowSheetMenu] = useState(false);
+    const [showCompareMenu, setShowCompareMenu] = useState(false);
     const [imgError, setImgError] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const sheetMenuRef = useRef<HTMLDivElement>(null);
@@ -91,6 +92,55 @@ export default function Header() {
                             Sheety
                         </span>
                     </Link>
+
+                    {/* Public Nav */}
+                    <nav className="hidden md:flex items-center gap-8 relative">
+                        <Link href="/blog" className="font-mono text-sm uppercase tracking-wider font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                            Blog
+                        </Link>
+                        <Link href="/blog?category=Guide" className="font-mono text-sm uppercase tracking-wider font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                            How-To
+                        </Link>
+
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowCompareMenu(!showCompareMenu)}
+                                className="font-mono text-sm uppercase tracking-wider font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
+                            >
+                                Compare
+                                <svg className={`w-3 h-3 transition-transform ${showCompareMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+
+                            {showCompareMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowCompareMenu(false)} />
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[var(--bg-card)] border border-[var(--border-pencil)] shadow-floating rounded-xl py-2 z-50 flex flex-col animate-in fade-in zoom-in-95 duration-100">
+                                        {[
+                                            { name: 'HubSpot', slug: 'hubspot' },
+                                            { name: 'Airtable', slug: 'airtable' },
+                                            { name: 'Streak', slug: 'streak' },
+                                            { name: 'Pipedrive', slug: 'pipedrive' },
+                                            { name: 'Close', slug: 'close' },
+                                            { name: 'Attio', slug: 'attio' },
+                                            { name: 'Folk', slug: 'folk' },
+                                        ].map((brand) => (
+                                            <Link
+                                                key={brand.slug}
+                                                href={`/compare/${brand.slug}`}
+                                                className="px-4 py-2 text-sm font-sans text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--bg-hover)] transition-colors text-center whitespace-nowrap"
+                                                onClick={() => setShowCompareMenu(false)}
+                                            >
+                                                vs {brand.name}
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </nav>
+
                     <Link
                         href="/login"
                         className="px-5 py-2 bg-[var(--text-primary)] text-white font-mono text-sm rounded-full hover:bg-[var(--accent-blue)] transition-colors shadow-sm"
