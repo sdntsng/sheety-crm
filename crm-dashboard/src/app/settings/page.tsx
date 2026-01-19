@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import { getConfig, Config } from '@/lib/api';
 import { useSettings } from '@/providers/SettingsProvider';
+import { resetTour } from '@/components/OnboardingTour';
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
     const { hiddenStages, hiddenStatuses, toggleStage, toggleStatus } = useSettings();
     const [config, setConfig] = useState<Config | null>(null);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         async function fetchConfig() {
@@ -97,6 +100,32 @@ export default function SettingsPage() {
                                     </span>
                                 </label>
                             ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* Tour Settings */}
+                <section>
+                    <h2 className="text-2xl font-sans font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                        <span className="text-[var(--accent-yellow)]">■</span> Getting Started
+                    </h2>
+                    <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                        <p className="font-mono text-xs text-[var(--text-secondary)] mb-4 uppercase tracking-wider">
+                            Need a refresher?
+                        </p>
+                        <div className="space-y-3">
+                            <p className="font-sans text-sm text-[var(--text-secondary)]">
+                                Restart the onboarding tour to learn about the key features of Sheety CRM.
+                            </p>
+                            <button
+                                onClick={() => {
+                                    resetTour();
+                                    router.push('/dashboard');
+                                }}
+                                className="btn-primary"
+                            >
+                                Restart Tour
+                            </button>
                         </div>
                     </div>
                 </section>
