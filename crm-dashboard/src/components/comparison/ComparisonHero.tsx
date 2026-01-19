@@ -41,7 +41,7 @@ export default function ComparisonHero({ competitorName, competitorLogo, tagline
                         {competitorName.charAt(0)}
                     </div>
                 )}
-                <span className="font-mono text-sm font-bold uppercase tracking-wider">{competitorName}</span>
+                <span className="font-sans text-sm font-bold uppercase tracking-wider text-[var(--color-ink)]">{competitorName}</span>
             </div>
         </div>
     );

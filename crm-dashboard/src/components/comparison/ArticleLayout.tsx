@@ -76,11 +76,11 @@ export default function ArticleLayout({
                     </p>
 
                     <div className="flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 bg-[var(--color-ink)] rounded-full flex items-center justify-center text-white font-serif font-bold text-xl">
+                        <div className="w-12 h-12 bg-[var(--color-ink)] rounded-lg flex items-center justify-center text-white font-serif font-bold text-2xl shadow-md">
                             S
                         </div>
                         <div>
-                            <p className="font-mono text-sm font-bold uppercase tracking-wider">Sheety</p>
+                            <p className="font-sans text-sm font-bold uppercase tracking-wider text-[var(--color-ink)]">Sheety</p>
                         </div>
                     </div>
                 </div>
