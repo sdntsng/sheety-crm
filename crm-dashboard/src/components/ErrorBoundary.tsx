@@ -1,10 +1,14 @@
 'use client';
 
 import { Component, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface ErrorBoundaryProps {
     children: ReactNode;
     fallback?: (error: Error, resetError: () => void) => ReactNode;
+    router?: {
+        push: (path: string) => void;
+    };
 }
 
 interface ErrorBoundaryState {
@@ -12,7 +16,7 @@ interface ErrorBoundaryState {
     error: Error | null;
 }
 
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
         super(props);
         this.state = {
@@ -64,7 +68,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                                     Try Again
                                 </button>
                                 <button
-                                    onClick={() => window.location.href = '/dashboard'}
+                                    onClick={() => {
+                                        if (this.props.router) {
+                                            this.props.router.push('/dashboard');
+                                        } else {
+                                            window.location.href = '/dashboard';
+                                        }
+                                    }}
                                     className="px-4 py-2 font-mono text-xs uppercase font-bold border border-[var(--border-pencil)] rounded bg-white hover:bg-[var(--bg-hover)] transition-all"
                                 >
                                     Go to Dashboard
@@ -78,6 +88,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
         return this.props.children;
     }
+}
+
+// Wrapper component that provides the router
+export function ErrorBoundary({ children, fallback }: Omit<ErrorBoundaryProps, 'router'>) {
+    const router = useRouter();
+    
+    return (
+        <ErrorBoundaryClass router={router} fallback={fallback}>
+            {children}
+        </ErrorBoundaryClass>
+    );
 }
 
 export default ErrorBoundary;
