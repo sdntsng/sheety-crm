@@ -28,13 +28,23 @@ export default function SettingsPage() {
         const stored = localStorage.getItem('theme') || 'dark';
         setCurrentTheme(stored);
 
-        // Listen for theme changes
+        // Listen for theme changes (both same tab and other tabs)
+        const handleThemeChange = (e: Event) => {
+            const newTheme = (e as CustomEvent).detail || localStorage.getItem('theme') || 'dark';
+            setCurrentTheme(newTheme);
+        };
         const handleStorage = () => {
             const stored = localStorage.getItem('theme') || 'dark';
             setCurrentTheme(stored);
         };
+        
+        window.addEventListener('themeChange', handleThemeChange);
         window.addEventListener('storage', handleStorage);
-        return () => window.removeEventListener('storage', handleStorage);
+        
+        return () => {
+            window.removeEventListener('themeChange', handleThemeChange);
+            window.removeEventListener('storage', handleStorage);
+        };
     }, []);
 
     if (loading) {
