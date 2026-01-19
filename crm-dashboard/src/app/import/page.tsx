@@ -14,7 +14,7 @@ export default function ImportPage() {
     const [mappings, setMappings] = useState<ColumnMapping[]>([]);
     const [previewData, setPreviewData] = useState<Record<string, string>[]>([]);
     const [importing, setImporting] = useState(false);
-    const [importResult, setImportResult] = useState<{ imported: number; total: number; errors: any[] } | null>(null);
+    const [importResult, setImportResult] = useState<{ imported: number; total: number; errors: { row: number; error: string }[] } | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     // Available CRM fields for mapping
