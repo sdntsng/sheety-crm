@@ -17,3 +17,4 @@ credentials.json
 .DS_Store
 
 local-files/
+.api.pid

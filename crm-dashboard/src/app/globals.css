@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme {
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -270,6 +271,134 @@ code,
 }
 
 /* ========================================================================
+   COMMAND PALETTE (CMDK)
+   ======================================================================== */
+
+[cmdk-overlay] {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 200;
+  animation: fade-in 0.2s ease;
+}
+
+[cmdk-dialog] {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 640px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-ink);
+  border-radius: 8px;
+  box-shadow: var(--shadow-floating);
+  z-index: 201;
+  overflow: hidden;
+  animation: slide-up 0.2s ease;
+  font-family: var(--font-sans);
+}
+
+[cmdk-input] {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  width: 100%;
+  padding: 16px 20px;
+  border: none;
+  border-bottom: 1px solid var(--border-pencil);
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+[cmdk-input]::placeholder {
+  color: var(--text-muted);
+}
+
+[cmdk-list] {
+  height: min(300px, 50vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  transition: 100ms ease;
+  padding: 8px;
+  scroll-padding-block-end: 8px;
+}
+
+[cmdk-group-heading] {
+  user-select: none;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 8px 8px 4px 8px;
+  margin-top: 8px;
+}
+
+[cmdk-item] {
+  content-visibility: auto;
+  cursor: pointer;
+  height: 48px;
+  border-radius: 4px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  color: var(--text-primary);
+  user-select: none;
+  will-change: background, color;
+  transition: all 0.1s ease;
+}
+
+/* Selected state provided by cmdk */
+[cmdk-item][data-selected="true"] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+[cmdk-item][data-disabled="true"] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+[cmdk-item]:active {
+  background: var(--border-pencil);
+}
+
+[cmdk-empty] {
+  font-size: 14px;
+  font-family: var(--font-mono);
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px;
+}
+
+/* Animations */
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  0% {
+    transform: translateX(-50%) scale(0.96);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* ========================================================================
    UTILITIES & OVERRIDES
    ======================================================================== */
 
@@ -307,4 +436,9 @@ code,
 
 .animate-spin {
   animation: scribble 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+/* Safe Area Utility */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }

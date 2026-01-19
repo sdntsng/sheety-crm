@@ -15,7 +15,9 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource/playfair-display": "^5.2.8",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "framer-motion": "^12.26.2",
+    "lucide-react": "^0.562.0",
     "next": "16.1.2",
     "next-auth": "^5.0.0-beta.30",
     "posthog-js": "^1.328.0",
@@ -27,6 +29,7 @@
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.13.16",
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

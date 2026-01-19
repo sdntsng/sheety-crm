@@ -251,6 +251,62 @@ export default function LandingPage() {
                 </div>
             </div>
 
+            {/* Latest Thinking Section */}
+            <div className="relative z-10 py-32 bg-[var(--bg-paper)] text-[var(--color-ink)] border-t border-[var(--border-pencil)]">
+                <div className="max-w-6xl mx-auto px-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6"
+                    >
+                        <div>
+                            <h2 className="font-serif text-4xl md:text-5xl font-bold mb-4">Don't Take Our Word For It</h2>
+                            <p className="text-[var(--color-ink-muted)] text-lg max-w-xl font-light">
+                                See how Sheety stacks up against the tools you're probably paying too much for.
+                            </p>
+                        </div>
+                        <Link href="/blog" className="font-mono text-xs uppercase tracking-widest border-b border-[var(--color-ink)] pb-1 hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors">
+                            Read the Journal →
+                        </Link>
+                    </motion.div>
+
+                    <div className="grid md:grid-cols-3 gap-8">
+                        {[
+                            {
+                                title: "The Data Ownership Manifesto",
+                                desc: "Why we refuse to build a database.",
+                                link: "/blog/manifesto"
+                            },
+                            {
+                                title: "The Free CRM Trap",
+                                desc: "Why HubSpot costs more than you think.",
+                                link: "/compare/hubspot"
+                            },
+                            {
+                                title: "Who is Reading Your Email?",
+                                desc: "The privacy cost of Streak.",
+                                link: "/compare/streak"
+                            }
+                        ].map((post, i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: i * 0.1 }}
+                            >
+                                <Link href={post.link} className="group block h-full p-8 rounded-2xl border border-[var(--border-pencil)] hover:border-[var(--color-ink)] hover:bg-white transition-all">
+                                    <h3 className="font-serif text-2xl font-bold mb-3 group-hover:text-[var(--accent)] transition-colors">{post.title}</h3>
+                                    <p className="text-[var(--color-ink-muted)] font-light leading-relaxed mb-6">{post.desc}</p>
+                                    <span className="font-mono text-xs uppercase tracking-wider text-[var(--color-ink)] opacity-60 group-hover:opacity-100 transition-opacity">Read Article</span>
+                                </Link>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* Final CTA */}
             <div className="relative z-10 py-24 text-center">
                 {/* FAQ Section - Replaced with new Component */}
