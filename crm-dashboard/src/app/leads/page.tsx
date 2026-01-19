@@ -69,7 +69,7 @@ export default function LeadsPage() {
                         {leads.length} Records Found • {new Date().toLocaleDateString()}
                     </p>
                 </div>
-                <button className="btn-primary flex items-center gap-2" onClick={() => setShowModal(true)}>
+                <button className="btn-primary flex items-center gap-2" data-tour="add-lead" onClick={() => setShowModal(true)}>
                     <span className="text-xl leading-none">+</span> New Entry
                 </button>
             </div>
