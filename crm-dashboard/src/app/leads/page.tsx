@@ -108,69 +108,71 @@ export default function LeadsPage() {
 
             {/* Leads Table - Ledger Style */}
             <div className="bg-white border-2 border-[var(--border-ink)] shadow-[4px_4px_0px_rgba(0,0,0,0.1)] overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                    <thead className="bg-[var(--bg-paper)] border-b-2 border-[var(--border-ink)]">
-                        <tr>
-                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Company</th>
-                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Person</th>
-                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Info</th>
-                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">Status</th>
-                            <th className="p-4 font-sans font-bold text-[var(--text-primary)] w-32 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--border-pencil)] divide-dashed">
-                        {filteredLeads.map(lead => (
-                            <tr key={lead.lead_id} className="hover:bg-[var(--bg-hover)] transition-colors group">
-                                <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
-                                    <span className="font-sans font-bold text-lg text-[var(--text-primary)]">{lead.company_name}</span>
-                                    <div className="font-mono text-[10px] text-[var(--text-secondary)] uppercase mt-1">{lead.source}</div>
-                                </td>
-                                <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
-                                    <span className="font-sans text-[var(--text-primary)]">{lead.contact_name}</span>
-                                </td>
-                                <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
-                                    <div className="font-mono text-xs text-[var(--text-secondary)]">
-                                        {lead.contact_email && <div>✉️ {lead.contact_email}</div>}
-                                        {lead.contact_phone && <div>📞 {lead.contact_phone}</div>}
-                                    </div>
-                                </td>
-                                <td className="p-4 border-r border-[var(--border-pencil)] border-dashed text-center">
-                                    <StatusBadge status={lead.status} />
-                                </td>
-                                <td className="p-4 text-center">
-                                    {lead.status !== 'Qualified' && lead.status !== 'Lost' && lead.status !== 'Unqualified' && (
-                                        <button
-                                            className="px-3 py-1 font-mono text-[10px] uppercase font-bold border border-[var(--border-pencil)] rounded bg-white hover:bg-[var(--accent-green)] hover:text-white hover:border-[var(--accent-green)] transition-all shadow-sm"
-                                            onClick={() => setLeadToConvert(lead)}
-                                        >
-                                            Convert →
-                                        </button>
-                                    )}
-                                    {lead.status === 'Qualified' && (
-                                        <span className="font-sans italic text-xs text-green-600">✓ In Pipeline</span>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                        {filteredLeads.length === 0 && (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
+                        <thead className="bg-[var(--bg-paper)] border-b-2 border-[var(--border-ink)]">
                             <tr>
-                                <td colSpan={5} className="p-12 text-center text-[var(--text-secondary)] font-sans italic border-b border-[var(--border-pencil)]">
-                                    No entries found in the ledger.
-                                </td>
+                                <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Company</th>
+                                <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Person</th>
+                                <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Info</th>
+                                <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">Status</th>
+                                <th className="p-4 font-sans font-bold text-[var(--text-primary)] w-32 text-center">Actions</th>
                             </tr>
-                        )}
-                        {/* Empty rows filler for ledger look */}
-                        {[1, 2, 3].map(i => (
-                            <tr key={`empty-${i}`} className="h-16">
-                                <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
-                                <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
-                                <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
-                                <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
-                                <td></td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border-pencil)] divide-dashed">
+                            {filteredLeads.map(lead => (
+                                <tr key={lead.lead_id} className="hover:bg-[var(--bg-hover)] transition-colors group">
+                                    <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
+                                        <span className="font-sans font-bold text-lg text-[var(--text-primary)]">{lead.company_name}</span>
+                                        <div className="font-mono text-[10px] text-[var(--text-secondary)] uppercase mt-1">{lead.source}</div>
+                                    </td>
+                                    <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
+                                        <span className="font-sans text-[var(--text-primary)]">{lead.contact_name}</span>
+                                    </td>
+                                    <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
+                                        <div className="font-mono text-xs text-[var(--text-secondary)]">
+                                            {lead.contact_email && <div>✉️ {lead.contact_email}</div>}
+                                            {lead.contact_phone && <div>📞 {lead.contact_phone}</div>}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 border-r border-[var(--border-pencil)] border-dashed text-center">
+                                        <StatusBadge status={lead.status} />
+                                    </td>
+                                    <td className="p-4 text-center">
+                                        {lead.status !== 'Qualified' && lead.status !== 'Lost' && lead.status !== 'Unqualified' && (
+                                            <button
+                                                className="px-3 py-1 font-mono text-[10px] uppercase font-bold border border-[var(--border-pencil)] rounded bg-white hover:bg-[var(--accent-green)] hover:text-white hover:border-[var(--accent-green)] transition-all shadow-sm"
+                                                onClick={() => setLeadToConvert(lead)}
+                                            >
+                                                Convert →
+                                            </button>
+                                        )}
+                                        {lead.status === 'Qualified' && (
+                                            <span className="font-sans italic text-xs text-green-600">✓ In Pipeline</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {filteredLeads.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="p-12 text-center text-[var(--text-secondary)] font-sans italic border-b border-[var(--border-pencil)]">
+                                        No entries found in the ledger.
+                                    </td>
+                                </tr>
+                            )}
+                            {/* Empty rows filler for ledger look */}
+                            {[1, 2, 3].map(i => (
+                                <tr key={`empty-${i}`} className="h-16">
+                                    <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
+                                    <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
+                                    <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
+                                    <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
+                                    <td></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Add Lead Modal */}

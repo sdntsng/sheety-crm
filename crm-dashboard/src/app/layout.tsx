@@ -59,6 +59,8 @@ export default function RootLayout({
                                         {children}
                                     </main>
                                     <Footer />
+                                    {/* Spacer for mobile bottom nav */}
+                                    <div className="h-20 md:hidden" />
                                     <CommandPalette />
                                     <MobileBottomNav />
                                 </div>
