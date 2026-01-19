@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Opportunity, Activity, getActivities, createActivity } from '@/lib/api';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 
 interface OpportunityDetailModalProps {
     opportunity: Opportunity;
@@ -52,6 +53,13 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
         }
     };
 
+    useKeyboardShortcut({
+        key: 'Escape',
+        description: 'Close Modal',
+        section: 'Navigation',
+        onKeyPressed: onClose
+    });
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -64,11 +72,11 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-fade-in" onClick={onClose}>
             <div
-                className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] shadow-[12px_12px_0px_rgba(0,0,0,0.15)] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden relative"
+                className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] shadow-[12px_12px_0px_rgba(0,0,0,0.15)] w-[95%] md:w-full md:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header - Folder Tab Style */}
-                <div className="bg-[var(--bg-paper)] border-b-2 border-[var(--border-ink)] p-6 relative">
+                <div className="bg-[var(--bg-paper)] border-b-2 border-[var(--border-ink)] p-4 md:p-6 relative">
                     {/* Close Button */}
                     <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center border border-[var(--border-pencil)] hover:bg-[var(--bg-hover)] rounded-full transition-colors font-sans font-bold mb-4">
                         ✕
@@ -87,7 +95,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                     </div>
 
                     {/* Stats Row - Stamped Tags */}
-                    <div className="flex gap-4 mt-6">
+                    <div className="flex flex-wrap gap-4 mt-6">
                         <div className="flex flex-col border-r border-[var(--border-pencil)] pr-6">
                             <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase">Pipeline Value</span>
                             <span className="font-sans font-bold text-xl text-[var(--text-primary)]">{formatCurrency(opportunity.value)}</span>
@@ -105,7 +113,7 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
 
                 {/* Body - Lined Paper Background */}
                 <div className="flex-1 overflow-y-auto p-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjI0IiBmaWxsPSJub25lIj48bGluZSB4MT0iMCIgeTE9IjI0IiB4Mj0iMTAwJSIgeTI9IjI0IiBzdHJva2U9IiNlNWU1ZTUiIHN0cm9rZS13aWR0aD0iMSIvPjwvc3ZnPg==')]">
-                    <div className="p-8">
+                    <div className="p-4 md:p-8">
                         <h3 className="font-sans font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
                             <span>Activity Log</span>
                             <div className="h-px bg-[var(--border-pencil)] flex-1"></div>
@@ -142,8 +150,8 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                 </div>
 
                 {/* Footer / Input - Sticky Note Style */}
-                <div className="p-6 bg-[var(--bg-paper)] border-t-2 border-[var(--border-ink)] z-10 shadow-[0px_-4px_10px_rgba(0,0,0,0.05)]">
-                    <form onSubmit={handleAddNote} className="flex gap-4">
+                <div className="p-4 md:p-6 bg-[var(--bg-paper)] border-t-2 border-[var(--border-ink)] z-10 shadow-[0px_-4px_10px_rgba(0,0,0,0.05)]">
+                    <form onSubmit={handleAddNote} className="flex flex-col md:flex-row gap-4">
                         <input
                             type="text"
                             placeholder="Type a new note here..."

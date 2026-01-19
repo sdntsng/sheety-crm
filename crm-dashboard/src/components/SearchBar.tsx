@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { useRouter } from 'next/navigation';
 import { search, SearchResults } from '@/lib/api';
 
@@ -38,24 +39,27 @@ export default function SearchBar() {
     }, [query]);
 
     // Keyboard shortcut: / to focus search
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Focus search on '/' key (outside input fields)
-            if (e.key === '/' && document.activeElement?.tagName !== 'INPUT') {
-                e.preventDefault();
-                inputRef.current?.focus();
-                setIsOpen(true);
-            }
-            // Close on Escape
-            if (e.key === 'Escape') {
-                setIsOpen(false);
-                inputRef.current?.blur();
-            }
-        };
+    useKeyboardShortcut({
+        key: '/',
+        description: 'Focus Search',
+        section: 'Navigation',
+        onKeyPressed: (e) => {
+            e.preventDefault();
+            inputRef.current?.focus();
+            setIsOpen(true);
+        }
+    });
 
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    // Close on Escape
+    useKeyboardShortcut({
+        key: 'Escape',
+        description: 'Close Search',
+        section: 'Navigation',
+        onKeyPressed: () => {
+            setIsOpen(false);
+            inputRef.current?.blur();
+        }
+    });
 
     // Get all results as flat list for keyboard navigation
     const allResults = results ? [

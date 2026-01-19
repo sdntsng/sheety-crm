@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createOpportunity, getLeads, Lead, PipelineStageEnum } from '@/lib/api';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 
 interface AddOpportunityModalProps {
     onClose: () => void;
@@ -47,9 +48,34 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
         }
     };
 
+    useKeyboardShortcut({
+        key: 'Escape',
+        description: 'Close Modal',
+        section: 'Navigation',
+        onKeyPressed: onClose
+    });
+
+    useKeyboardShortcut({
+        key: 's',
+        description: 'Save Deal',
+        section: 'Actions',
+        onKeyPressed: (e) => {
+            e.preventDefault();
+            // Manually trigger submit if not already submitting
+            if (!submitting) {
+                // We can't easily call handleSubmit(e) because e is KeyboardEvent, not FormEvent
+                // So we extract the logic or cheat slightly. 
+                // Better to extract logic, but for now let's call the button click or extract logic.
+                // Let's refactor handleSubmit to not depend strictly on the event being present or preventDefault manual call.
+                const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+                handleSubmit(fakeEvent);
+            }
+        }
+    });
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-fade-in">
-            <div className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] shadow-[8px_8px_0px_rgba(0,0,0,0.15)] w-full max-w-lg relative">
+            <div className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] shadow-[8px_8px_0px_rgba(0,0,0,0.15)] w-[95%] md:w-full md:max-w-lg relative">
                 {/* Close Button - X Mark */}
                 <button
                     onClick={onClose}
@@ -58,8 +84,8 @@ export default function AddOpportunityModal({ onClose, onSuccess }: AddOpportuni
                     ×
                 </button>
 
-                <div className="p-8">
-                    <h2 className="font-sans font-bold text-3xl text-[var(--text-primary)] mb-8 border-b-4 border-[var(--accent-yellow)] inline-block">
+                <div className="p-4 md:p-8">
+                    <h2 className="font-sans font-bold text-2xl md:text-3xl text-[var(--text-primary)] mb-6 border-b-4 border-[var(--accent-yellow)] inline-block">
                         New Deal
                     </h2>
 

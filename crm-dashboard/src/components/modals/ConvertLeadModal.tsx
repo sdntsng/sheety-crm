@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Lead, createOpportunity, updateLead, createActivity } from '@/lib/api';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 
 interface ConvertLeadModalProps {
     lead: Lead;
@@ -59,6 +60,13 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
             setLoading(false);
         }
     };
+
+    useKeyboardShortcut({
+        key: 'Escape',
+        description: 'Close Modal',
+        section: 'Navigation',
+        onKeyPressed: onClose
+    });
 
     return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 animate-fade-in" onClick={onClose}>

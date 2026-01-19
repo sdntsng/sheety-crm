@@ -113,9 +113,9 @@ export default function Header() {
                     </span>
                 </Link>
 
-                {/* Navigation Tabs */}
+                {/* Navigation Tabs - Desktop */}
                 {isAuthenticated && (
-                    <nav className="header-nav flex items-center gap-1">
+                    <nav className="header-nav hidden md:flex items-center gap-1">
                         {navItems.map(item => {
                             const Icon = item.icon;
                             return (
@@ -132,12 +132,12 @@ export default function Header() {
                     </nav>
                 )}
 
-                {/* Right Side */}
-                <div className="header-actions ml-auto flex items-center gap-4">
-                    {/* Search - only when authenticated */}
+                {/* Right Side - Actions */}
+                <div className="header-actions ml-auto flex items-center gap-2 md:gap-4">
+                    {/* Search - only when authenticated, hide on mobile to save space */}
                     {isAuthenticated && (
                         <>
-                            <div className="w-64">
+                            <div className="hidden md:block w-64">
                                 <SearchBar />
                             </div>
                             <div className="h-6 w-px bg-[var(--border-pencil)] mx-2" />
@@ -255,6 +255,11 @@ export default function Header() {
                         </Link>
                     )}
                 </div>
+
+                {/* Mobile Menu Button */}
+                {/* Mobile Menu Button Removed for Bottom Nav */}
+
+                {/* Mobile Menu Overlay */}
             </div>
         </header>
     );

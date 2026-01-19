@@ -5,6 +5,8 @@ import { getPipeline, updateOpportunityStage, PipelineData, Opportunity } from '
 import PipelineColumn from '@/components/PipelineColumn';
 import AddOpportunityModal from '@/components/modals/AddOpportunityModal';
 import { useSettings } from '@/providers/SettingsProvider';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function PipelinePage() {
     const [data, setData] = useState<PipelineData | null>(null);
@@ -12,6 +14,15 @@ export default function PipelinePage() {
     const [error, setError] = useState<string | null>(null);
     const [showAddModal, setShowAddModal] = useState(false);
     const { hiddenStages } = useSettings();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (searchParams.get('action') === 'new') {
+            setShowAddModal(true);
+            router.replace('/pipeline');
+        }
+    }, [searchParams, router]);
 
     const fetchPipeline = useCallback(async () => {
         try {
@@ -27,6 +38,13 @@ export default function PipelinePage() {
     useEffect(() => {
         fetchPipeline();
     }, [fetchPipeline]);
+
+    useKeyboardShortcut({
+        key: 'n',
+        description: 'New Deal',
+        section: 'Actions',
+        onKeyPressed: () => setShowAddModal(true)
+    });
 
     const handleDrop = async (opp: Opportunity, newStage: string) => {
         // Optimistic update
@@ -108,14 +126,14 @@ export default function PipelinePage() {
             </div>
 
             {/* Pipeline Board - Corkboard/Desk Surface */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
-                <div className="flex gap-4 h-full" style={{ minWidth: 'max-content' }}>
+            <div className="flex-1 overflow-x-auto overflow-y-auto md:overflow-y-hidden pb-4">
+                <div className="flex flex-col md:flex-row gap-4 h-full md:w-max min-w-full">
                     {data.stages.filter(stage => !hiddenStages.includes(stage)).map((stageName: string) => {
                         const stage = data.pipeline[stageName];
                         if (!stage) return null;
 
                         return (
-                            <div key={stageName} className="w-80 shrink-0 h-full">
+                            <div key={stageName} className="w-full md:w-80 shrink-0 h-auto md:h-full">
                                 <PipelineColumn
                                     stage={stage}
                                     onDrop={handleDrop}
