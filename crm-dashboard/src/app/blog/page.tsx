@@ -19,7 +19,7 @@ const articles = [
     {
         title: "Flow State Sales",
         subtitle: "How to visualize, manage, and accelerate your deal flow sheety-style.",
-        date: "Jan 21, 2025",
+        date: "Jan 18, 2025",
         slug: "/blog/how-to-pipeline",
         tag: "Guide",
         category: 'Guide'
@@ -27,7 +27,7 @@ const articles = [
     {
         title: "Mastering Sheety with One Hand",
         subtitle: "A comprehensive guide to keyboard shortcuts and the Command Palette.",
-        date: "Jan 21, 2025",
+        date: "Jan 14, 2025",
         slug: "/blog/how-to-shortcuts",
         tag: "Guide",
         category: 'Guide'
@@ -35,7 +35,7 @@ const articles = [
     {
         title: "The Data Ownership Manifesto",
         subtitle: "Why we built a CRM that lives in a spreadsheet.",
-        date: "Jan 20, 2025",
+        date: "Jan 10, 2025",
         slug: "/blog/manifesto",
         tag: "Philosophy",
         category: 'Thoughts'
@@ -43,7 +43,7 @@ const articles = [
     {
         title: "The Free CRM Trap",
         subtitle: "Why HubSpot costs more than you think.",
-        date: "Jan 20, 2025",
+        date: "Jan 05, 2025",
         slug: "/compare/hubspot",
         tag: "Analysis",
         category: 'Comparison'
@@ -51,7 +51,7 @@ const articles = [
     {
         title: "Database Anxiety",
         subtitle: "One day you hit 1,200 records. Then what?",
-        date: "Jan 20, 2025",
+        date: "Dec 30, 2024",
         slug: "/compare/airtable",
         tag: "Comparison",
         category: 'Comparison'
@@ -59,7 +59,7 @@ const articles = [
     {
         title: "Who is Reading Your Email?",
         subtitle: "The privacy cost of 'Inbox CRMs' like Streak.",
-        date: "Jan 20, 2025",
+        date: "Dec 15, 2024",
         slug: "/compare/streak",
         tag: "Privacy",
         category: 'Comparison'
@@ -67,7 +67,7 @@ const articles = [
     {
         title: "The Add-On Trap",
         subtitle: "Pipedrive's $14 base price is just the beginning.",
-        date: "Jan 20, 2025",
+        date: "Dec 08, 2024",
         slug: "/compare/pipedrive",
         tag: "Pricing",
         category: 'Comparison'
@@ -75,7 +75,7 @@ const articles = [
     {
         title: "Built for Sales Floors",
         subtitle: "Close is amazing for call centers. You're not one.",
-        date: "Jan 20, 2025",
+        date: "Nov 25, 2024",
         slug: "/compare/close",
         tag: "Analysis",
         category: 'Comparison'
@@ -83,7 +83,7 @@ const articles = [
     {
         title: "The Beautiful Prison",
         subtitle: "Attio's flexibility comes with invisible chains.",
-        date: "Jan 20, 2025",
+        date: "Nov 14, 2024",
         slug: "/compare/attio",
         tag: "Lock-in",
         category: 'Comparison'
@@ -91,7 +91,7 @@ const articles = [
     {
         title: "The Other Side of Simple",
         subtitle: "Folk is simple. So is Sheety. One is free.",
-        date: "Jan 20, 2025",
+        date: "Nov 02, 2024",
         slug: "/compare/folk",
         tag: "Comparison",
         category: 'Comparison'
