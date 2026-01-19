@@ -6,6 +6,7 @@ import SessionProvider from "@/providers/SessionProvider";
 import PostHogProvider from "@/providers/PostHogProvider";
 import PostHogPageView from "@/components/PostHogPageView";
 import Footer from "@/components/Footer";
+import { SettingsProvider } from "@/providers/SettingsProvider";
 import { Suspense } from "react";
 
 const sans = Outfit({
@@ -47,13 +48,15 @@ export default function RootLayout({
                         <PostHogPageView />
                     </Suspense>
                     <SessionProvider>
-                        <div className="min-h-screen flex flex-col bg-paper text-ink">
-                            <Header />
-                            <main className="flex-1 relative">
-                                {children}
-                            </main>
-                            <Footer />
-                        </div>
+                        <SettingsProvider>
+                            <div className="min-h-screen flex flex-col bg-paper text-ink">
+                                <Header />
+                                <main className="flex-1 relative">
+                                    {children}
+                                </main>
+                                <Footer />
+                            </div>
+                        </SettingsProvider>
                     </SessionProvider>
                 </PostHogProvider>
             </body>

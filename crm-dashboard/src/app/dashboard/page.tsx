@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { getDashboard, DashboardData } from '@/lib/api';
+import { useSettings } from '@/providers/SettingsProvider';
 import StatCard from '@/components/StatCard';
 import Link from 'next/link';
 import SheetSelector from '@/components/SheetSelector';
@@ -12,6 +13,7 @@ import Loader from '@/components/Loader';
 export default function DashboardPage() {
     const router = useRouter();
     const { data: session, status } = useSession();
+    const { hiddenStages, hiddenStatuses } = useSettings();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -137,6 +139,17 @@ export default function DashboardPage() {
         );
     }
 
+    // Filter and Recalculate Data
+    const visiblePipeline = Object.entries(data.pipeline_by_stage)
+        .filter(([stage]) => !hiddenStages.includes(stage));
+
+    const visibleLeads = Object.entries(data.leads_by_status)
+        .filter(([status]) => !hiddenStatuses.includes(status));
+
+    const activeLeads = visibleLeads.reduce((sum, [, count]) => sum + count, 0);
+    const activeOpportunities = visiblePipeline.reduce((sum, [, val]) => sum + val.count, 0);
+    const pipelineValue = visiblePipeline.reduce((sum, [, val]) => sum + val.total_value, 0);
+
     return (
         <div className="p-8 space-y-8">
             {/* Header */}
@@ -153,17 +166,17 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="Active Leads"
-                    value={data.total_leads}
+                    value={activeLeads}
                     subtitle="Prospects"
                 />
                 <StatCard
                     title="Opportunities"
-                    value={data.total_opportunities}
+                    value={activeOpportunities}
                     subtitle="In Pipeline"
                 />
                 <StatCard
                     title="Pipeline Value"
-                    value={formatCurrency(data.total_pipeline_value)}
+                    value={formatCurrency(pipelineValue)}
                     subtitle="Potential Revenue"
                     variant="warning"
                 />
@@ -187,9 +200,9 @@ export default function DashboardPage() {
                         </div>
                     </div>
                     <div className="p-6 space-y-4">
-                        {Object.entries(data.pipeline_by_stage).map(([stage, stageData]: [string, { count: number; total_value: number }]) => {
-                            const percentage = data.total_pipeline_value > 0
-                                ? (stageData.total_value / data.total_pipeline_value) * 100
+                        {visiblePipeline.map(([stage, stageData]: [string, { count: number; total_value: number }]) => {
+                            const percentage = pipelineValue > 0
+                                ? (stageData.total_value / pipelineValue) * 100
                                 : 0;
 
                             return (
@@ -221,7 +234,7 @@ export default function DashboardPage() {
                         <h2 className="font-sans font-bold text-xl mb-6 underline decoration-[var(--accent-blue)] decoration-2 underline-offset-4">Lead Status</h2>
 
                         <div className="space-y-4">
-                            {Object.entries(data.leads_by_status).map(([status, count]: [string, number]) => (
+                            {visibleLeads.map(([status, count]: [string, number]) => (
                                 <div key={status} className="flex justify-between items-end border-b border-[var(--border-pencil)] border-dashed pb-1">
                                     <span className="font-sans text-lg">{status}</span>
                                     <span className="font-mono font-bold text-xl">{count}</span>

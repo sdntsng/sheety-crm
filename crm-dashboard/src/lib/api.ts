@@ -103,6 +103,7 @@ export interface PipelineData {
 
 export interface Config {
   pipeline_stages: string[];
+
   lead_statuses: string[];
   lead_sources: string[];
   activity_types: string[];
