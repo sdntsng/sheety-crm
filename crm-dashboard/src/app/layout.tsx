@@ -43,7 +43,7 @@ export default function RootLayout({
         <html lang="en">
             <body className={`${sans.variable} ${mono.variable} ${serif.variable} antialiased font-sans`}>
                 <PostHogProvider>
-                    <Suspense>
+                    <Suspense fallback={null}>
                         <PostHogPageView />
                     </Suspense>
                     <SessionProvider>
