@@ -28,7 +28,7 @@ async def get_crm_session(
         try:
              # This uses local token.json or Service Account Env
              # This uses local token.json or Service Account Env
-             gc, _ = authenticate()
+             gc, creds = authenticate()
              
              # Use a fixed key for local dev session
              cache_key = f"local_dev::{x_sheet_id or 'default'}"
@@ -37,7 +37,7 @@ async def get_crm_session(
                  return _user_sessions[cache_key]
                  
              sheet_name = x_sheet_id or "Sales Pipeline 2026"
-             crm = CRMManager(SheetManager(gc), sheet_name=sheet_name)
+             crm = CRMManager(SheetManager(gc), sheet_name=sheet_name, google_creds=creds)
              _user_sessions[cache_key] = crm
              return crm
         except Exception as e:
@@ -68,7 +68,7 @@ async def get_crm_session(
         sm = SheetManager(gc)
         # Use provided sheet_id or default
         sheet_name = x_sheet_id if x_sheet_id else "Sales Pipeline 2026"
-        crm = CRMManager(sm, sheet_name=sheet_name)
+        crm = CRMManager(sm, sheet_name=sheet_name, google_creds=creds)
         
         _user_sessions[cache_key] = crm
         return crm
