@@ -56,10 +56,7 @@ export default function SetupGuidePage() {
                         <div className="w-3 h-3 rounded-full bg-red-400" />
                         <div className="w-3 h-3 rounded-full bg-yellow-400" />
                         <div className="w-3 h-3 rounded-full bg-green-400" />
-                        <div className="ml-auto flex items-center gap-2 text-xs text-gray-500 font-medium">
-                            <svg className="w-4 h-4" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.9 2.5 3.3 3.3l3.95 2.25 7.75-13.4-3.8-6.6-3.95-2.25c-1.4-.8-3.1-.8-4.5 0l-9.95 5.75c-1.4.8-1.9 2.5-1.15 3.95l3.85 6.65c.2.4.55.7 1.15 1.05z" fill="#0066da" /><path d="m43.65 25-15.5-26.85c-.8-1.4-2.3-2.3-3.95-2.3h-19.95c-1.6 0-3.1.9-3.9 2.3l-5.6 9.7c-.8 1.4-.4 3.1 1 3.9l12.1 7 7.75 4.5 7.65 13.3 5.4-9.35c.8-1.4 5.95-10.45 15.05-2.2z" fill="#00ac47" /><path d="m73.55 76.8c1.6 0 3.1-.9 3.9-2.3l5.6-9.7c.8-1.4.4-3.1-1-3.9l-12.1-7-7.75-4.5-7.65-13.3-15.5-26.85-7.75 13.4 20.3 35.15h21.95z" fill="#ea4335" /><path d="m43.65 25 7.75-13.4c-3.1-5.35-11.85-11.6-20.15-2.2l-2.7 4.65-5.4 9.35 15.5 13.4z" fill="#00832d" /><path d="m59.15 51.5 7.75 13.4 12.1 7c1.4.8 3.1.4 3.9-1l5.6-9.7c.8-1.4.9-2.9-.1-4.2l-11.45-19.85-13.45 3.8-4.35 10.55z" fill="#2684fc" /><path d="m27.55 53.05-4.45 2.55-7.75-13.4 7.65-13.25 20.15 35.1h-8.8-13.2l6.4-11z" fill="#ffba00" /></svg>
-                            Google Drive
-                        </div>
+                        <div className="ml-auto text-xs text-gray-400 font-mono">Select a file</div>
                     </div>
                     <div className="p-4 grid grid-cols-3 gap-3">
                         {[1, 2, 3].map((i) => (
