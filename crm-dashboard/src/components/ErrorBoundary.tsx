@@ -68,13 +68,7 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryStat
                                     Try Again
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        if (this.props.router) {
-                                            this.props.router.push('/dashboard');
-                                        } else {
-                                            window.location.href = '/dashboard';
-                                        }
-                                    }}
+                                    onClick={() => this.props.router?.push('/dashboard')}
                                     className="px-4 py-2 font-mono text-xs uppercase font-bold border border-[var(--border-pencil)] rounded bg-white hover:bg-[var(--bg-hover)] transition-all"
                                 >
                                     Go to Dashboard
