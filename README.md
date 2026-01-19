@@ -25,6 +25,7 @@ It treats your Google Sheet as the single source of truth. The app is just a bea
 
 - 🏢 **Pipeline Management**: Kanban board for visual deal tracking.
 - 👥 **Lead Management**: Clean interface for contacts and companies.
+- 📥 **Data Import**: CSV import wizard for migrating from HubSpot, Salesforce, or Excel.
 - ⚡ **Global Search**: Find anything instantly with `Cmd+K` (or `/`).
 - 📝 **Activity Feed**: Log calls, emails, and meetings.
 - 🎨 **Paper Theme**: A distraction-free, tactile "digital paper" aesthetic.
