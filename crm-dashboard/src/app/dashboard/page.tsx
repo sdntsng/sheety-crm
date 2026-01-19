@@ -33,14 +33,18 @@ export default function DashboardPage() {
         // Check if we should run the tour (first login)
         if (saved && !isTourCompleted()) {
             // Delay tour start to ensure page and elements are loaded
+            let retryCount = 0;
+            const maxRetries = 10;
+            
             const checkElementsAndStartTour = () => {
                 const dashboardLink = document.querySelector('[data-tour="dashboard"]');
                 if (dashboardLink) {
                     setRunTour(true);
-                } else {
-                    // Retry after a short delay if elements aren't ready
+                } else if (retryCount < maxRetries) {
+                    retryCount++;
                     setTimeout(checkElementsAndStartTour, 200);
                 }
+                // If max retries reached, tour won't start (graceful degradation)
             };
             setTimeout(checkElementsAndStartTour, 500);
         }
