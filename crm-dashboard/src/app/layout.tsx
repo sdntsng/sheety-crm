@@ -48,8 +48,13 @@ export default function RootLayout({
                         __html: `
                             (function() {
                                 const stored = localStorage.getItem('theme');
-                                const theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-                                document.documentElement.setAttribute('data-theme', theme);
+                                if (stored) {
+                                    document.documentElement.setAttribute('data-theme', stored);
+                                } else {
+                                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                                    const theme = prefersDark ? 'dark' : 'light';
+                                    document.documentElement.setAttribute('data-theme', theme);
+                                }
                             })();
                         `,
                     }}

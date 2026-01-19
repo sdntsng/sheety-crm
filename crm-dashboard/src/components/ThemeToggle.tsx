@@ -10,18 +10,21 @@ export default function ThemeToggle() {
         const stored = localStorage.getItem('theme');
         if (stored) {
             setTheme(stored);
-        } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-            setTheme('light');
         } else {
-            setTheme('dark');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const defaultTheme = prefersDark ? 'dark' : 'light';
+            setTheme(defaultTheme);
         }
     }, []);
 
     const toggleTheme = useCallback(() => {
+        if (!theme) return; // Guard against null theme
         const newTheme = theme === 'dark' ? 'light' : 'dark';
         setTheme(newTheme);
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
+        // Dispatch custom event for same-tab updates
+        window.dispatchEvent(new CustomEvent('themeChange', { detail: newTheme }));
     }, [theme]);
 
     // Keyboard shortcut: Cmd+K / Ctrl+K
