@@ -9,8 +9,9 @@ import StatCard from '@/components/StatCard';
 import Link from 'next/link';
 import SheetSelector from '@/components/SheetSelector';
 import Loader from '@/components/Loader';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
-export default function DashboardPage() {
+function DashboardPageContent() {
     const router = useRouter();
     const { data: session, status } = useSession();
     const { hiddenStages, hiddenStatuses } = useSettings();
@@ -252,5 +253,13 @@ export default function DashboardPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function DashboardPage() {
+    return (
+        <ErrorBoundary>
+            <DashboardPageContent />
+        </ErrorBoundary>
     );
 }

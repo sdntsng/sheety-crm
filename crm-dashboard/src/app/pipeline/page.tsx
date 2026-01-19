@@ -5,8 +5,9 @@ import { getPipeline, updateOpportunityStage, PipelineData, Opportunity } from '
 import PipelineColumn from '@/components/PipelineColumn';
 import AddOpportunityModal from '@/components/modals/AddOpportunityModal';
 import { useSettings } from '@/providers/SettingsProvider';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
-export default function PipelinePage() {
+function PipelinePageContent() {
     const [data, setData] = useState<PipelineData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -135,5 +136,13 @@ export default function PipelinePage() {
                 />
             )}
         </div>
+    );
+}
+
+export default function PipelinePage() {
+    return (
+        <ErrorBoundary>
+            <PipelinePageContent />
+        </ErrorBoundary>
     );
 }

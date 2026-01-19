@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { getLeads, createLead, Lead, getConfig, Config } from '@/lib/api';
 import ConvertLeadModal from '@/components/modals/ConvertLeadModal';
 import { useSettings } from '@/providers/SettingsProvider';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
-export default function LeadsPage() {
+function LeadsPageContent() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [config, setConfig] = useState<Config | null>(null);
     const [loading, setLoading] = useState(true);
@@ -307,5 +308,13 @@ function AddLeadModal({ config, onClose, onAdded }: { config: Config | null; onC
                 </form>
             </div>
         </div>
+    );
+}
+
+export default function LeadsPage() {
+    return (
+        <ErrorBoundary>
+            <LeadsPageContent />
+        </ErrorBoundary>
     );
 }
