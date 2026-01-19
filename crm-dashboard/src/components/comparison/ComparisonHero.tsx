@@ -16,7 +16,7 @@ export default function ComparisonHero({ competitorName, competitorLogo, tagline
                 <div className="w-20 h-20 bg-[var(--color-ink)] rounded-2xl flex items-center justify-center text-white font-serif font-bold text-4xl shadow-lg">
                     S
                 </div>
-                <span className="font-mono text-sm font-bold uppercase tracking-wider">Sheety</span>
+                <span className="font-sans text-sm font-bold uppercase tracking-wider text-[var(--color-ink)]">Sheety</span>
             </div>
 
             {/* VS Badge */}

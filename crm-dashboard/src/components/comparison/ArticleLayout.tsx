@@ -56,15 +56,15 @@ export default function ArticleLayout({
 
                 {/* Article Content */}
                 <article className="prose prose-lg prose-stone md:prose-xl mx-auto max-w-3xl
-                    prose-headings:font-serif prose-headings:font-bold prose-headings:text-[var(--color-ink)] prose-headings:mt-32 prose-headings:mb-10
-                    prose-p:font-sans prose-p:text-[var(--color-ink-muted)] prose-p:!leading-loose prose-p:!mb-12 prose-p:text-xl prose-p:tracking-wide
+                    prose-headings:font-serif prose-headings:font-bold prose-headings:text-[var(--color-ink)] prose-headings:mt-24 prose-headings:mb-8
+                    prose-p:font-sans prose-p:text-[var(--color-ink-muted)] prose-p:leading-relaxed prose-p:mb-8 prose-p:text-lg md:prose-p:text-xl
                     prose-a:text-[var(--accent)] prose-a:no-underline hover:prose-a:underline
                     prose-strong:text-[var(--color-ink)] prose-strong:font-semibold
-                    prose-blockquote:border-l-4 prose-blockquote:border-[var(--accent)] prose-blockquote:pl-8 prose-blockquote:italic prose-blockquote:my-24 prose-blockquote:text-2xl prose-blockquote:!leading-relaxed
+                    prose-blockquote:border-l-4 prose-blockquote:border-[var(--accent)] prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:my-16 prose-blockquote:text-xl lg:prose-blockquote:text-2xl prose-blockquote:leading-relaxed
                     prose-code:font-mono prose-code:bg-[var(--bg-hover)] prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-[var(--color-ink)]
-                    prose-ul:my-16 prose-ul:space-y-6 prose-li:text-[var(--color-ink-muted)] prose-li:!leading-loose prose-li:text-xl
-                    prose-ol:my-16 prose-ol:space-y-6
-                    [&_.lead]:text-2xl [&_.lead]:!leading-loose [&_.lead]:text-[var(--color-ink)] [&_.lead]:font-light [&_.lead]:mb-24
+                    prose-ul:my-12 prose-ul:space-y-4 prose-li:text-[var(--color-ink-muted)] prose-li:leading-relaxed prose-li:text-lg md:prose-li:text-xl
+                    prose-ol:my-12 prose-ol:space-y-4
+                    [&_.lead]:text-xl md:[&_.lead]:text-2xl [&_.lead]:leading-relaxed [&_.lead]:text-[var(--color-ink)] [&_.lead]:font-light [&_.lead]:mb-16
                 ">
                     {children}
                 </article>
