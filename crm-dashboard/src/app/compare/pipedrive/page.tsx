@@ -1,4 +1,9 @@
-'use client';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'The Add-On Trap | Sheety vs Pipedrive',
+    description: 'Pipedrive\'s base price is a teaser. The real cost is in the fine print. Comparing Sheety CRM vs Pipedrive.',
+};
 
 import ArticleLayout from '@/components/comparison/ArticleLayout';
 import ComparisonTable from '@/components/comparison/ComparisonTable';
