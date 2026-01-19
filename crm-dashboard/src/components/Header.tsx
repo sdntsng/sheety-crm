@@ -32,13 +32,23 @@ const LeadsIcon = () => (
     </svg>
 );
 
+const GuideIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+const CompareIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
     { href: '/pipeline', label: 'Pipeline', icon: PipelineIcon },
     { href: '/leads', label: 'Leads', icon: LeadsIcon },
 ];
-
-
 
 export default function Header() {
     const pathname = usePathname();
@@ -76,16 +86,16 @@ export default function Header() {
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
-    // Don't show header on login page or landing (when unauthenticated at root)
+    // Don't show header on login page
     if (pathname === '/login') {
         return null;
     }
 
-    // For unauthenticated users on the landing page, show a simpler header
-    if (!isAuthenticated && pathname === '/') {
+    // For unauthenticated users, show the public header everywhere
+    if (!isAuthenticated) {
         return (
             <header className="header px-6 py-4">
-                <div className="w-full max-w-7xl mx-auto flex items-center justify-between">
+                <div className="w-full max-w-7xl mx-auto flex items-center">
                     <Link href="/" className="header-logo group flex items-center gap-2">
                         <SheetyIcon className="w-6 h-6 text-[var(--text-primary)]" />
                         <span className="font-sans italic text-2xl group-hover:text-[var(--accent-blue)] transition-colors">
@@ -94,19 +104,18 @@ export default function Header() {
                     </Link>
 
                     {/* Public Nav */}
-                    <nav className="hidden md:flex items-center gap-8 relative">
-                        <Link href="/blog" className="font-mono text-sm uppercase tracking-wider font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-                            Blog
-                        </Link>
-                        <Link href="/blog?category=Guide" className="font-mono text-sm uppercase tracking-wider font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-                            How-To
+                    <nav className="hidden md:flex items-center gap-8 relative ml-auto mr-8">
+                        <Link href="/blog?category=Guide" className="flex items-center gap-2 font-mono text-sm uppercase tracking-wider font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                            <GuideIcon />
+                            <span>How-To</span>
                         </Link>
 
                         <div className="relative">
                             <button
                                 onClick={() => setShowCompareMenu(!showCompareMenu)}
-                                className="font-mono text-sm uppercase tracking-wider font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
+                                className="font-mono text-sm uppercase tracking-wider font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-2"
                             >
+                                <CompareIcon />
                                 Compare
                                 <svg className={`w-3 h-3 transition-transform ${showCompareMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                                     <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
