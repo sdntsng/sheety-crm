@@ -28,7 +28,7 @@ export default function SetupGuidePage() {
             <p>
                 Sheety uses your Google account for authentication. We don't store passwords. Simply click <strong>Sign In</strong> and authorize the app to access your spreadsheets.
             </p>
-            <div className="my-8 rounded-xl overflow-hidden border border-[var(--border-pencil)] shadow-lg">
+            <div className="my-8 max-w-md mx-auto rounded-xl overflow-hidden border border-[var(--border-pencil)] shadow-lg">
                 <Image
                     src="/images/blog/login-screen.png"
                     alt="Sheety Login Screen"
