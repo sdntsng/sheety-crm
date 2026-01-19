@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { getConfig, Config } from '@/lib/api';
 import { useSettings } from '@/providers/SettingsProvider';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function SettingsPage() {
     const { hiddenStages, hiddenStatuses, toggleStage, toggleStatus } = useSettings();
     const [config, setConfig] = useState<Config | null>(null);
     const [loading, setLoading] = useState(true);
+    const [currentTheme, setCurrentTheme] = useState<string>('dark');
 
     useEffect(() => {
         async function fetchConfig() {
@@ -21,6 +23,18 @@ export default function SettingsPage() {
             }
         }
         fetchConfig();
+
+        // Get current theme
+        const stored = localStorage.getItem('theme') || 'dark';
+        setCurrentTheme(stored);
+
+        // Listen for theme changes
+        const handleStorage = () => {
+            const stored = localStorage.getItem('theme') || 'dark';
+            setCurrentTheme(stored);
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
     }, []);
 
     if (loading) {
@@ -41,12 +55,44 @@ export default function SettingsPage() {
             </h1>
 
             <div className="space-y-12">
+                {/* Theme Settings */}
+                <section>
+                    <h2 className="text-2xl font-sans font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                        <span className="text-[var(--accent-blue)]">■</span> Appearance
+                    </h2>
+                    <div className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                        <p className="font-mono text-xs text-[var(--text-secondary)] mb-4 uppercase tracking-wider">
+                            Choose your preferred color scheme
+                        </p>
+                        <div className="flex items-center justify-between p-4 border border-[var(--border-pencil)] border-dashed rounded">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-3">
+                                    <ThemeToggle />
+                                    <div>
+                                        <p className="font-sans font-bold text-[var(--text-primary)]">
+                                            {currentTheme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                                        </p>
+                                        <p className="font-mono text-xs text-[var(--text-secondary)]">
+                                            Current theme
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-hover)] border border-[var(--border-pencil)] rounded">
+                                <kbd className="font-mono text-xs font-bold text-[var(--text-secondary)]">⌘K</kbd>
+                                <span className="font-mono text-xs text-[var(--text-muted)]">or</span>
+                                <kbd className="font-mono text-xs font-bold text-[var(--text-secondary)]">Ctrl+K</kbd>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 {/* Pipeline Settings */}
                 <section>
                     <h2 className="text-2xl font-sans font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
                         <span className="text-[var(--accent-blue)]">■</span> Pipeline Stages
                     </h2>
-                    <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                    <div className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
                         <p className="font-mono text-xs text-[var(--text-secondary)] mb-4 uppercase tracking-wider">
                             Select which stages to display on your board
                         </p>
@@ -76,7 +122,7 @@ export default function SettingsPage() {
                     <h2 className="text-2xl font-sans font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
                         <span className="text-[var(--accent-green)]">■</span> Lead Statuses
                     </h2>
-                    <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                    <div className="bg-[var(--bg-card)] border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
                         <p className="font-mono text-xs text-[var(--text-secondary)] mb-4 uppercase tracking-wider">
                             Select which status tabs to display in the ledger
                         </p>
