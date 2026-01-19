@@ -186,7 +186,7 @@ export default function LeadsPage() {
             </div>
         </div>
 
-                {/* Add Lead Modal */ }
+            {/* Add Lead Modal */ }
     {
         showModal && (
             <AddLeadModal
@@ -213,8 +213,8 @@ export default function LeadsPage() {
             />
         )
     }
-</div >
-            );
+        </div >
+    );
 }
 
 function StatusBadge({ status }: { status: string }) {
