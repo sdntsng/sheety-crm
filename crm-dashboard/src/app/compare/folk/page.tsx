@@ -1,4 +1,9 @@
-'use client';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'The Other Side of Simple | Sheety vs Folk',
+    description: 'Simple like us, but not free. Why paying for a rolodex feels wrong. Comparing Sheety CRM vs Folk.',
+};
 
 import ArticleLayout from '@/components/comparison/ArticleLayout';
 import ComparisonTable from '@/components/comparison/ComparisonTable';
