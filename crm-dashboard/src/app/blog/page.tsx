@@ -3,74 +3,110 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+
+type Category = 'All' | 'Comparison' | 'Thoughts' | 'Guide';
 
 const articles = [
+    {
+        title: "The One-Time Setup",
+        subtitle: "Connect your Google Sheet and own your data forever.",
+        date: "Jan 21, 2025",
+        slug: "/blog/how-to-setup",
+        tag: "Guide",
+        category: 'Guide'
+    },
+    {
+        title: "Flow State Sales",
+        subtitle: "How to visualize, manage, and accelerate your deal flow sheety-style.",
+        date: "Jan 21, 2025",
+        slug: "/blog/how-to-pipeline",
+        tag: "Guide",
+        category: 'Guide'
+    },
     {
         title: "Mastering Sheety with One Hand",
         subtitle: "A comprehensive guide to keyboard shortcuts and the Command Palette.",
         date: "Jan 21, 2025",
         slug: "/blog/how-to-shortcuts",
-        tag: "Guide"
+        tag: "Guide",
+        category: 'Guide'
     },
     {
         title: "The Data Ownership Manifesto",
         subtitle: "Why we built a CRM that lives in a spreadsheet.",
         date: "Jan 20, 2025",
         slug: "/blog/manifesto",
-        tag: "Philosophy"
+        tag: "Philosophy",
+        category: 'Thoughts'
     },
     {
         title: "The Free CRM Trap",
         subtitle: "Why HubSpot costs more than you think.",
         date: "Jan 20, 2025",
         slug: "/compare/hubspot",
-        tag: "Analysis"
+        tag: "Analysis",
+        category: 'Comparison'
     },
     {
         title: "Database Anxiety",
         subtitle: "One day you hit 1,200 records. Then what?",
         date: "Jan 20, 2025",
         slug: "/compare/airtable",
-        tag: "Comparison"
+        tag: "Comparison",
+        category: 'Comparison'
     },
     {
         title: "Who is Reading Your Email?",
         subtitle: "The privacy cost of 'Inbox CRMs' like Streak.",
         date: "Jan 20, 2025",
         slug: "/compare/streak",
-        tag: "Privacy"
+        tag: "Privacy",
+        category: 'Comparison'
     },
     {
         title: "The Add-On Trap",
         subtitle: "Pipedrive's $14 base price is just the beginning.",
         date: "Jan 20, 2025",
         slug: "/compare/pipedrive",
-        tag: "Pricing"
+        tag: "Pricing",
+        category: 'Comparison'
     },
     {
         title: "Built for Sales Floors",
         subtitle: "Close is amazing for call centers. You're not one.",
         date: "Jan 20, 2025",
         slug: "/compare/close",
-        tag: "Analysis"
+        tag: "Analysis",
+        category: 'Comparison'
     },
     {
         title: "The Beautiful Prison",
         subtitle: "Attio's flexibility comes with invisible chains.",
         date: "Jan 20, 2025",
         slug: "/compare/attio",
-        tag: "Lock-in"
+        tag: "Lock-in",
+        category: 'Comparison'
     },
     {
         title: "The Other Side of Simple",
         subtitle: "Folk is simple. So is Sheety. One is free.",
         date: "Jan 20, 2025",
         slug: "/compare/folk",
-        tag: "Comparison"
+        tag: "Comparison",
+        category: 'Comparison'
     }
 ];
 
 export default function BlogIndex() {
+    const [filter, setFilter] = useState<Category>('All');
+
+    const filteredArticles = articles.filter(article =>
+        filter === 'All' ? true : article.category === filter
+    );
+
+    const categories: Category[] = ['All', 'Comparison', 'Thoughts', 'Guide'];
+
     return (
         <div className="min-h-screen bg-[var(--bg-paper)] text-[var(--color-ink)] selection:bg-[var(--accent)] selection:text-white pb-24">
             <main className="max-w-4xl mx-auto px-6 pt-12 md:pt-24">
@@ -83,7 +119,7 @@ export default function BlogIndex() {
                     Back to Home
                 </Link>
 
-                <header className="mb-24">
+                <header className="mb-12">
                     <h1 className="font-serif text-5xl md:text-7xl font-bold mb-6 tracking-tight">
                         The Sheety Journal
                     </h1>
@@ -92,22 +128,50 @@ export default function BlogIndex() {
                     </p>
                 </header>
 
-                <div className="grid gap-12 md:gap-16">
-                    {articles.map((article, index) => (
+                {/* Filters */}
+                <div className="flex flex-wrap gap-4 mb-16 border-b border-[var(--border-pencil)] pb-4">
+                    {categories.map((cat) => (
+                        <button
+                            key={cat}
+                            onClick={() => setFilter(cat)}
+                            className={`px-4 py-2 font-mono text-xs uppercase tracking-widest rounded-full transition-all border ${filter === cat
+                                ? 'bg-[var(--color-ink)] text-[var(--bg-paper)] border-[var(--color-ink)] shadow-md transform -translate-y-0.5'
+                                : 'bg-transparent text-[var(--color-ink-muted)] border-transparent hover:border-[var(--border-pencil)] hover:text-[var(--color-ink)]'
+                                }`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="grid gap-12 md:gap-16 min-h-[50vh]">
+                    {filteredArticles.length === 0 && (
+                        <div className="py-20 text-center font-mono text-[var(--color-ink-muted)]">
+                            No articles found in this section yet.
+                        </div>
+                    )}
+
+                    {filteredArticles.map((article, index) => (
                         <motion.article
                             key={article.slug}
                             initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: index * 0.1 }}
-                            className="group relative border-t border-[var(--border-pencil)] pt-8 md:pt-12"
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="group relative pt-8 md:pt-12"
                         >
+                            <div className="absolute top-0 left-0 w-full h-px bg-[var(--border-pencil)]" />
                             <Link href={article.slug} className="block">
                                 <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4 mb-4">
                                     <div className="flex items-center gap-4 text-xs font-mono text-[var(--color-ink-muted)] uppercase tracking-widest">
                                         <span>{article.date}</span>
                                         <span className="w-1 h-1 rounded-full bg-[var(--color-ink-muted)] opacity-50" />
-                                        <span className="text-[var(--accent)]">{article.tag}</span>
+                                        <span className={`
+                                            ${article.category === 'Guide' ? 'text-[var(--accent)] font-bold' : ''}
+                                            ${article.category === 'Thoughts' ? 'text-purple-600' : ''}
+                                            ${article.category === 'Comparison' ? 'text-blue-600' : ''}
+                                        `}>
+                                            {article.tag}
+                                        </span>
                                     </div>
                                     <span className="hidden md:inline-block text-xs font-mono text-[var(--color-ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wider">
                                         Read Article →

@@ -56,15 +56,15 @@ export default function ArticleLayout({
 
                 {/* Article Content */}
                 <article className="prose prose-lg prose-stone md:prose-xl mx-auto max-w-3xl
-                    prose-headings:font-serif prose-headings:font-bold prose-headings:text-[var(--color-ink)] prose-headings:mt-32 prose-headings:mb-8
-                    prose-p:font-sans prose-p:text-[var(--color-ink-muted)] prose-p:leading-loose prose-p:mb-10 prose-p:text-xl
+                    prose-headings:font-serif prose-headings:font-bold prose-headings:text-[var(--color-ink)] prose-headings:mt-32 prose-headings:mb-10
+                    prose-p:font-sans prose-p:text-[var(--color-ink-muted)] prose-p:!leading-loose prose-p:!mb-12 prose-p:text-xl prose-p:tracking-wide
                     prose-a:text-[var(--accent)] prose-a:no-underline hover:prose-a:underline
                     prose-strong:text-[var(--color-ink)] prose-strong:font-semibold
-                    prose-blockquote:border-l-4 prose-blockquote:border-[var(--accent)] prose-blockquote:pl-8 prose-blockquote:italic prose-blockquote:my-20 prose-blockquote:text-2xl prose-blockquote:leading-relaxed
+                    prose-blockquote:border-l-4 prose-blockquote:border-[var(--accent)] prose-blockquote:pl-8 prose-blockquote:italic prose-blockquote:my-24 prose-blockquote:text-2xl prose-blockquote:!leading-relaxed
                     prose-code:font-mono prose-code:bg-[var(--bg-hover)] prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-[var(--color-ink)]
-                    prose-ul:my-12 prose-ul:space-y-6 prose-li:text-[var(--color-ink-muted)] prose-li:leading-relaxed prose-li:text-xl
-                    prose-ol:my-12 prose-ol:space-y-6
-                    [&_.lead]:text-2xl [&_.lead]:leading-relaxed [&_.lead]:text-[var(--color-ink)] [&_.lead]:font-light [&_.lead]:mb-20
+                    prose-ul:my-16 prose-ul:space-y-6 prose-li:text-[var(--color-ink-muted)] prose-li:!leading-loose prose-li:text-xl
+                    prose-ol:my-16 prose-ol:space-y-6
+                    [&_.lead]:text-2xl [&_.lead]:!leading-loose [&_.lead]:text-[var(--color-ink)] [&_.lead]:font-light [&_.lead]:mb-24
                 ">
                     {children}
                 </article>
@@ -80,8 +80,7 @@ export default function ArticleLayout({
                             S
                         </div>
                         <div>
-                            <p className="font-mono text-sm font-bold uppercase tracking-wider">The Sheety Team</p>
-                            <p className="text-xs text-[var(--color-ink-muted)]">Building in public.</p>
+                            <p className="font-mono text-sm font-bold uppercase tracking-wider">Sheety</p>
                         </div>
                     </div>
                 </div>
@@ -93,7 +92,7 @@ export default function ArticleLayout({
                     href="/dashboard"
                     className="inline-flex items-center gap-3 px-8 py-4 bg-[var(--color-ink)] text-white rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
                 >
-                    Start Your Free Sheet
+                    Go to App
                     <span className="opacity-70">→</span>
                 </Link>
             </div>
