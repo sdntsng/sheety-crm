@@ -13,6 +13,16 @@ Sheety CRM is an open-source, "stateless" CRM that uses Google Sheets as its bac
 - **Repository**: https://github.com/sdntsng/sheety-crm
 - **Documentation**: https://github.com/sdntsng/sheety-crm/tree/master/docs
 - **Landing Page**: /
+- **Blog & Comparisons**: /blog
+
+## Comparisons
+- **HubSpot vs Sheety**: /compare/hubspot - Detailed breakdown of HubSpot's complexity and pricing traps.
+- **Airtable vs Sheety**: /compare/airtable - Why Airtable's record limits kill growth.
+- **Streak vs Sheety**: /compare/streak - Privacy concerns with inbox-based CRMs.
+- **Pipedrive vs Sheety**: /compare/pipedrive - The hidden cost of "essential" add-ons.
+- **Close vs Sheety**: /compare/close - Why power dialers are overkill for small teams.
+- **Attio vs Sheety**: /compare/attio - How flexibility creates vendor lock-in.
+- **Folk vs Sheety**: /compare/folk - Paying subscription fees for a rolodex.
 
 ## FAQ
 
