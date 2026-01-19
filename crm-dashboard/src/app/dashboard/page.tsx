@@ -9,16 +9,18 @@ import StatCard from '@/components/StatCard';
 import Link from 'next/link';
 import SheetSelector from '@/components/SheetSelector';
 import Loader from '@/components/Loader';
+import OnboardingTour, { isTourCompleted } from '@/components/OnboardingTour';
 
 export default function DashboardPage() {
     const router = useRouter();
-    const { data: session, status } = useSession();
+    const { status } = useSession();
     const { hiddenStages, hiddenStatuses } = useSettings();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
     const [checkingStorage, setCheckingStorage] = useState(true);
+    const [runTour, setRunTour] = useState(false);
 
     useEffect(() => {
         // Check for sheet selection in local storage
@@ -27,6 +29,25 @@ export default function DashboardPage() {
             setSelectedSheet(saved);
         }
         setCheckingStorage(false);
+        
+        // Check if we should run the tour (first login)
+        if (saved && !isTourCompleted()) {
+            // Delay tour start to ensure page and elements are loaded
+            let retryCount = 0;
+            const maxRetries = 10;
+            
+            const checkElementsAndStartTour = () => {
+                const dashboardLink = document.querySelector('[data-tour="dashboard"]');
+                if (dashboardLink) {
+                    setRunTour(true);
+                } else if (retryCount < maxRetries) {
+                    retryCount++;
+                    setTimeout(checkElementsAndStartTour, 200);
+                }
+                // If max retries reached, tour won't start (graceful degradation)
+            };
+            setTimeout(checkElementsAndStartTour, 500);
+        }
     }, []);
 
     const handleSheetSelection = (sheet: { id: string; name: string }) => {
@@ -118,7 +139,7 @@ export default function DashboardPage() {
                         A clean desk!
                     </h2>
                     <p className="font-sans italic text-[var(--text-secondary)] text-lg mb-8">
-                        "The secret of getting ahead is getting started."
+                        &ldquo;The secret of getting ahead is getting started.&rdquo;
                     </p>
                     <div className="flex flex-col gap-3">
                         <Link
@@ -251,6 +272,9 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
+            
+            {/* Onboarding Tour */}
+            <OnboardingTour run={runTour} onComplete={() => setRunTour(false)} />
         </div>
     );
 }
