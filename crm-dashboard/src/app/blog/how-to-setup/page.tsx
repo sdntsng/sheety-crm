@@ -43,47 +43,81 @@ export default function SetupGuidePage() {
                 Once logged in, you'll be directed to the Setup page. You have two primary options:
             </p>
 
-            <div className="grid md:grid-cols-2 gap-6 my-12 not-prose">
-                {/* Visual: Create New CRM */}
+            <h3>Option A: Create New CRM (Recommended)</h3>
+            <p>
+                Click <strong>Create New CRM</strong>, give your sheet a name (e.g., "Pipeline 2026"), and we will automatically:
+            </p>
+            <ul>
+                <li>Create a new spreadsheet in your Google Drive.</li>
+                <li>Create the required tabs: <code>Leads</code>, <code>Opportunities</code>, and <code>Activities</code>.</li>
+                <li>Set up the correct headers and data validation.</li>
+            </ul>
+
+            <div className="my-8 p-8 bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-pencil)] flex justify-center not-prose">
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    className="flex flex-col p-6 rounded-2xl border border-[var(--border-color)] bg-white shadow-sm"
+                    initial={{ scale: 0.95, opacity: 0.8 }}
+                    whileHover={{ scale: 1, opacity: 1 }}
+                    className="w-full max-w-sm bg-white rounded-xl shadow-lg border border-[var(--border-color)] p-6 overflow-hidden relative"
                 >
-                    <div className="w-12 h-12 rounded-xl bg-[var(--bg-surface)] text-[var(--color-ink)] border border-[var(--border-pencil)] flex items-center justify-center mb-4">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="h-4 w-32 bg-[var(--bg-surface)] rounded animate-pulse" />
+                        <div className="h-4 w-4 bg-[var(--bg-surface)] rounded-full" />
                     </div>
-                    <h3 className="font-serif font-bold text-lg mb-2 text-[var(--color-ink)]">Option A: Create New</h3>
-                    <p className="text-sm text-[var(--color-ink-muted)] mb-4">
-                        We automatically create a new sheet with <code>Leads</code>, <code>Opportunities</code>, and <code>Activities</code> tabs.
-                    </p>
-                    <div className="mt-auto px-4 py-2 bg-[var(--accent)] text-white text-sm font-medium rounded-lg text-center opacity-90">
-                        Recommended
+                    <div className="space-y-4">
+                        <div>
+                            <div className="h-3 w-20 bg-[var(--bg-surface)] rounded mb-2" />
+                            <div className="h-10 w-full border border-[var(--accent)] rounded-lg flex items-center px-3 text-sm text-[var(--color-ink)]">
+                                Pipeline 2026<span className="animate-pulse">|</span>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="h-10 flex-1 bg-[var(--accent)] rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-md">
+                                Create Sheet
+                            </div>
+                            <div className="h-10 w-20 border border-[var(--border-color)] rounded-lg" />
+                        </div>
+                    </div>
+                    {/* Cursor Graphic */}
+                    <div className="absolute bottom-6 right-1/4 pointer-events-none opacity-20">
+                        <svg className="w-8 h-8 text-black rotate-12 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24"><path d="M7 2l12 11.2-5.8.5 3.2 7.5-2 1.2-3.2-7.4-4.6 5.4z" /></svg>
                     </div>
                 </motion.div>
+            </div>
 
-                {/* Visual: Select from Drive */}
+
+            <h3>Option B: Select from Drive</h3>
+            <p>
+                If you already have a spreadsheet you want to use, click <strong>Select from Drive</strong>. This will open the Google Picker, allowing you to choose any existing sheet.
+            </p>
+
+            <div className="my-8 p-8 bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-pencil)] flex justify-center not-prose">
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.1 }}
-                    className="flex flex-col p-6 rounded-2xl border border-[var(--border-color)] bg-white shadow-sm"
+                    className="w-full max-w-md bg-white rounded-xl shadow-lg border border-[var(--border-color)] overflow-hidden"
                 >
-                    <div className="w-12 h-12 rounded-xl bg-[var(--bg-surface)] text-[var(--color-ink)] border border-[var(--border-pencil)] flex items-center justify-center mb-4">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                        </svg>
+                    <div className="bg-[#F8F9FA] px-4 py-3 border-b border-[var(--border-color)] flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-400" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                        <div className="w-3 h-3 rounded-full bg-green-400" />
+                        <div className="ml-auto text-xs text-gray-400 font-mono">Select a file</div>
                     </div>
-                    <h3 className="font-serif font-bold text-lg mb-2 text-[var(--color-ink)]">Option B: From Drive</h3>
-                    <p className="text-sm text-[var(--color-ink-muted)] mb-4">
-                        Open the Google Picker to select an existing spreadsheet from your Drive.
-                    </p>
-                    <div className="mt-auto px-4 py-2 border border-[var(--border-color)] text-[var(--color-ink)] text-sm font-medium rounded-lg text-center">
-                        Select Sheet
+                    <div className="p-4 grid grid-cols-3 gap-3">
+                        {[1, 2, 3].map((i) => (
+                            <motion.div
+                                key={i}
+                                whileHover={{ scale: 1.05, borderColor: 'var(--accent)', backgroundColor: 'var(--bg-hover)' }}
+                                className={`aspect-square rounded-lg border flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${i === 2 ? 'border-[var(--accent)] bg-[var(--accent-blue)]/5 ring-2 ring-[var(--accent)]/20' : 'border-[var(--border-pencil)] bg-white'}`}
+                            >
+                                <div className="w-8 h-8 bg-green-100 text-green-600 rounded flex items-center justify-center">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </div>
+                                <div className="w-12 h-2 bg-gray-100 rounded" />
+                            </motion.div>
+                        ))}
+                        {[4, 5, 6].map((i) => (
+                            <div key={i} className="aspect-square rounded-lg border border-transparent flex flex-col items-center justify-center gap-2 opacity-30">
+                                <div className="w-8 h-8 bg-gray-100 rounded" />
+                            </div>
+                        ))}
                     </div>
                 </motion.div>
             </div>
