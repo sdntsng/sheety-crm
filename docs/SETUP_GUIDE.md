@@ -64,7 +64,37 @@ Complete setup instructions for local development and production deployment.
 
 ---
 
-## 2. Environment Variables
+## 2. PostHog Analytics Configuration (Optional)
+
+PostHog is integrated for product analytics and can be enabled by configuring the following environment variables.
+
+### A. Create PostHog Account
+
+1. Sign up at [PostHog](https://posthog.com/)
+2. Create a new project or use an existing one
+
+### B. Get Project API Key
+
+1. Navigate to **Project Settings** in your PostHog dashboard
+2. Copy your **Project API Key**
+3. Note your PostHog host URL (default: `https://us.i.posthog.com` for US cloud, or `https://eu.i.posthog.com` for EU cloud)
+
+### C. Alternative: Automated Setup (BETA)
+
+You can use PostHog's AI setup wizard for automated installation:
+
+```bash
+cd crm-dashboard
+npx -y @posthog/wizard@latest
+```
+
+Follow the wizard's instructions to automatically configure PostHog in your Next.js app.
+
+> **Note**: PostHog is optional. If you don't configure the environment variables, the app will work without analytics.
+
+---
+
+## 3. Environment Variables
 
 ### Frontend (`crm-dashboard/.env.local`)
 
@@ -80,6 +110,10 @@ AUTH_TRUST_HOST=true
 # Google OAuth
 GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your_client_secret
+
+# PostHog Analytics (Optional)
+NEXT_PUBLIC_POSTHOG_KEY=<your_posthog_project_api_key>
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
 
 ### Production Environment Variables
@@ -96,13 +130,17 @@ AUTH_TRUST_HOST=true
 # Same Google credentials (ensure production URIs are added in GCP)
 GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your_client_secret
+
+# PostHog Analytics (Optional)
+NEXT_PUBLIC_POSTHOG_KEY=<your_posthog_project_api_key>
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
 
 > ⚠️ **Important**: Add your production domain to the OAuth consent screen's authorized domains in Google Cloud Console.
 
 ---
 
-## 3. Installation
+## 4. Installation
 
 ```bash
 # Install all dependencies
@@ -113,7 +151,7 @@ This creates a Python venv and installs both backend and frontend dependencies.
 
 ---
 
-## 4. Running Locally
+## 5. Running Locally
 
 ```bash
 # Start both servers
@@ -128,14 +166,14 @@ make crm-dev
 
 ---
 
-## 5. Production Deployment
+## 6. Production Deployment
 
 ### Frontend (Vercel/Cloudflare)
 
 1. Connect your GitHub repo
 2. Set build command: `npm run build`
 3. Set output directory: `.next`
-4. Add environment variables from section 2
+4. Add environment variables from section 3
 
 ### Backend (Render/Railway)
 
@@ -159,7 +197,7 @@ make crm-dev
 
 ---
 
-## 6. First Login
+## 7. First Login
 
 1. Open your app URL
 2. Click **Sign in with Google**
