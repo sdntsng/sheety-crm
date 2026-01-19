@@ -13,13 +13,9 @@ export default function ComparisonHero({ competitorName, competitorLogo, tagline
         <div className="not-prose my-16 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 py-12 px-8 rounded-2xl bg-gradient-to-br from-white to-[var(--bg-paper)] border border-[var(--border-pencil)]">
             {/* Sheety Logo */}
             <div className="flex flex-col items-center gap-3">
-                <Image
-                    src="/icon.svg"
-                    alt="Sheety"
-                    width={80}
-                    height={80}
-                    className="w-20 h-20 object-contain rounded-2xl shadow-lg bg-white p-2"
-                />
+                <div className="w-20 h-20 bg-[var(--color-ink)] rounded-2xl flex items-center justify-center text-white font-serif font-bold text-4xl shadow-lg">
+                    S
+                </div>
                 <span className="font-mono text-sm font-bold uppercase tracking-wider">Sheety</span>
             </div>
 
