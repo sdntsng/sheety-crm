@@ -1,9 +1,12 @@
-<div className="w-20 h-20 bg-[var(--color-ink)] rounded-2xl flex items-center justify-center text-white shadow-lg">
-    <SheetyIcon className="w-10 h-10" />
-</div>
-competitorName: string;
-competitorLogo ?: string;
-tagline: string;
+'use client';
+
+import Image from 'next/image';
+import SheetyIcon from '../icons/SheetyIcon';
+
+interface ComparisonHeroProps {
+    competitorName: string;
+    competitorLogo?: string;
+    tagline: string;
 }
 
 export default function ComparisonHero({ competitorName, competitorLogo, tagline }: ComparisonHeroProps) {
@@ -11,8 +14,8 @@ export default function ComparisonHero({ competitorName, competitorLogo, tagline
         <div className="not-prose my-16 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 py-12 px-8 rounded-2xl bg-gradient-to-br from-white to-[var(--bg-paper)] border border-[var(--border-pencil)]">
             {/* Sheety Logo */}
             <div className="flex flex-col items-center gap-3">
-                <div className="w-20 h-20 bg-[var(--color-ink)] rounded-2xl flex items-center justify-center text-white font-serif font-bold text-4xl shadow-lg">
-                    S
+                <div className="w-20 h-20 bg-[var(--color-ink)] rounded-2xl flex items-center justify-center text-white shadow-lg">
+                    <SheetyIcon className="w-10 h-10" />
                 </div>
                 <span className="font-sans text-sm font-bold uppercase tracking-wider text-[var(--color-ink)]">Sheety</span>
             </div>

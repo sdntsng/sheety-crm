@@ -1,11 +1,16 @@
-<div className="w-12 h-12 bg-[var(--color-ink)] rounded-lg flex items-center justify-center text-white shadow-md">
-    <SheetyIcon className="w-6 h-6" />
-</div>
-children: React.ReactNode;
-title: string;
-subtitle: string;
-readingTime ?: string;
-publishedDate ?: string;
+'use client';
+
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import SheetyIcon from '../icons/SheetyIcon';
+
+interface ArticleLayoutProps {
+    children: React.ReactNode;
+    title: string;
+    subtitle: string;
+    readingTime?: string;
+    publishedDate?: string;
 }
 
 export default function ArticleLayout({
@@ -72,8 +77,8 @@ export default function ArticleLayout({
                     </p>
 
                     <div className="flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 bg-[var(--color-ink)] rounded-lg flex items-center justify-center text-white font-serif font-bold text-2xl shadow-md">
-                            S
+                        <div className="w-12 h-12 bg-[var(--color-ink)] rounded-lg flex items-center justify-center text-white shadow-md">
+                            <SheetyIcon className="w-6 h-6" />
                         </div>
                         <div>
                             <p className="font-sans text-sm font-bold uppercase tracking-wider text-[var(--color-ink)]">Sheety</p>
