@@ -2,11 +2,13 @@
 FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
-from fastapi import FastAPI, HTTPException, Query, Header
+from fastapi import FastAPI, HTTPException, Query, Header, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import date
+import csv
+import io
 
 import sys
 import os
@@ -567,4 +569,248 @@ def search_all(
         },
         "total": len(matching_leads) + len(matching_opps),
     }
+
+
+# =============================================================================
+# Data Import Endpoints
+# =============================================================================
+
+class ColumnMapping(BaseModel):
+    """Mapping of CSV column to CRM field."""
+    csv_column: str
+    crm_field: str
+
+
+class ImportPreviewRequest(BaseModel):
+    """Request for previewing CSV data with column mappings."""
+    mappings: List[ColumnMapping]
+
+
+class ImportRequest(BaseModel):
+    """Request for importing CSV data."""
+    mappings: List[ColumnMapping]
+
+
+@app.post("/api/import/csv/upload")
+async def upload_csv_file(
+    file: UploadFile = File(...),
+):
+    """
+    Upload and parse a CSV file.
+    Returns the headers and first 5 rows for preview and mapping.
+    """
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+    
+    try:
+        # Read file content
+        content = await file.read()
+        decoded_content = content.decode('utf-8')
+        
+        # Parse CSV
+        csv_reader = csv.reader(io.StringIO(decoded_content))
+        rows = list(csv_reader)
+        
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV file is empty")
+        
+        headers = rows[0]
+        preview_rows = rows[1:6]  # First 5 data rows
+        total_rows = len(rows) - 1  # Excluding header
+        
+        # Auto-detect possible mappings
+        suggested_mappings = _auto_detect_mappings(headers)
+        
+        return {
+            "success": True,
+            "headers": headers,
+            "preview_rows": preview_rows,
+            "total_rows": total_rows,
+            "suggested_mappings": suggested_mappings,
+        }
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please use UTF-8.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error parsing CSV: {str(e)}")
+
+
+@app.post("/api/import/csv/preview")
+async def preview_import(
+    file: UploadFile = File(...),
+    mappings: str = Query(..., description="JSON string of column mappings"),
+):
+    """
+    Preview how CSV data will be imported with the given column mappings.
+    Returns first 5 rows mapped to CRM fields.
+    """
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+    
+    try:
+        # Parse mappings from JSON string
+        import json
+        mappings_list = json.loads(mappings)
+        mapping_dict = {m['csv_column']: m['crm_field'] for m in mappings_list}
+        
+        # Read and parse CSV
+        content = await file.read()
+        decoded_content = content.decode('utf-8')
+        csv_reader = csv.reader(io.StringIO(decoded_content))
+        rows = list(csv_reader)
+        
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV file is empty")
+        
+        headers = rows[0]
+        data_rows = rows[1:6]  # First 5 data rows
+        
+        # Transform rows based on mappings
+        preview_data = []
+        for row in data_rows:
+            mapped_row = {}
+            for i, header in enumerate(headers):
+                if header in mapping_dict and i < len(row):
+                    crm_field = mapping_dict[header]
+                    mapped_row[crm_field] = row[i]
+            preview_data.append(mapped_row)
+        
+        return {
+            "success": True,
+            "preview": preview_data,
+            "row_count": len(preview_data),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error previewing import: {str(e)}")
+
+
+@app.post("/api/import/csv/execute")
+async def execute_import(
+    file: UploadFile = File(...),
+    mappings: str = Query(..., description="JSON string of column mappings"),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """
+    Execute the CSV import with the given column mappings.
+    Batch appends leads to the Google Sheet.
+    """
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+    
+    try:
+        # Parse mappings from JSON string
+        import json
+        mappings_list = json.loads(mappings)
+        mapping_dict = {m['csv_column']: m['crm_field'] for m in mappings_list}
+        
+        # Read and parse CSV
+        content = await file.read()
+        decoded_content = content.decode('utf-8')
+        csv_reader = csv.reader(io.StringIO(decoded_content))
+        rows = list(csv_reader)
+        
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV file is empty")
+        
+        headers = rows[0]
+        data_rows = rows[1:]  # All data rows
+        
+        # Transform and validate rows
+        leads_to_import = []
+        errors = []
+        
+        for idx, row in enumerate(data_rows, start=2):  # Start at 2 (1 is header)
+            try:
+                mapped_data = {}
+                for i, header in enumerate(headers):
+                    if header in mapping_dict and i < len(row):
+                        crm_field = mapping_dict[header]
+                        mapped_data[crm_field] = row[i].strip() if row[i] else ""
+                
+                # Required fields check
+                if not mapped_data.get('company_name') or not mapped_data.get('contact_name'):
+                    errors.append({
+                        "row": idx,
+                        "error": "Missing required fields: company_name or contact_name"
+                    })
+                    continue
+                
+                # Create Lead object
+                lead = Lead(
+                    company_name=mapped_data.get('company_name', ''),
+                    contact_name=mapped_data.get('contact_name', ''),
+                    contact_email=mapped_data.get('contact_email'),
+                    contact_phone=mapped_data.get('contact_phone'),
+                    status=LeadStatus(mapped_data.get('status', 'New')) if mapped_data.get('status') in [s.value for s in LeadStatus] else LeadStatus.NEW,
+                    source=LeadSource(mapped_data.get('source', 'Other')) if mapped_data.get('source') in [s.value for s in LeadSource] else LeadSource.OTHER,
+                    industry=mapped_data.get('industry'),
+                    company_size=CompanySize(mapped_data.get('company_size')) if mapped_data.get('company_size') in [s.value for s in CompanySize] else None,
+                    notes=mapped_data.get('notes'),
+                    owner=mapped_data.get('owner'),
+                )
+                leads_to_import.append(lead)
+                
+            except Exception as e:
+                errors.append({
+                    "row": idx,
+                    "error": str(e)
+                })
+        
+        # Batch import leads
+        imported_count = 0
+        if leads_to_import:
+            # Convert leads to rows
+            rows_to_append = [lead.to_row() for lead in leads_to_import]
+            
+            # Use batch append
+            try:
+                crm.sm.append_rows(crm.sheet_name, rows_to_append, "Leads")
+                imported_count = len(leads_to_import)
+                crm._invalidate_cache("Leads")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to import to Google Sheets: {str(e)}")
+        
+        return {
+            "success": True,
+            "imported": imported_count,
+            "total_rows": len(data_rows),
+            "errors": errors,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error executing import: {str(e)}")
+
+
+def _auto_detect_mappings(headers: List[str]) -> List[Dict[str, str]]:
+    """
+    Auto-detect possible column mappings based on header names.
+    Returns list of suggested mappings.
+    """
+    # Common header name patterns
+    field_patterns = {
+        'company_name': ['company', 'company name', 'organization', 'org', 'business'],
+        'contact_name': ['contact', 'name', 'contact name', 'full name', 'person'],
+        'contact_email': ['email', 'e-mail', 'contact email', 'email address'],
+        'contact_phone': ['phone', 'telephone', 'contact phone', 'phone number', 'mobile'],
+        'status': ['status', 'lead status', 'stage'],
+        'source': ['source', 'lead source', 'origin', 'channel'],
+        'industry': ['industry', 'sector', 'vertical'],
+        'company_size': ['size', 'company size', 'employees', 'headcount'],
+        'notes': ['notes', 'note', 'description', 'comments', 'remarks'],
+        'owner': ['owner', 'assigned to', 'rep', 'sales rep'],
+    }
+    
+    suggestions = []
+    for header in headers:
+        header_lower = header.lower().strip()
+        for crm_field, patterns in field_patterns.items():
+            if header_lower in patterns or any(pattern in header_lower for pattern in patterns):
+                suggestions.append({
+                    "csv_column": header,
+                    "crm_field": crm_field,
+                })
+                break
+    
+    return suggestions
 
