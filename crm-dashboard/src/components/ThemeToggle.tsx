@@ -8,13 +8,15 @@ export default function ThemeToggle() {
     useEffect(() => {
         // Check local storage or system preference
         const stored = localStorage.getItem('theme');
+        let initialTheme: string;
         if (stored) {
-            setTheme(stored);
+            initialTheme = stored;
         } else {
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const defaultTheme = prefersDark ? 'dark' : 'light';
-            setTheme(defaultTheme);
+            initialTheme = prefersDark ? 'dark' : 'light';
         }
+        setTheme(initialTheme);
+        document.documentElement.setAttribute('data-theme', initialTheme);
     }, []);
 
     const toggleTheme = useCallback(() => {
@@ -38,13 +40,6 @@ export default function ThemeToggle() {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [toggleTheme]);
-
-    // Apply theme when it changes
-    useEffect(() => {
-        if (theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-        }
-    }, [theme]);
 
     if (!theme) return null;
 

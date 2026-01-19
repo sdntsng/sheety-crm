@@ -41,6 +41,8 @@
   /* Grading pen red */
   --accent-yellow: #FEF08A;
   /* Highlighter yellow */
+  --accent-green: #16A34A;
+  /* Green marker */
   --accent: #2A5D94;
   /* Primary accent */
 
@@ -100,6 +102,8 @@
   /* Lighter red */
   --accent-yellow: #fde047;
   /* Brighter yellow */
+  --accent-green: #4ade80;
+  /* Lighter green for contrast */
   --accent: #60a5fa;
 
   /* STRUCTURE - Dark Mode */
