@@ -15,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource/playfair-display": "^5.2.8",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "framer-motion": "^12.26.2",
     "next": "16.1.2",
     "next-auth": "^5.0.0-beta.30",
