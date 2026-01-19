@@ -12,6 +12,10 @@ DASHBOARD_PORT = 3026
 # Setup & Auth
 # =============================================================================
 
+install:
+	pip install -r requirements.txt
+	cd crm-dashboard && npm install
+
 setup:
 	$(PYTHON) -m $(MODULE) setup
 

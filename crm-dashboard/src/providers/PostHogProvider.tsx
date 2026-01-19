@@ -16,6 +16,11 @@ export default function PostHogProvider({ children }: { children: React.ReactNod
                 capture_pageview: false, // Disable automatic pageview capture, as we capture manually
                 capture_pageleave: true,
             });
+
+            // Expose for console debugging
+            if (typeof window !== 'undefined') {
+                (window as any).posthog = posthog;
+            }
         }
     }, []);
 

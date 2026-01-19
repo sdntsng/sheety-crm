@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getLeads, createLead, Lead, getConfig, Config } from '@/lib/api';
 import ConvertLeadModal from '@/components/modals/ConvertLeadModal';
+import { useSettings } from '@/providers/SettingsProvider';
 
 export default function LeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -12,6 +13,7 @@ export default function LeadsPage() {
     const [showModal, setShowModal] = useState(false);
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
+    const { hiddenStatuses } = useSettings();
 
     const fetchLeads = async () => {
         try {
@@ -73,23 +75,25 @@ export default function LeadsPage() {
             </div>
 
             {/* Filters - Tabs Style */}
-            <div className="mb-6">
-                <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="mb-6 flex justify-between items-end">
+                <div className="flex gap-2 overflow-x-auto pb-2 flex-1 scrollbar-hide">
                     <button
                         onClick={() => setStatusFilter('')}
-                        className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-all border-b-2 ${statusFilter === '' ? 'border-[var(--accent-blue)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-all border-b-2 whitespace-nowrap ${statusFilter === '' ? 'border-[var(--accent-blue)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                     >
                         All Entries
                     </button>
-                    {config?.lead_statuses.map((status: string) => (
-                        <button
-                            key={status}
-                            onClick={() => setStatusFilter(status)}
-                            className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-all border-b-2 ${statusFilter === status ? 'border-[var(--accent-blue)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                        >
-                            {status}
-                        </button>
-                    ))}
+                    {config?.lead_statuses
+                        .filter(status => !hiddenStatuses.includes(status))
+                        .map((status: string) => (
+                            <button
+                                key={status}
+                                onClick={() => setStatusFilter(status)}
+                                className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-all border-b-2 whitespace-nowrap ${statusFilter === status ? 'border-[var(--accent-blue)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                            >
+                                {status}
+                            </button>
+                        ))}
                 </div>
             </div>
 

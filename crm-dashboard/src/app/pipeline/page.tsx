@@ -4,12 +4,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { getPipeline, updateOpportunityStage, PipelineData, Opportunity } from '@/lib/api';
 import PipelineColumn from '@/components/PipelineColumn';
 import AddOpportunityModal from '@/components/modals/AddOpportunityModal';
+import { useSettings } from '@/providers/SettingsProvider';
 
 export default function PipelinePage() {
     const [data, setData] = useState<PipelineData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showAddModal, setShowAddModal] = useState(false);
+    const { hiddenStages } = useSettings();
 
     const fetchPipeline = useCallback(async () => {
         try {
@@ -66,7 +68,6 @@ export default function PipelinePage() {
             fetchPipeline();
         }
     };
-
     if (loading) {
         return (
             <div className="p-8">
@@ -96,18 +97,20 @@ export default function PipelinePage() {
                         Drag cards to update status
                     </p>
                 </div>
-                <button
-                    className="btn-primary"
-                    onClick={() => setShowAddModal(true)}
-                >
-                    + New Deal
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        className="btn-primary"
+                        onClick={() => setShowAddModal(true)}
+                    >
+                        + New Deal
+                    </button>
+                </div>
             </div>
 
             {/* Pipeline Board - Corkboard/Desk Surface */}
             <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
                 <div className="flex gap-4 h-full" style={{ minWidth: 'max-content' }}>
-                    {data.stages.map((stageName: string) => {
+                    {data.stages.filter(stage => !hiddenStages.includes(stage)).map((stageName: string) => {
                         const stage = data.pipeline[stageName];
                         if (!stage) return null;
 
