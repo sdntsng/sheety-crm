@@ -1,4 +1,9 @@
-'use client';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'The Beautiful Prison | Sheety vs Attio',
+    description: 'Attio is the prettiest CRM you\'ll ever be locked into. Comparing Sheety CRM vs Attio.',
+};
 
 import ArticleLayout from '@/components/comparison/ArticleLayout';
 import ComparisonTable from '@/components/comparison/ComparisonTable';
