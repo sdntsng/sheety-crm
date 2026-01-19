@@ -149,16 +149,16 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     }
 
     // Check if session has a refresh error - sign out if so
-    // @ts-expect-error - session.error is not in the type definition but exists at runtime
+    // @ts-expect-error - session may have an error property at runtime that's not in the type
     if (session?.error === 'RefreshAccessTokenError') {
       console.error('[API] Refresh token error detected - signing out');
       await signOut({ callbackUrl: '/login' });
       throw new AuthError('Session expired. Please sign in again.');
     }
 
-    // @ts-expect-error - session.accessToken is not in the type definition but exists at runtime
+    // @ts-expect-error - session may have an accessToken property at runtime that's not in the type
     if (session?.accessToken) {
-      // @ts-expect-error - session.accessToken is not in the type definition but exists at runtime
+      // @ts-expect-error - session may have an accessToken property at runtime that's not in the type
       headers['Authorization'] = `Bearer ${session.accessToken}`;
 
       // Inject Selected Sheet ID from localStorage
