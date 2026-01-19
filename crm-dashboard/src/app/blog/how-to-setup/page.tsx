@@ -122,7 +122,7 @@ export default function SetupGuidePage() {
             </div>
             <blockquote>
                 <p>
-                    <strong>Tip:</strong> If you're bringing your own sheet, make sure it has the required columns. You can use the "Add Schema Sheet" tool in the setup footer to fix missing tabs, or download our CSV schemas directly:
+                    <strong>Tip:</strong> If you're bringing your own sheet, make sure it has the required columns. You can use the "Add Schema Sheet" tool in the setup footer to add the required tabs (Leads, Opportunities, Activities) to your sheet, or download our CSV schemas directly:
                 </p>
                 <div className="flex gap-4 mt-2 font-mono text-sm">
                     <a href="/templates/leads.csv" className="text-[var(--accent)] hover:underline flex items-center gap-1">
