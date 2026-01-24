@@ -1,5 +1,5 @@
 'use client';
-
+import { Copy, Check } from "lucide-react";
 import { useEffect, useState } from 'react';
 import { getLeads, createLead, Lead, getConfig, Config } from '@/lib/api';
 import ConvertLeadModal from '@/components/modals/ConvertLeadModal';
@@ -15,6 +15,22 @@ export default function LeadsPage() {
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
     const { hiddenStatuses } = useSettings();
+
+
+
+
+    const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
+
+const copyEmail = async (email: string, leadId: string) => {
+  try {
+    await navigator.clipboard.writeText(email);
+    setCopiedLeadId(leadId);
+    setTimeout(() => setCopiedLeadId(null), 2000);
+  } catch (err) {
+    console.error("Failed to copy email", err);
+  }
+};
+
 
     // Keyboard shortcut: N to create new lead
     useKeyboardShortcut({
@@ -131,7 +147,35 @@ export default function LeadsPage() {
                                     </td>
                                     <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
                                         <div className="font-mono text-xs text-[var(--text-secondary)]">
-                                            {lead.contact_email && <div>✉️ {lead.contact_email}</div>}
+                                            {lead.contact_email && (
+  <div className="flex items-center gap-2">
+    <a
+      href={`mailto:${lead.contact_email}`}
+      className="hover:underline"
+    >
+      ✉️ {lead.contact_email}
+    </a>
+
+    <button
+      type="button"
+      aria-label="Copy email address"
+     onClick={(e) => {
+  e.stopPropagation();
+  copyEmail(lead.contact_email!, lead.lead_id);
+}}
+
+      className="text-gray-400 hover:text-gray-700 p-1"
+      title="Copy email"
+    >
+      {copiedLeadId === lead.lead_id ? (
+        <Check size={14} />
+      ) : (
+        <Copy size={14} />
+      )}
+    </button>
+  </div>
+)}
+
                                             {lead.contact_phone && <div>📞 {lead.contact_phone}</div>}
                                         </div>
                                     </td>
