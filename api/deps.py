@@ -49,6 +49,17 @@ async def get_crm_session(
     if not token:
          raise HTTPException(status_code=401, detail="Invalid authorization header")
 
+    # MOCK MODE check
+    if os.getenv("MOCK_DATA_MODE") == "true":
+        # Accept any token, or specific mock token
+        print(f"[MockMode] Using Mock Data Service for token: {token[:10]}...")
+        from src.services.local_json import MockSheetManager
+        
+        # We can cache mock sessions too if we want, but it's file based so cheap to re-init
+        sm = MockSheetManager() # Uses data/mock_crm.json
+        sheet_name = x_sheet_id if x_sheet_id else "Sales Pipeline 2026"
+        return CRMManager(sm, sheet_name=sheet_name)
+
     # Return cached session if available
     # Note: Tokens rotate, so this dict will grow. We should clear it periodically?
     # For MVP, it's fine.

@@ -39,6 +39,12 @@ async def get_sheet_manager(authorization: Optional[str] = Header(None)):
     if not token:
         raise HTTPException(status_code=401, detail="Invalid authorization header")
     
+    # MOCK MODE check
+    if os.getenv("MOCK_DATA_MODE") == "true":
+        print(f"[Auth] Mock Mode enabled. Using MockSheetManager.")
+        from src.services.local_json import MockSheetManager
+        return MockSheetManager()
+
     try:
         print(f"[Auth] Attempting token auth (first 20 chars): {token[:20]}...")
         creds = Credentials(token=token)
