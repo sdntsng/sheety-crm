@@ -91,6 +91,17 @@ crm-dev: kill-ports
 	@# Cleanup on exit
 	@kill $$(cat .api.pid) 2>/dev/null; rm -f .api.pid
 
+mock-dev: kill-ports
+	@echo "=== CRM Mock Development Mode ==="
+	@echo "API:       http://localhost:$(API_PORT) (Mock Data)"
+	@echo "Dashboard: http://localhost:$(DASHBOARD_PORT) (Mock Auth)"
+	@echo ""
+	@MOCK_DATA_MODE=true ./venv/bin/uvicorn api.server:app --reload --port $(API_PORT) & echo $$! > .api.pid
+	@sleep 2
+	@cd crm-dashboard && MOCK_DATA_MODE=true NEXT_PUBLIC_MOCK_AUTH=true PORT=$(DASHBOARD_PORT) npm run dev
+	@# Cleanup on exit
+	@kill $$(cat .api.pid) 2>/dev/null; rm -f .api.pid
+
 crm-stop:
 	@kill $$(cat .api.pid) 2>/dev/null; rm -f .api.pid || true
 	@echo "Stopped CRM servers"

@@ -15,6 +15,9 @@ Thank you for your interest in contributing to Sheety! 🎉
 # Start development servers
 make crm-dev
 
+# OR: Run in Mock Mode (UI only, no Google Keys)
+# make mock-dev
+
 # Frontend: http://localhost:3026
 # Backend:  http://localhost:8026
 ```

@@ -57,6 +57,7 @@ make crm-dev
 Visit [http://localhost:3026](http://localhost:3026) to sign in.
 
 > 📖 **Full setup instructions**: [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md)
+> 🔑 **Google Credentials**: [docs/GOOGLE_SETUP.md](docs/GOOGLE_SETUP.md)
 
 ## 📂 Project Structure
 
