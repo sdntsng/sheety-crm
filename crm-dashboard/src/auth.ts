@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 
 /**
  * Takes a token, and returns a new token with updated
@@ -47,21 +48,44 @@ async function refreshAccessToken(token: any) {
     }
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-    providers: [
-        Google({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            authorization: {
-                params: {
-                    scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file openid email profile",
-                    prompt: "consent",
-                    access_type: "offline",
-                    response_type: "code"
-                }
+const providers: any[] = [
+    Google({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        authorization: {
+            params: {
+                scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file openid email profile",
+                prompt: "consent",
+                access_type: "offline",
+                response_type: "code"
             }
-        }),
-    ],
+        }
+    }),
+];
+
+// MOCK MODE: Add CredentialsProvider if enabled
+if (process.env.NEXT_PUBLIC_MOCK_AUTH === "true") {
+    console.log("[NextAuth] Mock Mode Enabled: Adding CredentialsProvider");
+    providers.push(
+        CredentialsProvider({
+            id: "mock-login",
+            name: "Mock Login (Dev)",
+            credentials: {},
+            authorize: async () => {
+                return {
+                    id: "mock-user-1",
+                    name: "Dev User",
+                    email: "dev@localhost",
+                    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+                    accessToken: "mock_token_xyz" // Backend checks this
+                } as any
+            }
+        })
+    );
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+    providers,
     callbacks: {
         async jwt({ token, account, user }) {
             // Initial sign in
