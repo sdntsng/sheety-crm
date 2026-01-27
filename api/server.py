@@ -718,6 +718,13 @@ async def execute_import(
         leads_to_import = []
         errors = []
         
+        # Check if required mappings exist
+        if 'company_name' not in mapping_dict.values() or 'contact_name' not in mapping_dict.values():
+            raise HTTPException(
+                status_code=400, 
+                detail="Mapping must include both 'Company Name' and 'Contact Name' fields."
+            )
+
         for idx, row in enumerate(data_rows, start=2):  # Start at 2 (1 is header)
             try:
                 mapped_data = {}
@@ -726,6 +733,10 @@ async def execute_import(
                         crm_field = mapping_dict[header]
                         mapped_data[crm_field] = row[i].strip() if row[i] else ""
                 
+                # Skip empty rows
+                if not any(mapped_data.values()):
+                    continue
+
                 # Required fields check
                 if not mapped_data.get('company_name') or not mapped_data.get('contact_name'):
                     errors.append({
@@ -775,14 +786,8 @@ async def execute_import(
         # Batch import leads
         imported_count = 0
         if leads_to_import:
-            # Convert leads to rows
-            rows_to_append = [lead.to_row() for lead in leads_to_import]
-            
-            # Use batch append
             try:
-                crm.sm.append_rows(crm.sheet_name, rows_to_append, "Leads")
-                imported_count = len(leads_to_import)
-                crm._invalidate_cache("Leads")
+                imported_count = crm.batch_add_leads(leads_to_import)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Failed to import to Google Sheets: {str(e)}")
         
@@ -806,28 +811,48 @@ def _auto_detect_mappings(headers: List[str]) -> List[Dict[str, str]]:
     """
     # Common header name patterns
     field_patterns = {
-        'company_name': ['company', 'company name', 'organization', 'org', 'business'],
-        'contact_name': ['contact', 'name', 'contact name', 'full name', 'person'],
-        'contact_email': ['email', 'e-mail', 'contact email', 'email address'],
-        'contact_phone': ['phone', 'telephone', 'contact phone', 'phone number', 'mobile'],
-        'status': ['status', 'lead status', 'stage'],
-        'source': ['source', 'lead source', 'origin', 'channel'],
-        'industry': ['industry', 'sector', 'vertical'],
-        'company_size': ['size', 'company size', 'employees', 'headcount'],
-        'notes': ['notes', 'note', 'description', 'comments', 'remarks'],
-        'owner': ['owner', 'assigned to', 'rep', 'sales rep'],
+        'company_name': ['company', 'company name', 'organization', 'org', 'business', 'firm', 'account'],
+        'contact_name': ['contact', 'name', 'contact name', 'full name', 'person', 'lead', 'client'],
+        'contact_email': ['email', 'e-mail', 'contact email', 'email address', 'mail'],
+        'contact_phone': ['phone', 'telephone', 'contact phone', 'phone number', 'mobile', 'cell', 'tel'],
+        'status': ['status', 'lead status', 'stage', 'phase'],
+        'source': ['source', 'lead source', 'origin', 'channel', 'medium', 'campaign'],
+        'industry': ['industry', 'sector', 'vertical', 'business type'],
+        'company_size': ['size', 'company size', 'employees', 'headcount', 'staff'],
+        'notes': ['notes', 'note', 'description', 'comments', 'remarks', 'about'],
+        'owner': ['owner', 'assigned to', 'rep', 'sales rep', 'agent', 'assignee'],
     }
     
     suggestions = []
+    used_crm_fields = set()
+    
     for header in headers:
-        header_lower = header.lower().strip()
+        header_clean = header.lower().strip().replace('_', ' ').replace('-', ' ')
+        
+        best_match = None
         for crm_field, patterns in field_patterns.items():
-            if header_lower in patterns or any(pattern in header_lower for pattern in patterns):
-                suggestions.append({
-                    "csv_column": header,
-                    "crm_field": crm_field,
-                })
+            if crm_field in used_crm_fields:
+                continue
+                
+            if header_clean in patterns or any(pattern == header_clean for pattern in patterns):
+                best_match = crm_field
                 break
+        
+        # If no exact match, try partial match
+        if not best_match:
+            for crm_field, patterns in field_patterns.items():
+                if crm_field in used_crm_fields:
+                    continue
+                if any(pattern in header_clean or header_clean in pattern for pattern in patterns):
+                    best_match = crm_field
+                    break
+        
+        if best_match:
+            suggestions.append({
+                "csv_column": header,
+                "crm_field": best_match,
+            })
+            used_crm_fields.add(best_match)
     
     return suggestions
 
