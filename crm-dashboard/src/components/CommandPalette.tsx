@@ -3,8 +3,19 @@
 import { Command } from 'cmdk';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { search, SearchResults, Lead, Opportunity } from '@/lib/api';
-import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { search, SearchResults } from '@/lib/api';
+import { useKeyboardShortcutsContext } from '@/providers/KeyboardShortcutsContext';
+import {
+    LayoutDashboard,
+    Trello,
+    Users,
+    Settings,
+    Plus,
+    Moon,
+    BarChart3,
+    Search,
+    DollarSign
+} from 'lucide-react';
 
 interface CommandPaletteProps {
     open?: boolean;
@@ -17,27 +28,33 @@ export default function CommandPalette({ open: controlledOpen, onOpenChange }: C
     const [loading, setLoading] = useState(false);
     const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
     const router = useRouter();
+    const { registerShortcut, unregisterShortcut } = useKeyboardShortcutsContext();
 
     // Toggle logic (internal state or controlled)
     const isOpen = controlledOpen ?? open;
     const setIsOpen = onOpenChange ?? setOpen;
+
+    // Register shortcut for Help Menu display
+    useEffect(() => {
+        registerShortcut({
+            key: '⌘K',
+            description: 'Open Command Menu',
+            section: 'General'
+        });
+        return () => unregisterShortcut('⌘K');
+    }, [registerShortcut, unregisterShortcut]);
 
     // Toggle with Cmd+K
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
             if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
-                // We need to handle both controlled and uncontrolled usage
-                // For this specific shortcut, we want to toggle.
-                // If controlled (onOpenChange provided), we rely on the parent to handle it, but we can't easily "toggle" without knowing current 'isOpen' inside the effect if it's stale.
-                // However, 'isOpen' is in dep array of effect below? No, it wasn't.
-                // Let's just use the current 'isOpen' value from the component scope which is updated.
                 setIsOpen(!isOpen);
             }
         };
         document.addEventListener('keydown', down);
         return () => document.removeEventListener('keydown', down);
-    }, [setIsOpen, isOpen]); // Added isOpen to deps
+    }, [isOpen, setIsOpen]);
 
     // Search Logic
     useEffect(() => {
@@ -78,11 +95,15 @@ export default function CommandPalette({ open: controlledOpen, onOpenChange }: C
             label="Command Menu"
             loop
         >
-            <Command.Input
-                value={query}
-                onValueChange={setQuery}
-                placeholder="Type a command or search..."
-            />
+            <div className="flex items-center border-b border-[var(--border-pencil)] px-3">
+                <Search className="w-5 h-5 text-[var(--text-muted)] mr-2" />
+                <Command.Input
+                    value={query}
+                    onValueChange={setQuery}
+                    placeholder="Type a command or search..."
+                    className="flex-1"
+                />
+            </div>
 
             <Command.List>
                 {loading && <Command.Loading>Loading results...</Command.Loading>}
@@ -91,44 +112,41 @@ export default function CommandPalette({ open: controlledOpen, onOpenChange }: C
                     <Command.Empty>No results found.</Command.Empty>
                 )}
 
-                {/* Default Actions (when no search query or explicitly shown) */}
+                {/* Default Actions (when no search query) */}
                 {query.length === 0 && (
                     <>
                         <Command.Group heading="Navigation">
                             <Command.Item onSelect={() => navigate('/dashboard')}>
-                                <span className="mr-2">🏠</span> Dashboard
+                                <LayoutDashboard className="mr-2 w-4 h-4" /> Dashboard
+                            </Command.Item>
+                            <Command.Item onSelect={() => navigate('/dashboard')}>
+                                <BarChart3 className="mr-2 w-4 h-4" /> Go to Analytics
                             </Command.Item>
                             <Command.Item onSelect={() => navigate('/pipeline')}>
-                                <span className="mr-2">📊</span> Pipeline
+                                <Trello className="mr-2 w-4 h-4" /> Pipeline
                             </Command.Item>
                             <Command.Item onSelect={() => navigate('/leads')}>
-                                <span className="mr-2">👥</span> Leads
+                                <Users className="mr-2 w-4 h-4" /> Leads
                             </Command.Item>
                             <Command.Item onSelect={() => navigate('/settings')}>
-                                <span className="mr-2">⚙️</span> Settings
+                                <Settings className="mr-2 w-4 h-4" /> Settings
                             </Command.Item>
                         </Command.Group>
 
                         <Command.Group heading="Actions">
-                            <Command.Item onSelect={() => {
-                                // We can't easily open modals from here without context or URL params
-                                // For now, let's assume we navigate to the page and maybe use query param to open modal?
-                                // Or use a global UI context (which we don't have fully set up for modals yet)
-                                // Let's try navigating to page with ?action=new
-                                navigate('/leads?action=new');
-                            }}>
-                                <span className="mr-2">✨</span> New Lead
+                            <Command.Item onSelect={() => navigate('/leads?action=new')}>
+                                <Plus className="mr-2 w-4 h-4" /> New Lead
                             </Command.Item>
                             <Command.Item onSelect={() => navigate('/pipeline?action=new')}>
-                                <span className="mr-2">💰</span> New Opportunity
+                                <Plus className="mr-2 w-4 h-4" /> New Opportunity
                             </Command.Item>
                             <Command.Item onSelect={() => {
                                 const newTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
                                 document.documentElement.setAttribute('data-theme', newTheme);
                                 localStorage.setItem('theme', newTheme);
-                                handleSelect(() => { }); // Just close
+                                handleSelect(() => { });
                             }}>
-                                <span className="mr-2">🌓</span> Toggle Dark/Light Mode
+                                <Moon className="mr-2 w-4 h-4" /> Toggle Dark/Light Mode
                             </Command.Item>
                         </Command.Group>
                     </>
@@ -143,8 +161,9 @@ export default function CommandPalette({ open: controlledOpen, onOpenChange }: C
                                     <Command.Item
                                         key={lead.lead_id}
                                         onSelect={() => navigate(`/leads?highlight=${lead.lead_id}`)}
-                                        value={`lead ${lead.company_name} ${lead.contact_name}`} // optimize search filtering by cmdk
+                                        value={`lead ${lead.company_name} ${lead.contact_name}`}
                                     >
+                                        <Users className="mr-2 w-4 h-4 text-[var(--text-muted)]" />
                                         <div className="flex flex-col">
                                             <span className="font-bold">{lead.company_name}</span>
                                             <span className="text-xs text-[var(--text-secondary)]">{lead.contact_name}</span>
@@ -158,9 +177,10 @@ export default function CommandPalette({ open: controlledOpen, onOpenChange }: C
                                 {searchResults.results.opportunities.map((opp) => (
                                     <Command.Item
                                         key={opp.opp_id}
-                                        onSelect={() => navigate(`/pipeline?highlight=${opp.opp_id}`)} // Pipeline page might not support highlight yet, but good for future
+                                        onSelect={() => navigate(`/pipeline?highlight=${opp.opp_id}`)}
                                         value={`opportunity ${opp.title} ${opp.lead?.company_name}`}
                                     >
+                                        <DollarSign className="mr-2 w-4 h-4 text-[var(--text-muted)]" />
                                         <div className="flex flex-col">
                                             <span className="font-bold">{opp.title}</span>
                                             <span className="text-xs text-[var(--text-secondary)]">{opp.lead?.company_name} • ${opp.value}</span>
@@ -171,7 +191,6 @@ export default function CommandPalette({ open: controlledOpen, onOpenChange }: C
                         )}
                     </>
                 )}
-
             </Command.List>
         </Command.Dialog>
     );

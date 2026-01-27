@@ -1,6 +1,7 @@
 'use client';
 import { Copy, Check } from "lucide-react";
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getLeads, createLead, Lead, getConfig, Config } from '@/lib/api';
 import ConvertLeadModal from '@/components/modals/ConvertLeadModal';
 import { useSettings } from '@/providers/SettingsProvider';
@@ -15,11 +16,17 @@ export default function LeadsPage() {
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
     const { hiddenStatuses } = useSettings();
-
-
-
-
     const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
+
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (searchParams.get('action') === 'new') {
+            setShowModal(true);
+            router.replace('/leads');
+        }
+    }, [searchParams, router]);
 
     const copyEmail = async (email: string, leadId: string) => {
         try {
