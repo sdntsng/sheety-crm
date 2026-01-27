@@ -244,6 +244,18 @@ export default function LeadsPage() {
                                         </div>
                                     </td>
                                     <td className="p-4 border-r border-[var(--border-pencil)] border-dashed text-center">
+                                        <div className="flex flex-col items-center">
+                                            <span className={`text-lg font-bold ${getScoreColor(lead.score)}`}>
+                                                {lead.score !== undefined && lead.score !== null ? lead.score : '—'}
+                                            </span>
+                                            {lead.heat_level && (
+                                                <span className={`text-[10px] font-mono font-bold uppercase ${getHeatColor(lead.heat_level)}`}>
+                                                    {lead.heat_level}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 border-r border-[var(--border-pencil)] border-dashed text-center">
                                         <StatusBadge status={lead.status} enrichmentStatus={lead.enrichment_status} />
                                     </td>
                                     <td className="p-4 text-center">
@@ -263,7 +275,7 @@ export default function LeadsPage() {
                             ))}
                             {filteredLeads.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center text-[var(--text-secondary)] font-sans italic border-b border-[var(--border-pencil)]">
+                                    <td colSpan={6} className="p-12 text-center text-[var(--text-secondary)] font-sans italic border-b border-[var(--border-pencil)]">
                                         No entries found in the ledger.
                                     </td>
                                 </tr>
@@ -271,6 +283,7 @@ export default function LeadsPage() {
                             {/* Empty rows filler for ledger look */}
                             {[1, 2, 3].map(i => (
                                 <tr key={`empty-${i}`} className="h-16">
+                                    <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
                                     <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
                                     <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
                                     <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
@@ -308,6 +321,22 @@ export default function LeadsPage() {
             )}
         </div>
     );
+}
+
+function getScoreColor(score?: number) {
+    if (score === undefined || score === null) return 'text-[var(--text-muted)]';
+    if (score >= 80) return 'text-green-600';
+    if (score >= 50) return 'text-yellow-600';
+    return 'text-red-600';
+}
+
+function getHeatColor(heat?: string) {
+    switch (heat) {
+        case 'Hot': return 'text-orange-600';
+        case 'Warm': return 'text-yellow-600';
+        case 'Cold': return 'text-blue-600';
+        default: return 'text-[var(--text-muted)]';
+    }
 }
 
 function StatusBadge({ status, enrichmentStatus }: { status: string; enrichmentStatus?: string }) {
