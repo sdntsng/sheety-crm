@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Data Import Wizard**: CSV import feature for migrating leads from other CRMs (HubSpot, Salesforce) or Excel.
+  - File upload with CSV validation
+  - Auto-detection of column mappings based on header names
+  - Interactive column mapping interface
+  - Preview of first 5 rows before importing
+  - Batch import to Google Sheets with error reporting
+  - Import guide documentation (`docs/IMPORT_GUIDE.md`)
+- **API Endpoints**: Three new endpoints for CSV import workflow
+  - `POST /api/import/csv/upload` - Upload and parse CSV
+  - `POST /api/import/csv/preview` - Preview mapped data
+  - `POST /api/import/csv/execute` - Execute batch import
+- **Navigation**: Import CSV button added to Leads page
+
 ## [0.51.0] - 2026-01-18
 **The "Paper" Release** - Complete visual overhaul and open-source readiness.
 

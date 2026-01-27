@@ -30,10 +30,6 @@ class CRMManager:
     def __init__(self, sheet_manager: SheetManager, sheet_name: str = SHEET_NAME):
         self.sm = sheet_manager
         self.sheet_name = sheet_name
-        
-        # Caching
-        self._cache: Dict[str, List[Any]] = {}
-        self._last_fetch: Dict[str, datetime] = {}
         self.templates = CRMTemplates(self.sm.gc)
         
         # Caching
@@ -82,6 +78,27 @@ class CRMManager:
             
         self._invalidate_cache(LEADS_WS)
         return lead
+
+    def batch_add_leads(self, leads: List[Lead]) -> int:
+        """Batch add leads to the CRM."""
+        if not leads:
+            return 0
+            
+        now = datetime.now()
+        rows_to_append = []
+        for lead in leads:
+            lead.created_at = now
+            lead.updated_at = now
+            rows_to_append.append(lead.to_row())
+            
+        try:
+            self.sm.append_rows(self.sheet_name, rows_to_append, LEADS_WS)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(LEADS_WS)
+            self.sm.append_rows(self.sheet_name, rows_to_append, LEADS_WS)
+            
+        self._invalidate_cache(LEADS_WS)
+        return len(leads)
 
     def get_leads(self) -> List[Lead]:
         """Retrieve all leads."""

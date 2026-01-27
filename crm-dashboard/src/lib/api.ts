@@ -136,7 +136,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 // Helper for authenticated requests with session error detection
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  let headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
+  const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
 
   if (typeof window !== 'undefined') {
     const session = await getSession();
@@ -149,16 +149,16 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     }
 
     // Check if session has a refresh error - sign out if so
-    // @ts-ignore
+    // @ts-expect-error - session may have an error property at runtime that's not in the type
     if (session?.error === 'RefreshAccessTokenError') {
       console.error('[API] Refresh token error detected - signing out');
       await signOut({ callbackUrl: '/login' });
       throw new AuthError('Session expired. Please sign in again.');
     }
 
-    // @ts-ignore
+    // @ts-expect-error - session may have an accessToken property at runtime that's not in the type
     if (session?.accessToken) {
-      // @ts-ignore
+      // @ts-expect-error - session may have an accessToken property at runtime that's not in the type
       headers['Authorization'] = `Bearer ${session.accessToken}`;
 
       // Inject Selected Sheet ID from localStorage
@@ -339,5 +339,74 @@ export interface SearchResults {
 
 export async function search(query: string): Promise<SearchResults> {
   const response = await fetchWithAuth(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`);
+  return handleResponse(response);
+}
+
+// ============================================================================
+// Data Import
+// ============================================================================
+
+export interface CSVUploadResponse {
+  success: boolean;
+  headers: string[];
+  preview_rows: string[][];
+  total_rows: number;
+  suggested_mappings: { csv_column: string; crm_field: string }[];
+}
+
+export interface ColumnMapping {
+  csv_column: string;
+  crm_field: string;
+}
+
+export interface ImportPreviewResponse {
+  success: boolean;
+  preview: Record<string, string>[];
+  row_count: number;
+}
+
+export interface ImportExecuteResponse {
+  success: boolean;
+  imported: number;
+  total_rows: number;
+  errors: { row: number; error: string }[];
+}
+
+export async function uploadCSV(file: File): Promise<CSVUploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetchWithAuth(`${API_BASE}/api/import/csv/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  return handleResponse(response);
+}
+
+export async function previewImport(file: File, mappings: ColumnMapping[]): Promise<ImportPreviewResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const url = new URL(`${API_BASE}/api/import/csv/preview`);
+  url.searchParams.append('mappings', JSON.stringify(mappings));
+  
+  const response = await fetchWithAuth(url.toString(), {
+    method: 'POST',
+    body: formData,
+  });
+  return handleResponse(response);
+}
+
+export async function executeImport(file: File, mappings: ColumnMapping[]): Promise<ImportExecuteResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const url = new URL(`${API_BASE}/api/import/csv/execute`);
+  url.searchParams.append('mappings', JSON.stringify(mappings));
+  
+  const response = await fetchWithAuth(url.toString(), {
+    method: 'POST',
+    body: formData,
+  });
   return handleResponse(response);
 }

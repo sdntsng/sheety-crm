@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { getLeads, createLead, Lead, getConfig, Config } from '@/lib/api';
 import ConvertLeadModal from '@/components/modals/ConvertLeadModal';
 import { useSettings } from '@/providers/SettingsProvider';
@@ -78,9 +79,17 @@ export default function LeadsPage() {
                         {leads.length} Records Found • {new Date().toLocaleDateString()}
                     </p>
                 </div>
-                <button className="btn-primary flex items-center gap-2" onClick={() => setShowModal(true)}>
-                    <span className="text-xl leading-none">+</span> New Entry
-                </button>
+                <div className="flex gap-3">
+                    <Link href="/import" className="btn-secondary flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Import CSV
+                    </Link>
+                    <button className="btn-primary flex items-center gap-2" onClick={() => setShowModal(true)}>
+                        <span className="text-xl leading-none">+</span> New Entry
+                    </button>
+                </div>
             </div>
 
             {/* Filters - Tabs Style */}
