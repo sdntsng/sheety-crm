@@ -1,6 +1,7 @@
 'use client';
-
+import { Copy, Check } from "lucide-react";
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getLeads, createLead, Lead, getConfig, Config } from '@/lib/api';
 import ConvertLeadModal from '@/components/modals/ConvertLeadModal';
 import { useSettings } from '@/providers/SettingsProvider';
@@ -15,6 +16,42 @@ export default function LeadsPage() {
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
     const { hiddenStatuses } = useSettings();
+    const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
+
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (searchParams.get('action') === 'new') {
+            setShowModal(true);
+            router.replace('/leads');
+        }
+    }, [searchParams, router]);
+
+    const copyEmail = async (email: string, leadId: string) => {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(email);
+            } else {
+                // Fallback for non-secure contexts
+                const textArea = document.createElement("textarea");
+                textArea.value = email;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-9999px";
+                textArea.style.top = "0";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+            setCopiedLeadId(leadId);
+            setTimeout(() => setCopiedLeadId(null), 2000);
+        } catch (err) {
+            console.error("Failed to copy email", err);
+        }
+    };
+
 
     // Keyboard shortcut: N to create new lead
     useKeyboardShortcut({
@@ -131,7 +168,33 @@ export default function LeadsPage() {
                                     </td>
                                     <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
                                         <div className="font-mono text-xs text-[var(--text-secondary)]">
-                                            {lead.contact_email && <div>✉️ {lead.contact_email}</div>}
+                                            {lead.contact_email && (
+                                                <div className="flex items-center gap-2">
+                                                    <a
+                                                        href={`mailto:${lead.contact_email}`}
+                                                        className="hover:underline"
+                                                    >
+                                                        ✉️ {lead.contact_email}
+                                                    </a>
+
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Copy email address"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            copyEmail(lead.contact_email!, lead.lead_id);
+                                                        }}
+                                                        className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1"
+                                                        title="Copy email"
+                                                    >
+                                                        {copiedLeadId === lead.lead_id ? (
+                                                            <Check size={14} className="text-green-600" />
+                                                        ) : (
+                                                            <Copy size={14} />
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            )}
                                             {lead.contact_phone && <div>📞 {lead.contact_phone}</div>}
                                         </div>
                                     </td>
