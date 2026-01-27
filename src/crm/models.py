@@ -82,8 +82,6 @@ class Lead(BaseModel):
     linkedin_url: Optional[str] = None
     logo_url: Optional[str] = None
     enrichment_status: Optional[str] = None  # None, "Enriching", "Completed", "Failed"
-    score: Optional[int] = Field(None, ge=0, le=100)
-    heat_level: Optional[str] = None  # Cold, Warm, Hot
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     owner: Optional[str] = None
@@ -105,8 +103,6 @@ class Lead(BaseModel):
             self.linkedin_url or "",
             self.logo_url or "",
             self.enrichment_status or "",
-            str(self.score) if self.score is not None else "",
-            self.heat_level or "",
             self.created_at.isoformat(),
             self.updated_at.isoformat(),
             self.owner or "",
@@ -125,14 +121,6 @@ class Lead(BaseModel):
                 except ValueError:
                     return default
             
-            def safe_int(val, default=None):
-                if not val:
-                    return default
-                try:
-                    return int(float(str(val)))
-                except (ValueError, TypeError):
-                    return default
-
             # Custom status parsing logic
             status_val = row[5] if len(row) > 5 else None
             status = LeadStatus.NEW
@@ -161,11 +149,9 @@ class Lead(BaseModel):
                 linkedin_url=row[11] if len(row) > 11 and row[11] else None,
                 logo_url=row[12] if len(row) > 12 and row[12] else None,
                 enrichment_status=row[13] if len(row) > 13 and row[13] else None,
-                score=safe_int(row[14] if len(row) > 14 else None),
-                heat_level=row[15] if len(row) > 15 and row[15] else None,
-                created_at=datetime.fromisoformat(row[16]) if len(row) > 16 and row[16] else datetime.now(),
-                updated_at=datetime.fromisoformat(row[17]) if len(row) > 17 and row[17] else datetime.now(),
-                owner=row[18] if len(row) > 18 and row[18] else None,
+                created_at=datetime.fromisoformat(row[14]) if len(row) > 14 and row[14] else datetime.now(),
+                updated_at=datetime.fromisoformat(row[15]) if len(row) > 15 and row[15] else datetime.now(),
+                owner=row[16] if len(row) > 16 and row[16] else None,
             )
         except Exception as e:
             print(f"[Warning] Failed to parse Lead row: {row[:3]}... Error: {e}")
@@ -183,9 +169,9 @@ class Lead(BaseModel):
             "lead_id", "company_name", "contact_name", "contact_email", "contact_phone",
             "status", "source", "industry", "company_size", "notes",
             "website", "linkedin_url", "logo_url", "enrichment_status",
-            "score", "heat_level",
             "created_at", "updated_at", "owner"
         ]
+
 
 
 
