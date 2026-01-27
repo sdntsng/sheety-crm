@@ -38,6 +38,7 @@ export default function ImportPage() {
 
         setFile(selectedFile);
         setError(null);
+        setImporting(true); // Reuse importing state for initial upload
 
         try {
             const data = await uploadCSV(selectedFile);
@@ -49,6 +50,9 @@ export default function ImportPage() {
             setStep('mapping');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to upload CSV');
+            setFile(null);
+        } finally {
+            setImporting(false);
         }
     };
 
@@ -70,14 +74,14 @@ export default function ImportPage() {
         return mapping?.crm_field || '';
     };
 
+    const isRequiredMapped = (field: string) => mappings.some(m => m.crm_field === field);
+    const missingRequired = !isRequiredMapped('company_name') || !isRequiredMapped('contact_name');
+
     const handlePreview = async () => {
         if (!file || !uploadData) return;
 
         // Validate that required fields are mapped
-        const hasCompanyName = mappings.some(m => m.crm_field === 'company_name');
-        const hasContactName = mappings.some(m => m.crm_field === 'contact_name');
-        
-        if (!hasCompanyName || !hasContactName) {
+        if (missingRequired) {
             setError('Please map both Company Name and Contact Name (required fields)');
             return;
         }
@@ -172,26 +176,36 @@ export default function ImportPage() {
                         Select a CSV file to import leads
                     </p>
 
-                    <div className="border-2 border-dashed border-[var(--border-pencil)] p-12 text-center hover:border-[var(--accent-blue)] transition-colors">
-                        <input
-                            type="file"
-                            accept=".csv"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                            id="csv-upload"
-                        />
-                        <label
-                            htmlFor="csv-upload"
-                            className="cursor-pointer inline-block"
-                        >
-                            <div className="text-6xl mb-4">📄</div>
-                            <p className="font-sans font-bold text-lg text-[var(--text-primary)] mb-2">
-                                Click to select CSV file
-                            </p>
-                            <p className="font-mono text-xs text-[var(--text-secondary)] uppercase">
-                                or drag and drop
-                            </p>
-                        </label>
+                    <div className={`border-2 border-dashed ${importing ? 'border-[var(--accent-blue)] bg-[var(--bg-hover)]' : 'border-[var(--border-pencil)]'} p-12 text-center hover:border-[var(--accent-blue)] transition-colors relative`}>
+                        {importing ? (
+                            <div className="py-8">
+                                <div className="text-4xl animate-bounce mb-4">⏳</div>
+                                <p className="font-sans font-bold text-lg text-[var(--text-primary)]">Parsing CSV File...</p>
+                                <p className="font-mono text-xs text-[var(--text-secondary)] mt-2 uppercase">Please wait</p>
+                            </div>
+                        ) : (
+                            <>
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={handleFileSelect}
+                                    className="hidden"
+                                    id="csv-upload"
+                                />
+                                <label
+                                    htmlFor="csv-upload"
+                                    className="cursor-pointer inline-block"
+                                >
+                                    <div className="text-6xl mb-4">📄</div>
+                                    <p className="font-sans font-bold text-lg text-[var(--text-primary)] mb-2">
+                                        Click to select CSV file
+                                    </p>
+                                    <p className="font-mono text-xs text-[var(--text-secondary)] uppercase">
+                                        or drag and drop
+                                    </p>
+                                </label>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
@@ -239,6 +253,12 @@ export default function ImportPage() {
                         ))}
                     </div>
 
+                    {missingRequired && (
+                        <div className="mb-4 p-3 bg-[var(--accent-yellow)]/10 border border-[var(--accent-yellow)] text-[var(--accent-yellow)] text-xs font-mono">
+                            REQUIRED: Please map at least "Company Name" and "Contact Name" to proceed.
+                        </div>
+                    )}
+
                     <div className="flex gap-4">
                         <button
                             onClick={handleStartOver}
@@ -248,7 +268,7 @@ export default function ImportPage() {
                         </button>
                         <button
                             onClick={handlePreview}
-                            disabled={mappings.length === 0 || importing}
+                            disabled={missingRequired || importing}
                             className="btn-primary flex-1"
                         >
                             {importing ? 'Loading...' : 'Preview Import →'}
