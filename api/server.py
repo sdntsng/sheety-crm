@@ -2,7 +2,7 @@
 FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
-from fastapi import FastAPI, HTTPException, Query, Header
+from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -104,6 +104,9 @@ class LeadCreate(BaseModel):
     industry: Optional[str] = None
     company_size: Optional[str] = None
     notes: Optional[str] = None
+    website: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    logo_url: Optional[str] = None
     owner: Optional[str] = None
 
 
@@ -117,6 +120,12 @@ class LeadUpdate(BaseModel):
     industry: Optional[str] = None
     company_size: Optional[str] = None
     notes: Optional[str] = None
+    website: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    logo_url: Optional[str] = None
+    enrichment_status: Optional[str] = None
+    score: Optional[int] = None
+    heat_level: Optional[str] = None
     owner: Optional[str] = None
 
 
@@ -257,7 +266,11 @@ def get_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
 
 
 @app.post("/api/leads", status_code=201)
-def create_lead(data: LeadCreate, crm: CRMManager = Depends(get_crm_session)):
+def create_lead(
+    data: LeadCreate, 
+    background_tasks: BackgroundTasks,
+    crm: CRMManager = Depends(get_crm_session)
+):
     """Create a new lead."""
     lead = Lead(
         company_name=data.company_name,
@@ -269,9 +282,17 @@ def create_lead(data: LeadCreate, crm: CRMManager = Depends(get_crm_session)):
         industry=data.industry,
         company_size=CompanySize(data.company_size) if data.company_size in [s.value for s in CompanySize] else None,
         notes=data.notes,
+        website=data.website,
+        linkedin_url=data.linkedin_url,
+        logo_url=data.logo_url,
         owner=data.owner,
     )
     created = crm.add_lead(lead)
+    
+    # Trigger enrichment if company name is present
+    if created.company_name:
+        background_tasks.add_task(crm.enrich_lead, created.lead_id)
+        
     return created.model_dump()
 
 
@@ -301,6 +322,14 @@ def update_lead(lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_cr
         lead.company_size = CompanySize(data.company_size)
     if data.notes is not None:
         lead.notes = data.notes
+    if data.website is not None:
+        lead.website = data.website
+    if data.linkedin_url is not None:
+        lead.linkedin_url = data.linkedin_url
+    if data.logo_url is not None:
+        lead.logo_url = data.logo_url
+    if data.enrichment_status is not None:
+        lead.enrichment_status = data.enrichment_status
     if data.owner is not None:
         lead.owner = data.owner
 
@@ -308,6 +337,36 @@ def update_lead(lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_cr
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update lead")
     return lead.model_dump()
+
+
+@app.post("/api/leads/{lead_id}/enrich")
+def enrich_lead(
+    lead_id: str, 
+    background_tasks: BackgroundTasks,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Manually trigger enrichment for a lead."""
+    lead = crm.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    background_tasks.add_task(crm.enrich_lead, lead_id)
+    return {"message": "Enrichment started", "lead_id": lead_id}
+
+
+@app.post("/api/leads/{lead_id}/score")
+def score_lead(
+    lead_id: str, 
+    background_tasks: BackgroundTasks,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Manually trigger AI scoring for a lead."""
+    lead = crm.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    background_tasks.add_task(crm.score_lead, lead_id)
+    return {"message": "Scoring started", "lead_id": lead_id}
 
 
 @app.delete("/api/leads/{lead_id}")
@@ -347,6 +406,15 @@ def get_opportunity(opp_id: str, crm: CRMManager = Depends(get_crm_session)):
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     return opp.model_dump()
+
+
+@app.get("/api/opportunities/{opp_id}/analysis")
+def analyze_opportunity(opp_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Get AI analysis for an opportunity."""
+    analysis = crm.analyze_deal(opp_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    return analysis
 
 
 @app.post("/api/opportunities", status_code=201)

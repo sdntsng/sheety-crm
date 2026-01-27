@@ -77,7 +77,7 @@ class CRMTemplates:
         ws.append_row(headers)
 
         # Bold headers
-        ws.format("A1:M1", {
+        ws.format("A1:Q1", {
             "textFormat": {"bold": True},
             "backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.3}
         })

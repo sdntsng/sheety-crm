@@ -1,6 +1,6 @@
 'use client';
-import { Copy, Check } from "lucide-react";
-import { useEffect, useState } from 'react';
+import { Copy, Check, ExternalLink, Linkedin, Globe, Sparkles } from "lucide-react";
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getLeads, createLead, Lead, getConfig, Config } from '@/lib/api';
 import ConvertLeadModal from '@/components/modals/ConvertLeadModal';
@@ -88,6 +88,18 @@ export default function LeadsPage() {
         fetchData();
     }, []);
 
+    // Polling for enriching leads
+    useEffect(() => {
+        const enrichingLeads = leads.filter(l => l.enrichment_status === 'Enriching');
+        if (enrichingLeads.length === 0) return;
+
+        const interval = setInterval(() => {
+            fetchLeads();
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [leads]);
+
     const filteredLeads = statusFilter
         ? leads.filter(l => l.status === statusFilter)
         : leads;
@@ -152,6 +164,7 @@ export default function LeadsPage() {
                                 <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Company</th>
                                 <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Person</th>
                                 <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">Contact Info</th>
+                                <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">Score</th>
                                 <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">Status</th>
                                 <th className="p-4 font-sans font-bold text-[var(--text-primary)] w-32 text-center">Actions</th>
                             </tr>
@@ -160,8 +173,40 @@ export default function LeadsPage() {
                             {filteredLeads.map(lead => (
                                 <tr key={lead.lead_id} className="hover:bg-[var(--bg-hover)] transition-colors group">
                                     <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
-                                        <span className="font-sans font-bold text-lg text-[var(--text-primary)]">{lead.company_name}</span>
-                                        <div className="font-mono text-[10px] text-[var(--text-secondary)] uppercase mt-1">{lead.source}</div>
+                                        <div className="flex items-start gap-3">
+                                            {lead.logo_url && (
+                                                <img src={lead.logo_url} alt="" className="w-8 h-8 rounded border border-[var(--border-pencil)] object-contain bg-white" />
+                                            )}
+                                            <div>
+                                                <span className="font-sans font-bold text-lg text-[var(--text-primary)] flex items-center gap-2">
+                                                    {lead.company_name}
+                                                    {lead.enrichment_status === 'Enriching' && (
+                                                        <Sparkles size={14} className="text-[var(--accent-blue)] animate-pulse" />
+                                                    )}
+                                                </span>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <div className="font-mono text-[10px] text-[var(--text-secondary)] uppercase">{lead.source}</div>
+                                                    {lead.industry && (
+                                                        <>
+                                                            <span className="text-[var(--text-muted)]">•</span>
+                                                            <div className="font-mono text-[10px] text-[var(--accent-blue)] uppercase">{lead.industry}</div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-2 mt-2">
+                                                    {lead.website && (
+                                                        <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-[var(--text-secondary)] hover:text-[var(--accent-blue)] transition-colors" title="Website">
+                                                            <Globe size={14} />
+                                                        </a>
+                                                    )}
+                                                    {lead.linkedin_url && (
+                                                        <a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-[var(--text-secondary)] hover:text-[var(--accent-blue)] transition-colors" title="LinkedIn">
+                                                            <Linkedin size={14} />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
                                         <span className="font-sans text-[var(--text-primary)]">{lead.contact_name}</span>
@@ -199,7 +244,7 @@ export default function LeadsPage() {
                                         </div>
                                     </td>
                                     <td className="p-4 border-r border-[var(--border-pencil)] border-dashed text-center">
-                                        <StatusBadge status={lead.status} />
+                                        <StatusBadge status={lead.status} enrichmentStatus={lead.enrichment_status} />
                                     </td>
                                     <td className="p-4 text-center">
                                         {lead.status !== 'Qualified' && lead.status !== 'Lost' && lead.status !== 'Unqualified' && (
@@ -265,7 +310,7 @@ export default function LeadsPage() {
     );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, enrichmentStatus }: { status: string; enrichmentStatus?: string }) {
     // "Stamped" look
     const colors: Record<string, string> = {
         New: 'border-blue-500 text-blue-600',
@@ -276,9 +321,14 @@ function StatusBadge({ status }: { status: string }) {
     };
 
     return (
-        <span className={`inline-block px-3 py-1 text-xs font-mono font-bold uppercase border-2 rounded ${colors[status] || 'border-gray-800 text-gray-800'}`}>
-            {status}
-        </span>
+        <div className="flex flex-col items-center gap-1">
+            <span className={`inline-block px-3 py-1 text-xs font-mono font-bold uppercase border-2 rounded ${colors[status] || 'border-gray-800 text-gray-800'}`}>
+                {status}
+            </span>
+            {enrichmentStatus === 'Enriching' && (
+                <span className="font-mono text-[9px] text-[var(--accent-blue)] animate-pulse uppercase font-bold">✨ Enriching...</span>
+            )}
+        </div>
     );
 }
 

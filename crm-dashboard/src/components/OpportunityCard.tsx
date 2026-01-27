@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Opportunity } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { Opportunity, getOpportunityAnalysis, OpportunityAnalysis } from '@/lib/api';
 import OpportunityDetailModal from './modals/OpportunityDetailModal';
 
 interface OpportunityCardProps {
@@ -13,6 +13,24 @@ interface OpportunityCardProps {
 
 export default function OpportunityCard({ opportunity, onDragStart, onUpdate }: OpportunityCardProps) {
     const [showModal, setShowModal] = useState(false);
+    const [analysis, setAnalysis] = useState<OpportunityAnalysis | null>(null);
+    const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+
+    useEffect(() => {
+        const fetchAnalysis = async () => {
+            setLoadingAnalysis(true);
+            try {
+                const data = await getOpportunityAnalysis(opportunity.opp_id);
+                setAnalysis(data);
+            } catch (err) {
+                console.error('Failed to fetch analysis:', err);
+            } finally {
+                setLoadingAnalysis(false);
+            }
+        };
+
+        fetchAnalysis();
+    }, [opportunity.opp_id]);
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -41,6 +59,16 @@ export default function OpportunityCard({ opportunity, onDragStart, onUpdate }: 
                         <h4 className="font-sans font-bold text-lg text-[var(--text-primary)] leading-tight group-hover:text-[var(--accent-blue)] transition-colors">
                             {opportunity.title}
                         </h4>
+                        {analysis && analysis.risk_level === 'High' && (
+                            <div className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse" title={analysis.risk_reason}>
+                                ⚠️ AT RISK
+                            </div>
+                        )}
+                        {analysis && analysis.risk_level === 'Medium' && (
+                            <div className="bg-orange-400 text-white text-[10px] px-2 py-0.5 rounded-full font-bold" title={analysis.risk_reason}>
+                                ⚠️ RISKY
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2 mb-3">

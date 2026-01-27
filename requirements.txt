@@ -36,3 +36,5 @@ uritemplate==4.2.0
 urllib3==2.6.3
 fastapi>=0.109.0
 uvicorn>=0.27.0
+openai>=1.0.0
+python-dotenv>=1.0.0

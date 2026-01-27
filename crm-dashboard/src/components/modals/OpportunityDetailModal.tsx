@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Opportunity, Activity, getActivities, createActivity } from '@/lib/api';
+import { Opportunity, Activity, getActivities, createActivity, getOpportunityAnalysis, OpportunityAnalysis } from '@/lib/api';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 
 interface OpportunityDetailModalProps {
@@ -12,11 +12,14 @@ interface OpportunityDetailModalProps {
 
 export default function OpportunityDetailModal({ opportunity, onClose, onUpdate }: OpportunityDetailModalProps) {
     const [activities, setActivities] = useState<Activity[]>([]);
+    const [analysis, setAnalysis] = useState<OpportunityAnalysis | null>(null);
+    const [loadingAnalysis, setLoadingAnalysis] = useState(false);
     const [newNote, setNewNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         loadActivities();
+        loadAnalysis();
     }, [opportunity.opp_id]);
 
     const loadActivities = async () => {
@@ -26,6 +29,18 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
             setActivities(data.activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         } catch (err) {
             console.error('Failed to load activities', err);
+        }
+    };
+
+    const loadAnalysis = async () => {
+        setLoadingAnalysis(true);
+        try {
+            const data = await getOpportunityAnalysis(opportunity.opp_id);
+            setAnalysis(data);
+        } catch (err) {
+            console.error('Failed to load analysis', err);
+        } finally {
+            setLoadingAnalysis(false);
         }
     };
 
@@ -114,6 +129,59 @@ export default function OpportunityDetailModal({ opportunity, onClose, onUpdate 
                 {/* Body - Lined Paper Background */}
                 <div className="flex-1 overflow-y-auto p-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjI0IiBmaWxsPSJub25lIj48bGluZSB4MT0iMCIgeTE9IjI0IiB4Mj0iMTAwJSIgeTI9IjI0IiBzdHJva2U9IiNlNWU1ZTUiIHN0cm9rZS13aWR0aD0iMSIvPjwvc3ZnPg==')]">
                     <div className="p-4 md:p-8">
+                        {/* AI Insights Section */}
+                        <div className="mb-8 p-4 bg-white border-2 border-[var(--border-ink)] shadow-[4px_4px_0px_rgba(0,0,0,0.1)] relative overflow-hidden">
+                            <div className="absolute top-0 right-0 bg-[var(--accent-yellow)] border-l-2 border-b-2 border-[var(--border-ink)] px-2 py-0.5 font-mono text-[10px] font-bold uppercase">
+                                AI Deal Analyzer
+                            </div>
+                            
+                            {loadingAnalysis ? (
+                                <div className="animate-pulse flex space-x-4 py-2">
+                                    <div className="flex-1 space-y-4 py-1">
+                                        <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                                        <div className="space-y-2">
+                                            <div className="h-4 bg-slate-200 rounded"></div>
+                                            <div className="h-4 bg-slate-200 rounded w-5/6"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : analysis ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`text-2xl ${analysis.risk_score > 60 ? 'animate-bounce' : ''}`}>
+                                            {analysis.risk_score > 60 ? '⚠️' : analysis.risk_score > 30 ? '🟡' : '✅'}
+                                        </div>
+                                        <div>
+                                            <div className="font-sans font-bold text-lg text-[var(--text-primary)]">
+                                                Risk Level: <span className={analysis.risk_score > 60 ? 'text-red-500' : analysis.risk_score > 30 ? 'text-orange-500' : 'text-green-500'}>
+                                                    {analysis.risk_level} ({analysis.risk_score}%)
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <div className="bg-slate-50 p-3 border border-dashed border-[var(--border-pencil)]">
+                                            <div className="font-mono text-[10px] text-[var(--text-muted)] uppercase mb-1">Risk Reason</div>
+                                            <p className="font-sans text-sm text-[var(--text-primary)] italic">"{analysis.risk_reason}"</p>
+                                        </div>
+                                        <div className="bg-blue-50 p-3 border border-dashed border-blue-200">
+                                            <div className="font-mono text-[10px] text-blue-500 uppercase mb-1 font-bold">Next Best Action</div>
+                                            <p className="font-sans text-sm text-blue-700 font-bold">{analysis.next_best_action}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-4 font-mono text-[10px] text-[var(--text-muted)] border-t border-slate-100 pt-2">
+                                        <span>Age: {analysis.metrics.age_days} days</span>
+                                        <span>Last Activity: {analysis.metrics.days_since_last_activity} days ago</span>
+                                        <span>Total Activities: {analysis.metrics.activity_count}</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="font-sans text-sm text-[var(--text-muted)]">No analysis available for this deal.</p>
+                            )}
+                        </div>
+
                         <h3 className="font-sans font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
                             <span>Activity Log</span>
                             <div className="h-px bg-[var(--border-pencil)] flex-1"></div>

@@ -31,6 +31,12 @@ export interface Lead {
   industry?: string;
   company_size?: string;
   notes?: string;
+  website?: string;
+  linkedin_url?: string;
+  logo_url?: string;
+  enrichment_status?: string;
+  score?: number;
+  heat_level?: string;
   created_at: string;
   updated_at: string;
   owner?: string;
@@ -260,6 +266,16 @@ export async function deleteLead(leadId: string): Promise<void> {
   return handleResponse(response);
 }
 
+export async function enrichLead(leadId: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE}/api/leads/${leadId}/enrich`, { method: 'POST' });
+  return handleResponse(response);
+}
+
+export async function scoreLead(leadId: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE}/api/leads/${leadId}/score`, { method: 'POST' });
+  return handleResponse(response);
+}
+
 // Opportunities
 export async function getOpportunities(stage?: string, leadId?: string): Promise<{ opportunities: Opportunity[]; count: number }> {
   const params = new URLSearchParams();
@@ -271,6 +287,24 @@ export async function getOpportunities(stage?: string, leadId?: string): Promise
 
 export async function getOpportunity(oppId: string): Promise<Opportunity> {
   const response = await fetchWithAuth(`${API_BASE}/api/opportunities/${oppId}`);
+  return handleResponse(response);
+}
+
+export interface OpportunityAnalysis {
+  opp_id: string;
+  risk_score: number;
+  risk_level: 'Low' | 'Medium' | 'High';
+  risk_reason: string;
+  next_best_action: string;
+  metrics: {
+    age_days: number;
+    days_since_last_activity: number;
+    activity_count: number;
+  };
+}
+
+export async function getOpportunityAnalysis(oppId: string): Promise<OpportunityAnalysis> {
+  const response = await fetchWithAuth(`${API_BASE}/api/opportunities/${oppId}/analysis`);
   return handleResponse(response);
 }
 

@@ -9,9 +9,12 @@ from rich.table import Table
 from ..sheets import SheetManager
 from .models import (
     Lead, Opportunity, Activity,
-    LeadStatus, PipelineStage, ActivityType, LeadSource
+    LeadStatus, PipelineStage, ActivityType, LeadSource, CompanySize
 )
 from .templates import CRMTemplates
+from .enrichment import enrichment_service
+from .analyzer import deal_analyzer
+from .scoring import scoring_service
 import gspread
 
 console = Console()
@@ -89,12 +92,20 @@ class CRMManager:
         if data is None:
             try:
                 data = self.sm.read_data(self.sheet_name, LEADS_WS)
+                
+                # Migrate schema if needed
+                if data and len(data) > 0:
+                    headers = data[0]
+                    expected_headers = Lead.headers()
+                    if len(headers) < len(expected_headers):
+                        print(f"[CRMManager] Migrating Leads sheet schema for {self.sheet_name}")
+                        # Update headers
+                        self.sm.update_row(self.sheet_name, 1, expected_headers, LEADS_WS)
+                        # Re-read data after update (optional, but safer)
+                        data[0] = expected_headers
+                        self._set_cached_data(LEADS_WS, data)
+
             except gspread.exceptions.WorksheetNotFound:
-                # If reading fails, just return empty list, don't auto-create on read
-                # unless we strictly want to validata schema.
-                # Auto-creating on read might be annoying if user just wants to peak.
-                # But consistent behavior suggests we should maybe initialized?
-                # For now, let's just return None/Empty and let WRITE operations fix it.
                 return []
                 
             if data:
@@ -102,8 +113,27 @@ class CRMManager:
         
         if not data or len(data) < 2:
             return []
-        # Skip header row
-        return [Lead.from_row(row) for row in data[1:] if row[0]]
+        
+        # Check if we need to adjust row length for migration
+        processed_leads = []
+        headers = data[0]
+        for row in data[1:]:
+            if not row or not row[0]: continue
+            
+            # If row is shorter than expected, it's likely an old format
+            # Old format had created_at at index 10.
+            # New format has website at index 10.
+            if len(row) < 17 and len(row) >= 11:
+                # Basic migration: shift columns from index 10 onwards
+                # created_at (10) -> 14
+                # updated_at (11) -> 15
+                # owner (12) -> 16
+                new_row = row[:10] + ["", "", "", ""] + row[10:]
+                processed_leads.append(Lead.from_row(new_row))
+            else:
+                processed_leads.append(Lead.from_row(row))
+                
+        return processed_leads
 
     def get_lead(self, lead_id: str) -> Optional[Lead]:
         """Get a specific lead by ID."""
@@ -152,6 +182,80 @@ class CRMManager:
                 self._set_cached_data(LEADS_WS, data)
                 return True
         return False
+
+    def enrich_lead(self, lead_id: str):
+        """Perform AI enrichment for a lead."""
+        lead = self.get_lead(lead_id)
+        if not lead:
+            return
+
+        # 1. Mark as enriching
+        lead.enrichment_status = "Enriching"
+        self.update_lead(lead)
+
+        try:
+            # 2. Call enrichment service
+            enriched_data = enrichment_service.enrich_lead_data(lead)
+            
+            if enriched_data:
+                # 3. Update lead with new data
+                if enriched_data.get("website") and not lead.website:
+                    lead.website = enriched_data["website"]
+                if enriched_data.get("linkedin_url") and not lead.linkedin_url:
+                    lead.linkedin_url = enriched_data["linkedin_url"]
+                if enriched_data.get("logo_url") and not lead.logo_url:
+                    lead.logo_url = enriched_data["logo_url"]
+                if enriched_data.get("industry") and not lead.industry:
+                    lead.industry = enriched_data["industry"]
+                if enriched_data.get("company_size") and not lead.company_size:
+                    try:
+                        lead.company_size = CompanySize(enriched_data["company_size"])
+                    except ValueError:
+                        pass
+                
+                lead.enrichment_status = "Completed"
+            else:
+                lead.enrichment_status = "Failed"
+            
+            # 4. Save updates
+            self.update_lead(lead)
+
+            # 5. Automatically score after enrichment
+            self.score_lead(lead_id)
+            
+        except Exception as e:
+            print(f"[CRMManager] Enrichment failed for {lead_id}: {e}")
+            lead.enrichment_status = "Failed"
+            self.update_lead(lead)
+
+    def score_lead(self, lead_id: str):
+        """Perform AI scoring for a lead."""
+        lead = self.get_lead(lead_id)
+        if not lead:
+            return
+
+        activities = self.get_activities(lead_id=lead_id)
+        
+        try:
+            scoring_result = scoring_service.score_lead(lead, activities)
+            
+            lead.score = scoring_result.get("score")
+            lead.heat_level = scoring_result.get("heat_level")
+            
+            # Save updates
+            self.update_lead(lead)
+            print(f"[CRMManager] Scored lead {lead_id}: {lead.score} ({lead.heat_level})")
+            
+        except Exception as e:
+            print(f"[CRMManager] Scoring failed for {lead_id}: {e}")
+
+    def analyze_deal(self, opp_id: str) -> Dict[str, Any]:
+        """Perform AI analysis for a deal."""
+        opp = self.get_opportunity(opp_id)
+        if not opp:
+            return {}
+        activities = self.get_activities(opp_id=opp_id)
+        return deal_analyzer.analyze_opportunity(opp, activities)
 
     # -------------------------------------------------------------------------
     # Opportunity Operations
