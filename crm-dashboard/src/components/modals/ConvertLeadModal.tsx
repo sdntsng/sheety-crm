@@ -4,6 +4,22 @@ import { useState } from 'react';
 import { Lead, createOpportunity, updateLead, createActivity } from '@/lib/api';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 
+function getScoreColor(score?: number) {
+    if (score === undefined || score === null) return 'text-[var(--text-muted)]';
+    if (score >= 80) return 'text-green-600';
+    if (score >= 50) return 'text-yellow-600';
+    return 'text-red-600';
+}
+
+function getHeatColor(heat?: string) {
+    switch (heat) {
+        case 'Hot': return 'text-orange-600';
+        case 'Warm': return 'text-yellow-600';
+        case 'Cold': return 'text-blue-600';
+        default: return 'text-[var(--text-muted)]';
+    }
+}
+
 interface ConvertLeadModalProps {
     lead: Lead;
     onClose: () => void;
@@ -113,6 +129,19 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
                                     <span className="font-sans italic text-[var(--text-secondary)] block">Contact</span>
                                     <span className="font-mono font-bold text-[var(--text-primary)]">{lead.contact_name}</span>
                                 </div>
+                                {lead.score !== undefined && lead.score !== null && (
+                                    <div className="col-span-2 pt-2 border-t border-[var(--border-pencil)] border-dotted mt-2 flex items-center justify-between">
+                                        <span className="font-sans italic text-[var(--text-secondary)]">AI Lead Score</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`font-mono font-bold text-lg ${getScoreColor(lead.score)}`}>{lead.score}</span>
+                                            {lead.heat_level && (
+                                                <span className={`text-[10px] font-mono font-bold uppercase px-1 border border-current ${getHeatColor(lead.heat_level)}`}>
+                                                    {lead.heat_level}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
