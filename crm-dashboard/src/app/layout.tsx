@@ -45,6 +45,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const stored = localStorage.getItem('theme');
+                if (stored) {
+                  document.documentElement.setAttribute('data-theme', stored);
+                } else {
+                  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  const theme = prefersDark ? 'dark' : 'light';
+                  document.documentElement.setAttribute('data-theme', theme);
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         className={`${sans.variable} ${mono.variable} ${serif.variable} antialiased font-sans`}
       >
