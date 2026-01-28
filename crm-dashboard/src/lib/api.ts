@@ -294,22 +294,6 @@ export async function deleteLead(leadId: string): Promise<void> {
   return handleResponse(response);
 }
 
-export async function enrichLead(leadId: string): Promise<void> {
-  const response = await fetchWithAuth(
-    `${API_BASE}/api/leads/${leadId}/enrich`,
-    { method: "POST" },
-  );
-  return handleResponse(response);
-}
-
-export async function scoreLead(leadId: string): Promise<void> {
-  const response = await fetchWithAuth(
-    `${API_BASE}/api/leads/${leadId}/score`,
-    { method: "POST" },
-  );
-  return handleResponse(response);
-}
-
 // Opportunities
 export async function getOpportunities(
   stage?: string,
