@@ -1,10 +1,5 @@
-export { auth as middleware } from "./src/auth"
+export { auth as middleware } from "./src/auth";
 
 export const config = {
-    matcher: [
-        "/leads",
-        "/pipeline",
-        "/setup",
-        "/settings"
-    ]
-}
+  matcher: ["/leads", "/pipeline", "/setup", "/settings"],
+};
