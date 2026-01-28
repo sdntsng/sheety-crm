@@ -1,5 +1,5 @@
 
-.PHONY: setup login run lint crm-init crm-api crm-dashboard crm-dev kill-ports
+.PHONY: setup login run lint crm-init crm-api crm-dashboard crm-dev kill-ports lint-check format
 
 PYTHON = ./venv/bin/python
 MODULE = src.main
@@ -105,3 +105,16 @@ mock-dev: kill-ports
 crm-stop:
 	@kill $$(cat .api.pid) 2>/dev/null; rm -f .api.pid || true
 	@echo "Stopped CRM servers"
+
+
+# =============================================================================
+# Lint / Format
+# =============================================================================
+
+lint-check:
+	@echo "Checking Frontend formatting (Prettier)..."
+	cd crm-dashboard && npm run format:check
+
+format:
+	@echo "Formatting Frontend (Prettier)..."
+	cd crm-dashboard && npm run format
