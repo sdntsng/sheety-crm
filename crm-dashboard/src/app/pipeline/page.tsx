@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState, useCallback } from "react";
 import {
   getPipeline,
@@ -12,8 +11,9 @@ import AddOpportunityModal from "@/components/modals/AddOpportunityModal";
 import { useSettings } from "@/providers/SettingsProvider";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { useSearchParams, useRouter } from "next/navigation";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
-export default function PipelinePage() {
+function PipelinePageContent() {
   const [data, setData] = useState<PipelineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -172,4 +172,12 @@ export default function PipelinePage() {
       )}
     </div>
   );
+}
+
+export default function PipelinePage() {
+    return (
+        <ErrorBoundary>
+            <PipelinePageContent />
+        </ErrorBoundary>
+    );
 }
