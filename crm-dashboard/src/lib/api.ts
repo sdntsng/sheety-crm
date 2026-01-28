@@ -1,12 +1,12 @@
-import { getSession, signOut } from 'next-auth/react';
+import { getSession, signOut } from "next-auth/react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8026';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8026";
 
 // Custom error class for authentication failures
 export class AuthError extends Error {
-  constructor(message: string = 'Authentication required') {
+  constructor(message: string = "Authentication required") {
     super(message);
-    this.name = 'AuthError';
+    this.name = "AuthError";
   }
 }
 
@@ -15,7 +15,7 @@ export class RateLimitError extends Error {
   retryAfter: number;
   constructor(retryAfter: number = 60) {
     super(`Rate limited. Please try again in ${retryAfter} seconds.`);
-    this.name = 'RateLimitError';
+    this.name = "RateLimitError";
     this.retryAfter = retryAfter;
   }
 }
@@ -78,7 +78,10 @@ export interface DashboardData {
   total_expected_value: number;
   closed_won_value: number;
   cash_in_bank: number;
-  pipeline_by_stage: Record<string, { count: number; total_value: number; expected_value: number }>;
+  pipeline_by_stage: Record<
+    string,
+    { count: number; total_value: number; expected_value: number }
+  >;
   leads_by_status: Record<string, number>;
 }
 
@@ -120,62 +123,69 @@ export interface Config {
 async function handleResponse<T>(response: Response): Promise<T> {
   // Handle 401 Unauthorized - token expired or invalid
   if (response.status === 401) {
-    console.error('[API] 401 Unauthorized - signing out');
-    if (typeof window !== 'undefined') {
-      await signOut({ callbackUrl: '/login' });
+    console.error("[API] 401 Unauthorized - signing out");
+    if (typeof window !== "undefined") {
+      await signOut({ callbackUrl: "/login" });
     }
-    throw new AuthError('Session expired. Please sign in again.');
+    throw new AuthError("Session expired. Please sign in again.");
   }
 
   // Handle 429 Rate Limit
   if (response.status === 429) {
-    const retryAfter = parseInt(response.headers.get('Retry-After') || '60', 10);
+    const retryAfter = parseInt(
+      response.headers.get("Retry-After") || "60",
+      10,
+    );
     throw new RateLimitError(retryAfter);
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || 'Request failed');
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Unknown error" }));
+    throw new Error(error.detail || "Request failed");
   }
   return response.json();
 }
 
 // Helper for authenticated requests with session error detection
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  let headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
+  let headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     const session = await getSession();
 
     // Check if session exists at all
     if (!session || !session.user) {
-      console.error('[API] No active session - redirecting to login');
-      await signOut({ callbackUrl: '/login' });
-      throw new AuthError('Authentication required. Please sign in.');
+      console.error("[API] No active session - redirecting to login");
+      await signOut({ callbackUrl: "/login" });
+      throw new AuthError("Authentication required. Please sign in.");
     }
 
     // Check if session has a refresh error - sign out if so
     // @ts-ignore
-    if (session?.error === 'RefreshAccessTokenError') {
-      console.error('[API] Refresh token error detected - signing out');
-      await signOut({ callbackUrl: '/login' });
-      throw new AuthError('Session expired. Please sign in again.');
+    if (session?.error === "RefreshAccessTokenError") {
+      console.error("[API] Refresh token error detected - signing out");
+      await signOut({ callbackUrl: "/login" });
+      throw new AuthError("Session expired. Please sign in again.");
     }
 
     // @ts-ignore
     if (session?.accessToken) {
       // @ts-ignore
-      headers['Authorization'] = `Bearer ${session.accessToken}`;
+      headers["Authorization"] = `Bearer ${session.accessToken}`;
 
       // Inject Selected Sheet ID from localStorage
-      const sheetId = localStorage.getItem('selected_sheet_id');
+      const sheetId = localStorage.getItem("selected_sheet_id");
       if (sheetId) {
-        headers['x-sheet-id'] = sheetId;
+        headers["x-sheet-id"] = sheetId;
       }
     } else {
       // No access token available despite session??
-      console.warn('[API] Session exists but no access token found');
-      throw new AuthError('Invalid session configuration.');
+      console.warn("[API] Session exists but no access token found");
+      throw new AuthError("Invalid session configuration.");
     }
   }
 
@@ -201,24 +211,34 @@ export async function getConfig(): Promise<Config> {
   return handleResponse(response);
 }
 
-export async function getSheets(): Promise<{ sheets: { id: string; name: string }[] }> {
+export async function getSheets(): Promise<{
+  sheets: { id: string; name: string }[];
+}> {
   const response = await fetchWithAuth(`${API_BASE}/api/sheets`);
   return handleResponse(response);
 }
 
-export async function createSheet(name: string): Promise<{ success: boolean; sheet: { id: string; name: string; url: string } }> {
+export async function createSheet(name: string): Promise<{
+  success: boolean;
+  sheet: { id: string; name: string; url: string };
+}> {
   const response = await fetchWithAuth(`${API_BASE}/api/sheets/create`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
   });
   return handleResponse(response);
 }
 
-export async function addSchemaToSheet(sheetId: string): Promise<{ success: boolean }> {
-  const response = await fetchWithAuth(`${API_BASE}/api/sheets/${sheetId}/schema`, {
-    method: 'POST',
-  });
+export async function addSchemaToSheet(
+  sheetId: string,
+): Promise<{ success: boolean }> {
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/sheets/${sheetId}/schema`,
+    {
+      method: "POST",
+    },
+  );
   return handleResponse(response);
 }
 
@@ -230,10 +250,13 @@ export async function addSchemaToSheet(sheetId: string): Promise<{ success: bool
 // but simpler effectively replacing distinct blocks.
 
 // Leads
-export async function getLeads(status?: string, source?: string): Promise<{ leads: Lead[]; count: number }> {
+export async function getLeads(
+  status?: string,
+  source?: string,
+): Promise<{ leads: Lead[]; count: number }> {
   const params = new URLSearchParams();
-  if (status) params.set('status', status);
-  if (source) params.set('source', source);
+  if (status) params.set("status", status);
+  if (source) params.set("source", source);
   const response = await fetchWithAuth(`${API_BASE}/api/leads?${params}`);
   return handleResponse(response);
 }
@@ -245,55 +268,73 @@ export async function getLead(leadId: string): Promise<Lead> {
 
 export async function createLead(data: Partial<Lead>): Promise<Lead> {
   const response = await fetchWithAuth(`${API_BASE}/api/leads`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   return handleResponse(response);
 }
 
-export async function updateLead(leadId: string, data: Partial<Lead>): Promise<Lead> {
+export async function updateLead(
+  leadId: string,
+  data: Partial<Lead>,
+): Promise<Lead> {
   const response = await fetchWithAuth(`${API_BASE}/api/leads/${leadId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   return handleResponse(response);
 }
 
 export async function deleteLead(leadId: string): Promise<void> {
-  const response = await fetchWithAuth(`${API_BASE}/api/leads/${leadId}`, { method: 'DELETE' });
+  const response = await fetchWithAuth(`${API_BASE}/api/leads/${leadId}`, {
+    method: "DELETE",
+  });
   return handleResponse(response);
 }
 
 export async function enrichLead(leadId: string): Promise<void> {
-  const response = await fetchWithAuth(`${API_BASE}/api/leads/${leadId}/enrich`, { method: 'POST' });
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/leads/${leadId}/enrich`,
+    { method: "POST" },
+  );
   return handleResponse(response);
 }
 
 export async function scoreLead(leadId: string): Promise<void> {
-  const response = await fetchWithAuth(`${API_BASE}/api/leads/${leadId}/score`, { method: 'POST' });
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/leads/${leadId}/score`,
+    { method: "POST" },
+  );
   return handleResponse(response);
 }
 
 // Opportunities
-export async function getOpportunities(stage?: string, leadId?: string): Promise<{ opportunities: Opportunity[]; count: number }> {
+export async function getOpportunities(
+  stage?: string,
+  leadId?: string,
+): Promise<{ opportunities: Opportunity[]; count: number }> {
   const params = new URLSearchParams();
-  if (stage) params.set('stage', stage);
-  if (leadId) params.set('lead_id', leadId);
-  const response = await fetchWithAuth(`${API_BASE}/api/opportunities?${params}`);
+  if (stage) params.set("stage", stage);
+  if (leadId) params.set("lead_id", leadId);
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/opportunities?${params}`,
+  );
   return handleResponse(response);
 }
 
 export async function getOpportunity(oppId: string): Promise<Opportunity> {
-  const response = await fetchWithAuth(`${API_BASE}/api/opportunities/${oppId}`);
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/opportunities/${oppId}`,
+  );
   return handleResponse(response);
 }
 
 export interface OpportunityAnalysis {
   opp_id: string;
   risk_score: number;
-  risk_level: 'Low' | 'Medium' | 'High';
+  risk_level: "Low" | "Medium" | "High";
   risk_reason: string;
   next_best_action: string;
   metrics: {
@@ -303,56 +344,82 @@ export interface OpportunityAnalysis {
   };
 }
 
-export async function getOpportunityAnalysis(oppId: string): Promise<OpportunityAnalysis> {
-  const response = await fetchWithAuth(`${API_BASE}/api/opportunities/${oppId}/analysis`);
+export async function getOpportunityAnalysis(
+  oppId: string,
+): Promise<OpportunityAnalysis> {
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/opportunities/${oppId}/analysis`,
+  );
   return handleResponse(response);
 }
 
-export async function createOpportunity(data: Partial<Opportunity>): Promise<Opportunity> {
+export async function createOpportunity(
+  data: Partial<Opportunity>,
+): Promise<Opportunity> {
   const response = await fetchWithAuth(`${API_BASE}/api/opportunities`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   return handleResponse(response);
 }
 
-export async function updateOpportunity(oppId: string, data: Partial<Opportunity>): Promise<Opportunity> {
-  const response = await fetchWithAuth(`${API_BASE}/api/opportunities/${oppId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+export async function updateOpportunity(
+  oppId: string,
+  data: Partial<Opportunity>,
+): Promise<Opportunity> {
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/opportunities/${oppId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+  );
   return handleResponse(response);
 }
 
-export async function updateOpportunityStage(oppId: string, stage: string): Promise<void> {
-  const response = await fetchWithAuth(`${API_BASE}/api/opportunities/${oppId}/stage`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ stage }),
-  });
+export async function updateOpportunityStage(
+  oppId: string,
+  stage: string,
+): Promise<void> {
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/opportunities/${oppId}/stage`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage }),
+    },
+  );
   return handleResponse(response);
 }
 
 export async function deleteOpportunity(oppId: string): Promise<void> {
-  const response = await fetchWithAuth(`${API_BASE}/api/opportunities/${oppId}`, { method: 'DELETE' });
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/opportunities/${oppId}`,
+    { method: "DELETE" },
+  );
   return handleResponse(response);
 }
 
 // Activities
-export async function getActivities(leadId?: string, oppId?: string): Promise<{ activities: Activity[]; count: number }> {
+export async function getActivities(
+  leadId?: string,
+  oppId?: string,
+): Promise<{ activities: Activity[]; count: number }> {
   const params = new URLSearchParams();
-  if (leadId) params.set('lead_id', leadId);
-  if (oppId) params.set('opp_id', oppId);
+  if (leadId) params.set("lead_id", leadId);
+  if (oppId) params.set("opp_id", oppId);
   const response = await fetchWithAuth(`${API_BASE}/api/activities?${params}`);
   return handleResponse(response);
 }
 
-export async function createActivity(data: Partial<Activity>): Promise<Activity> {
+export async function createActivity(
+  data: Partial<Activity>,
+): Promise<Activity> {
   const response = await fetchWithAuth(`${API_BASE}/api/activities`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   return handleResponse(response);
@@ -365,13 +432,15 @@ export async function createActivity(data: Partial<Activity>): Promise<Activity>
 export interface SearchResults {
   query: string;
   results: {
-    leads: (Lead & { type: 'lead' })[];
-    opportunities: (Opportunity & { type: 'opportunity'; lead?: Lead })[];
+    leads: (Lead & { type: "lead" })[];
+    opportunities: (Opportunity & { type: "opportunity"; lead?: Lead })[];
   };
   total: number;
 }
 
 export async function search(query: string): Promise<SearchResults> {
-  const response = await fetchWithAuth(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`);
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/search?q=${encodeURIComponent(query)}`,
+  );
   return handleResponse(response);
 }
