@@ -9,13 +9,10 @@ import {
 import PipelineColumn from "@/components/PipelineColumn";
 import AddOpportunityModal from "@/components/modals/AddOpportunityModal";
 import { useSettings } from "@/providers/SettingsProvider";
+import { SkeletonPipelineColumn } from "@/components/SkeletonLoader";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { useSearchParams, useRouter } from "next/navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import {
-  SkeletonBox,
-  SkeletonPipelineColumn,
-} from "@/components/SkeletonLoader";
 
 function PipelinePageContent() {
   const [data, setData] = useState<PipelineData | null>(null);
@@ -103,17 +100,22 @@ function PipelinePageContent() {
   if (loading) {
     return (
       <div className="p-8 h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+        {/* Header Skeleton */}
         <div className="mb-6 flex justify-between items-center bg-[var(--bg-paper)] py-2 border-b-4 border-[var(--text-primary)]">
           <div>
-            <SkeletonBox className="h-8 w-40 mb-2" />
-            <SkeletonBox className="h-4 w-56" />
+            <div className="h-9 bg-[var(--bg-surface)] rounded w-32 mb-2 animate-pulse"></div>
+            <div className="h-3 bg-[var(--bg-surface)] rounded w-48 animate-pulse"></div>
           </div>
-          <SkeletonBox className="h-10 w-28" />
+          <div className="h-10 bg-[var(--bg-surface)] rounded w-32 animate-pulse"></div>
         </div>
 
-        <div className="flex-1 overflow-x-auto overflow-y-auto md:overflow-y-hidden pb-4">
-          <div className="flex flex-col md:flex-row gap-4 h-full md:w-max min-w-full">
-            {[1, 2, 3, 4].map((i) => (
+        {/* Pipeline Skeleton */}
+        <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
+          <div
+            className="flex gap-4 h-full"
+            style={{ minWidth: "max-content" }}
+          >
+            {Array.from({ length: 5 }, (_, i) => (
               <SkeletonPipelineColumn key={i} />
             ))}
           </div>
@@ -183,9 +185,9 @@ function PipelinePageContent() {
 }
 
 export default function PipelinePage() {
-  return (
-    <ErrorBoundary>
-      <PipelinePageContent />
-    </ErrorBoundary>
-  );
+    return (
+        <ErrorBoundary>
+            <PipelinePageContent />
+        </ErrorBoundary>
+    );
 }
