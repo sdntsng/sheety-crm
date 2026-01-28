@@ -14,8 +14,9 @@ import { getLeads, createLead, Lead, getConfig, Config } from "@/lib/api";
 import ConvertLeadModal from "@/components/modals/ConvertLeadModal";
 import { useSettings } from "@/providers/SettingsProvider";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
-export default function LeadsPage() {
+function LeadsPageContent() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
@@ -601,4 +602,12 @@ function AddLeadModal({
       </div>
     </div>
   );
+}
+
+export default function LeadsPage() {
+    return (
+        <ErrorBoundary>
+            <LeadsPageContent />
+        </ErrorBoundary>
+    );
 }
