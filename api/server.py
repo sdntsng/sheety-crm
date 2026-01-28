@@ -12,6 +12,10 @@ import io
 
 import sys
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,6 +29,7 @@ from src.crm.models import (
     Lead, Opportunity, Activity,
     LeadStatus, LeadSource, PipelineStage, ActivityType, CompanySize
 )
+from src.crm.ai import AIManager
 
 # New dependency for just authenticated SheetManager (without CRM session)
 async def get_sheet_manager(authorization: Optional[str] = Header(None)):
@@ -110,6 +115,7 @@ class LeadCreate(BaseModel):
     linkedin_url: Optional[str] = None
     logo_url: Optional[str] = None
     owner: Optional[str] = None
+    auto_enrich: bool = False
 
 
 class LeadUpdate(BaseModel):
@@ -121,12 +127,12 @@ class LeadUpdate(BaseModel):
     source: Optional[str] = None
     industry: Optional[str] = None
     company_size: Optional[str] = None
+    score: Optional[int] = None
     notes: Optional[str] = None
     website: Optional[str] = None
     linkedin_url: Optional[str] = None
     logo_url: Optional[str] = None
     enrichment_status: Optional[str] = None
-    score: Optional[int] = None
     heat_level: Optional[str] = None
     owner: Optional[str] = None
 
@@ -181,6 +187,11 @@ class ActivityCreate(BaseModel):
 
 class StageUpdate(BaseModel):
     stage: str
+
+
+class EmailDraftRequest(BaseModel):
+    purpose: Optional[str] = "Introduction"
+    tone: Optional[str] = "Professional"
 
 
 # =============================================================================
@@ -307,10 +318,19 @@ def create_lead(
     )
     created = crm.add_lead(lead)
     
-    # Trigger enrichment if company name is present
+    # Enrichment
+    if data.auto_enrich:
+        # Synchronous enrich + return enriched record if possible
+        try:
+            enriched = crm.enrich_lead(created.lead_id)
+            if enriched:
+                return enriched.model_dump()
+        except Exception as e:
+            print(f"[API] Auto-enrich failed: {e}")
+
+    # Default behavior: enrich asynchronously when company name is present
     if created.company_name:
         background_tasks.add_task(crm.enrich_lead, created.lead_id)
-        
     return created.model_dump()
 
 
@@ -338,6 +358,8 @@ def update_lead(lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_cr
         lead.industry = data.industry
     if data.company_size:
         lead.company_size = CompanySize(data.company_size)
+    if data.score is not None:
+        lead.score = data.score
     if data.notes is not None:
         lead.notes = data.notes
     if data.website is not None:
@@ -394,6 +416,103 @@ def delete_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     if not success:
         raise HTTPException(status_code=404, detail="Lead not found")
     return {"deleted": True}
+
+
+@app.post("/api/leads/{lead_id}/enrich")
+def enrich_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Enrich a lead with AI data."""
+    lead = crm.enrich_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return lead.model_dump()
+
+
+@app.post("/api/leads/{lead_id}/score")
+def score_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Assign an AI lead score (0-100)."""
+    lead = crm.score_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return lead.model_dump()
+
+
+@app.post("/api/leads/{lead_id}/generate-email")
+def generate_lead_email(
+    lead_id: str, 
+    request: EmailDraftRequest,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Generate an AI email draft for a lead."""
+    lead = crm.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    # Get recent activities for context
+    activities = crm.get_activities(lead_id=lead_id)
+    
+    ai = AIManager()
+    draft = ai.generate_email_draft(
+        lead=lead, 
+        activities=activities, 
+        purpose=request.purpose, 
+        tone=request.tone
+    )
+    
+    return {"draft": draft}
+
+
+@app.get("/api/leads/{lead_id}/suggest-action")
+def suggest_lead_action(
+    lead_id: str,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Suggest the 'Next Best Action' for a lead using AI."""
+    lead = crm.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    # Get associated opportunities (if any)
+    opps = crm.get_opportunities_for_lead(lead_id)
+    # Prefer the most recent/relevant opportunity if multiple exist
+    active_opp = next((o for o in opps if o.stage not in [PipelineStage.CLOSED_WON, PipelineStage.CLOSED_LOST]), None)
+    
+    # Get recent activities for context
+    activities = crm.get_activities(lead_id=lead_id)
+    
+    ai = AIManager()
+    suggestion = ai.suggest_next_action(
+        lead=lead,
+        opportunity=active_opp,
+        activities=activities
+    )
+    
+    return suggestion
+
+
+@app.post("/api/opportunities/{opp_id}/analyze-risk")
+def analyze_opportunity_risk(
+    opp_id: str,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Analyze opportunity for risks and blockers using AI."""
+    opp = crm.get_opportunity(opp_id)
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    
+    lead = crm.get_lead(opp.lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Associated lead not found")
+        
+    activities = crm.get_activities(opp_id=opp_id)
+    
+    ai = AIManager()
+    analysis = ai.analyze_deal_risk(
+        opportunity=opp,
+        lead=lead,
+        activities=activities
+    )
+    
+    return analysis
 
 
 # =============================================================================
