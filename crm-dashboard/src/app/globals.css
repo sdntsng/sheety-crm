@@ -2,8 +2,12 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans:
+    var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
 
   --color-paper: var(--bg-paper);
   --color-card: var(--bg-card);
@@ -17,40 +21,40 @@
 
 :root {
   /* PAPER PALETTE */
-  --bg-paper: #F9F7F1;
+  --bg-paper: #f9f7f1;
   /* Warm rice paper */
-  --bg-card: #FFFFFF;
+  --bg-card: #ffffff;
   /* Clean index card */
-  --bg-hover: #F0EFE9;
+  --bg-hover: #f0efe9;
 
   /* INK & PENCIL */
-  --text-primary: #1A1918;
+  --text-primary: #1a1918;
   /* Deep ink black, slightly warm */
-  --text-secondary: #5A5855;
+  --text-secondary: #5a5855;
   /* Graphite pencil */
-  --text-muted: #8C8984;
+  --text-muted: #8c8984;
   /* Faded ink */
 
   /* Aliases for easier theming */
-  --color-ink: #1A1918;
-  --color-ink-muted: #5A5855;
+  --color-ink: #1a1918;
+  --color-ink-muted: #5a5855;
 
   /* HIGHLIGHTERS */
-  --accent-blue: #2A5D94;
+  --accent-blue: #2a5d94;
   /* Fountain pen blue */
-  --accent-red: #C53030;
+  --accent-red: #c53030;
   /* Grading pen red */
-  --accent-yellow: #FEF08A;
+  --accent-yellow: #fef08a;
   /* Highlighter yellow */
-  --accent: #2A5D94;
+  --accent: #2a5d94;
   /* Primary accent */
 
   /* STRUCTURE */
-  --border-ink: #1A1918;
+  --border-ink: #1a1918;
   /* Sharp, undefined border */
-  --border-pencil: #D1D0C9;
+  --border-pencil: #d1d0c9;
   /* Subtle guideline */
-  --border-color: #D1D0C9;
+  --border-color: #d1d0c9;
 
   /* SHADOWS - Hard, directional, "cutout" feel */
   --shadow-card: 2px 2px 0px rgba(0, 0, 0, 0.08);
@@ -65,7 +69,7 @@
   --accent-hover: #1e4b7a;
   --accent-muted: #e0e7ff;
   /* light blue/indigo */
-  --bg-surface: #FFFFFF;
+  --bg-surface: #ffffff;
   --border-strong: #a1a09a;
 }
 
@@ -181,7 +185,9 @@ code,
   box-shadow: var(--shadow-card);
   border-radius: 2px;
   /* Slight rounding, mostly sharp */
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
   position: relative;
 }
 
@@ -239,7 +245,7 @@ code,
 .input:focus {
   border-color: var(--accent-blue);
   outline: none;
-  background: #FFF;
+  background: #fff;
 }
 
 /* ========================================================================
@@ -260,7 +266,7 @@ code,
 }
 
 [class^="stage-"]::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
