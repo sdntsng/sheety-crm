@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState, useRef } from "react";
 import SearchBar from "./SearchBar";
 import SheetyIcon from "./icons/SheetyIcon";
+import ThemeToggle from "./ThemeToggle";
 
 // Flat SVG Icons
 const DashboardIcon = () => (
@@ -259,6 +260,9 @@ export default function Header() {
                 <SearchBar />
               </div>
               <div className="h-6 w-px bg-[var(--border-pencil)] mx-2" />
+
+              {/* Theme Toggle */}
+              <ThemeToggle />
 
               {/* Settings Link */}
               <Link

@@ -1,41 +1,72 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check local storage or system preference
     const stored = localStorage.getItem("theme");
+    let initialTheme: string;
+
     if (stored) {
-      setTheme(stored);
-      document.documentElement.setAttribute("data-theme", stored);
-    } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
-      setTheme("light");
-      document.documentElement.setAttribute("data-theme", "light");
+      initialTheme = stored;
     } else {
-      document.documentElement.setAttribute("data-theme", "dark");
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)",
+      ).matches;
+      initialTheme = prefersDark ? "dark" : "light";
     }
+
+    setTheme(initialTheme);
+    document.documentElement.setAttribute("data-theme", initialTheme);
   }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
+    if (!theme) return;
+
     const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
     document.documentElement.setAttribute("data-theme", newTheme);
     localStorage.setItem("theme", newTheme);
-  };
+
+    // Dispatch custom event for same-tab updates.
+    window.dispatchEvent(new CustomEvent("themeChange", { detail: newTheme }));
+  }, [theme]);
+
+  // Keyboard shortcut: Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        toggleTheme();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toggleTheme]);
+
+  if (!theme) return null;
 
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-lg bg-transparent hover:bg-zinc-800/50 transition-colors text-zinc-400 hover:text-zinc-100 border border-transparent hover:border-zinc-700"
-      title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      className="p-2 rounded-lg bg-transparent hover:bg-[var(--bg-hover)] transition-all duration-200 text-[var(--color-ink-muted)] hover:text-[var(--text-primary)] border border-transparent hover:border-[var(--border-pencil)]"
+      title={`Switch to ${theme === "dark" ? "light" : "dark"} mode (⌘K)`}
     >
       {theme === "dark" ? (
-        // Sun Icon
         <svg
-          className="w-5 h-5"
+          className="w-5 h-5 transition-transform duration-300 hover:rotate-45"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -48,9 +79,8 @@ export default function ThemeToggle() {
           />
         </svg>
       ) : (
-        // Moon Icon
         <svg
-          className="w-5 h-5 text-zinc-600"
+          className="w-5 h-5 transition-transform duration-300 hover:rotate-12"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

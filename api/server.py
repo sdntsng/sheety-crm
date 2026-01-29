@@ -2,14 +2,20 @@
 FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
-from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import date
+import csv
+import io
 
 import sys
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,6 +29,7 @@ from src.crm.models import (
     Lead, Opportunity, Activity,
     LeadStatus, LeadSource, PipelineStage, ActivityType, CompanySize
 )
+from src.crm.ai import AIManager
 
 # New dependency for just authenticated SheetManager (without CRM session)
 async def get_sheet_manager(authorization: Optional[str] = Header(None)):
@@ -108,6 +115,7 @@ class LeadCreate(BaseModel):
     linkedin_url: Optional[str] = None
     logo_url: Optional[str] = None
     owner: Optional[str] = None
+    auto_enrich: bool = False
 
 
 class LeadUpdate(BaseModel):
@@ -119,12 +127,12 @@ class LeadUpdate(BaseModel):
     source: Optional[str] = None
     industry: Optional[str] = None
     company_size: Optional[str] = None
+    score: Optional[int] = None
     notes: Optional[str] = None
     website: Optional[str] = None
     linkedin_url: Optional[str] = None
     logo_url: Optional[str] = None
     enrichment_status: Optional[str] = None
-    score: Optional[int] = None
     heat_level: Optional[str] = None
     owner: Optional[str] = None
 
@@ -179,6 +187,11 @@ class ActivityCreate(BaseModel):
 
 class StageUpdate(BaseModel):
     stage: str
+
+
+class EmailDraftRequest(BaseModel):
+    purpose: Optional[str] = "Introduction"
+    tone: Optional[str] = "Professional"
 
 
 # =============================================================================
@@ -305,10 +318,19 @@ def create_lead(
     )
     created = crm.add_lead(lead)
     
-    # Trigger enrichment if company name is present
+    # Enrichment
+    if data.auto_enrich:
+        # Synchronous enrich + return enriched record if possible
+        try:
+            enriched = crm.enrich_lead(created.lead_id)
+            if enriched:
+                return enriched.model_dump()
+        except Exception as e:
+            print(f"[API] Auto-enrich failed: {e}")
+
+    # Default behavior: enrich asynchronously when company name is present
     if created.company_name:
         background_tasks.add_task(crm.enrich_lead, created.lead_id)
-        
     return created.model_dump()
 
 
@@ -336,6 +358,8 @@ def update_lead(lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_cr
         lead.industry = data.industry
     if data.company_size:
         lead.company_size = CompanySize(data.company_size)
+    if data.score is not None:
+        lead.score = data.score
     if data.notes is not None:
         lead.notes = data.notes
     if data.website is not None:
@@ -392,6 +416,103 @@ def delete_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     if not success:
         raise HTTPException(status_code=404, detail="Lead not found")
     return {"deleted": True}
+
+
+@app.post("/api/leads/{lead_id}/enrich")
+def enrich_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Enrich a lead with AI data."""
+    lead = crm.enrich_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return lead.model_dump()
+
+
+@app.post("/api/leads/{lead_id}/score")
+def score_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Assign an AI lead score (0-100)."""
+    lead = crm.score_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return lead.model_dump()
+
+
+@app.post("/api/leads/{lead_id}/generate-email")
+def generate_lead_email(
+    lead_id: str, 
+    request: EmailDraftRequest,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Generate an AI email draft for a lead."""
+    lead = crm.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    # Get recent activities for context
+    activities = crm.get_activities(lead_id=lead_id)
+    
+    ai = AIManager()
+    draft = ai.generate_email_draft(
+        lead=lead, 
+        activities=activities, 
+        purpose=request.purpose, 
+        tone=request.tone
+    )
+    
+    return {"draft": draft}
+
+
+@app.get("/api/leads/{lead_id}/suggest-action")
+def suggest_lead_action(
+    lead_id: str,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Suggest the 'Next Best Action' for a lead using AI."""
+    lead = crm.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    # Get associated opportunities (if any)
+    opps = crm.get_opportunities_for_lead(lead_id)
+    # Prefer the most recent/relevant opportunity if multiple exist
+    active_opp = next((o for o in opps if o.stage not in [PipelineStage.CLOSED_WON, PipelineStage.CLOSED_LOST]), None)
+    
+    # Get recent activities for context
+    activities = crm.get_activities(lead_id=lead_id)
+    
+    ai = AIManager()
+    suggestion = ai.suggest_next_action(
+        lead=lead,
+        opportunity=active_opp,
+        activities=activities
+    )
+    
+    return suggestion
+
+
+@app.post("/api/opportunities/{opp_id}/analyze-risk")
+def analyze_opportunity_risk(
+    opp_id: str,
+    crm: CRMManager = Depends(get_crm_session)
+):
+    """Analyze opportunity for risks and blockers using AI."""
+    opp = crm.get_opportunity(opp_id)
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    
+    lead = crm.get_lead(opp.lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Associated lead not found")
+        
+    activities = crm.get_activities(opp_id=opp_id)
+    
+    ai = AIManager()
+    analysis = ai.analyze_deal_risk(
+        opportunity=opp,
+        lead=lead,
+        activities=activities
+    )
+    
+    return analysis
 
 
 # =============================================================================
@@ -657,3 +778,289 @@ def search_all(
         },
         "total": len(matching_leads) + len(matching_opps),
     }
+
+
+# =============================================================================
+# Data Import Endpoints
+# =============================================================================
+
+class ColumnMapping(BaseModel):
+    """Mapping of CSV column to CRM field."""
+    csv_column: str
+    crm_field: str
+
+
+class ImportPreviewRequest(BaseModel):
+    """Request for previewing CSV data with column mappings."""
+    mappings: List[ColumnMapping]
+
+
+class ImportRequest(BaseModel):
+    """Request for importing CSV data."""
+    mappings: List[ColumnMapping]
+
+
+@app.post("/api/import/csv/upload")
+async def upload_csv_file(
+    file: UploadFile = File(...),
+):
+    """
+    Upload and parse a CSV file.
+    Returns the headers and first 5 rows for preview and mapping.
+    """
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+
+    try:
+        # Read file content
+        content = await file.read()
+        decoded_content = content.decode('utf-8')
+
+        # Parse CSV
+        csv_reader = csv.reader(io.StringIO(decoded_content))
+        rows = list(csv_reader)
+
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV file is empty")
+
+        headers = rows[0]
+        preview_rows = rows[1:6]  # First 5 data rows
+        total_rows = len(rows) - 1  # Excluding header
+
+        # Auto-detect possible mappings
+        suggested_mappings = _auto_detect_mappings(headers)
+
+        return {
+            "success": True,
+            "headers": headers,
+            "preview_rows": preview_rows,
+            "total_rows": total_rows,
+            "suggested_mappings": suggested_mappings,
+        }
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please use UTF-8.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error parsing CSV: {str(e)}")
+
+
+@app.post("/api/import/csv/preview")
+async def preview_import(
+    file: UploadFile = File(...),
+    mappings: str = Query(..., description="JSON string of column mappings"),
+):
+    """
+    Preview how CSV data will be imported with the given column mappings.
+    Returns first 5 rows mapped to CRM fields.
+    """
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+
+    try:
+        # Parse mappings from JSON string
+        import json
+        mappings_list = json.loads(mappings)
+        mapping_dict = {m['csv_column']: m['crm_field'] for m in mappings_list}
+
+        # Read and parse CSV
+        content = await file.read()
+        decoded_content = content.decode('utf-8')
+        csv_reader = csv.reader(io.StringIO(decoded_content))
+        rows = list(csv_reader)
+
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV file is empty")
+
+        headers = rows[0]
+        data_rows = rows[1:6]  # First 5 data rows
+
+        # Transform rows based on mappings
+        preview_data = []
+        for row in data_rows:
+            mapped_row = {}
+            for i, header in enumerate(headers):
+                if header in mapping_dict and i < len(row):
+                    crm_field = mapping_dict[header]
+                    mapped_row[crm_field] = row[i]
+            preview_data.append(mapped_row)
+
+        return {
+            "success": True,
+            "preview": preview_data,
+            "row_count": len(preview_data),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error previewing import: {str(e)}")
+
+
+@app.post("/api/import/csv/execute")
+async def execute_import(
+    file: UploadFile = File(...),
+    mappings: str = Query(..., description="JSON string of column mappings"),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """
+    Execute the CSV import with the given column mappings.
+    Batch appends leads to the Google Sheet.
+    """
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+
+    try:
+        # Parse mappings from JSON string
+        import json
+        mappings_list = json.loads(mappings)
+        mapping_dict = {m['csv_column']: m['crm_field'] for m in mappings_list}
+
+        # Read and parse CSV
+        content = await file.read()
+        decoded_content = content.decode('utf-8')
+        csv_reader = csv.reader(io.StringIO(decoded_content))
+        rows = list(csv_reader)
+
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV file is empty")
+
+        headers = rows[0]
+        data_rows = rows[1:]  # All data rows
+
+        # Transform and validate rows
+        leads_to_import = []
+        errors = []
+
+        # Check if required mappings exist
+        if 'company_name' not in mapping_dict.values() or 'contact_name' not in mapping_dict.values():
+            raise HTTPException(
+                status_code=400,
+                detail="Mapping must include both 'Company Name' and 'Contact Name' fields."
+            )
+
+        for idx, row in enumerate(data_rows, start=2):  # Start at 2 (1 is header)
+            try:
+                mapped_data = {}
+                for i, header in enumerate(headers):
+                    if header in mapping_dict and i < len(row):
+                        crm_field = mapping_dict[header]
+                        mapped_data[crm_field] = row[i].strip() if row[i] else ""
+
+                # Skip empty rows
+                if not any(mapped_data.values()):
+                    continue
+
+                # Required fields check
+                if not mapped_data.get('company_name') or not mapped_data.get('contact_name'):
+                    errors.append({
+                        "row": idx,
+                        "error": "Missing required fields: company_name or contact_name"
+                    })
+                    continue
+
+                # Create Lead object
+                status_value = mapped_data.get('status', '')
+                if status_value and status_value in [s.value for s in LeadStatus]:
+                    status = LeadStatus(status_value)
+                else:
+                    status = LeadStatus.NEW
+                
+                source_value = mapped_data.get('source', '')
+                if source_value and source_value in [s.value for s in LeadSource]:
+                    source = LeadSource(source_value)
+                else:
+                    source = LeadSource.OTHER
+                
+                company_size_value = mapped_data.get('company_size', '')
+                company_size = None
+                if company_size_value and company_size_value in [s.value for s in CompanySize]:
+                    company_size = CompanySize(company_size_value)
+                
+                lead = Lead(
+                    company_name=mapped_data.get('company_name', ''),
+                    contact_name=mapped_data.get('contact_name', ''),
+                    contact_email=mapped_data.get('contact_email'),
+                    contact_phone=mapped_data.get('contact_phone'),
+                    status=status,
+                    source=source,
+                    industry=mapped_data.get('industry'),
+                    company_size=company_size,
+                    notes=mapped_data.get('notes'),
+                    owner=mapped_data.get('owner'),
+                )
+                leads_to_import.append(lead)
+
+            except Exception as e:
+                errors.append({
+                    "row": idx,
+                    "error": str(e)
+                })
+
+        # Batch import leads
+        imported_count = 0
+        if leads_to_import:
+            try:
+                imported_count = crm.batch_add_leads(leads_to_import)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to import to Google Sheets: {str(e)}")
+
+        return {
+            "success": True,
+            "imported": imported_count,
+            "total_rows": len(data_rows),
+            "errors": errors,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error executing import: {str(e)}")
+
+
+def _auto_detect_mappings(headers: List[str]) -> List[Dict[str, str]]:
+    """
+    Auto-detect possible column mappings based on header names.
+    Returns list of suggested mappings.
+    """
+    # Common header name patterns
+    field_patterns = {
+        'company_name': ['company', 'company name', 'organization', 'org', 'business', 'firm', 'account'],
+        'contact_name': ['contact', 'name', 'contact name', 'full name', 'person', 'lead', 'client'],
+        'contact_email': ['email', 'e-mail', 'contact email', 'email address', 'mail'],
+        'contact_phone': ['phone', 'telephone', 'contact phone', 'phone number', 'mobile', 'cell', 'tel'],
+        'status': ['status', 'lead status', 'stage', 'phase'],
+        'source': ['source', 'lead source', 'origin', 'channel', 'medium', 'campaign'],
+        'industry': ['industry', 'sector', 'vertical', 'business type'],
+        'company_size': ['size', 'company size', 'employees', 'headcount', 'staff'],
+        'notes': ['notes', 'note', 'description', 'comments', 'remarks', 'about'],
+        'owner': ['owner', 'assigned to', 'rep', 'sales rep', 'agent', 'assignee'],
+    }
+
+    suggestions = []
+    used_crm_fields = set()
+    
+    for header in headers:
+        header_clean = header.lower().strip().replace('_', ' ').replace('-', ' ')
+        
+        best_match = None
+        for crm_field, patterns in field_patterns.items():
+            if crm_field in used_crm_fields:
+                continue
+                
+            if header_clean in patterns or any(pattern == header_clean for pattern in patterns):
+                best_match = crm_field
+                break
+
+        # If no exact match, try partial match
+        if not best_match:
+            for crm_field, patterns in field_patterns.items():
+                if crm_field in used_crm_fields:
+                    continue
+                if any(pattern in header_clean or header_clean in pattern for pattern in patterns):
+                    best_match = crm_field
+                    break
+
+        if best_match:
+            suggestions.append({
+                "csv_column": header,
+                "crm_field": best_match,
+            })
+            used_crm_fields.add(best_match)
+
+    return suggestions

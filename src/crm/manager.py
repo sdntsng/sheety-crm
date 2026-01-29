@@ -11,6 +11,7 @@ from .models import (
     Lead, Opportunity, Activity,
     LeadStatus, PipelineStage, ActivityType, LeadSource, CompanySize
 )
+from .ai import AIManager
 from .templates import CRMTemplates
 from .enrichment import enrichment_service
 from .analyzer import deal_analyzer
@@ -33,10 +34,6 @@ class CRMManager:
     def __init__(self, sheet_manager: SheetManager, sheet_name: str = SHEET_NAME):
         self.sm = sheet_manager
         self.sheet_name = sheet_name
-        
-        # Caching
-        self._cache: Dict[str, List[Any]] = {}
-        self._last_fetch: Dict[str, datetime] = {}
         self.templates = CRMTemplates(self.sm.gc)
         
         # Caching
@@ -85,6 +82,27 @@ class CRMManager:
             
         self._invalidate_cache(LEADS_WS)
         return lead
+
+    def batch_add_leads(self, leads: List[Lead]) -> int:
+        """Batch add leads to the CRM."""
+        if not leads:
+            return 0
+            
+        now = datetime.now()
+        rows_to_append = []
+        for lead in leads:
+            lead.created_at = now
+            lead.updated_at = now
+            rows_to_append.append(lead.to_row())
+            
+        try:
+            self.sm.append_rows(self.sheet_name, rows_to_append, LEADS_WS)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(LEADS_WS)
+            self.sm.append_rows(self.sheet_name, rows_to_append, LEADS_WS)
+            
+        self._invalidate_cache(LEADS_WS)
+        return len(leads)
 
     def get_leads(self) -> List[Lead]:
         """Retrieve all leads."""
@@ -163,6 +181,61 @@ class CRMManager:
                 self._set_cached_data(LEADS_WS, data)
                 return True
         return False
+
+    def enrich_lead(self, lead_id: str) -> Optional[Lead]:
+        """Enrich a lead with AI data and update it in the sheet."""
+        lead = self.get_lead(lead_id)
+        if not lead:
+            return None
+
+        ai = AIManager()
+        enrichment = ai.enrich_lead_data(lead)
+        
+        if not enrichment:
+            return lead
+
+        # Update lead fields
+        if enrichment.get("industry"):
+            lead.industry = enrichment["industry"]
+        
+        if enrichment.get("company_size"):
+            try:
+                lead.company_size = CompanySize(enrichment["company_size"])
+            except ValueError:
+                pass
+        
+        if enrichment.get("description"):
+            # Append description to notes or prepend it
+            desc = f"AI Description: {enrichment['description']}"
+            if lead.notes:
+                lead.notes = f"{desc}\n\n{lead.notes}"
+            else:
+                lead.notes = desc
+
+        self.update_lead(lead)
+        return lead
+
+    def score_lead(self, lead_id: str) -> Optional[Lead]:
+        """Assign an AI lead score and update it in the sheet."""
+        lead = self.get_lead(lead_id)
+        if not lead:
+            return None
+
+        activities = self.get_activities(lead_id=lead_id)
+        ai = AIManager()
+        scoring = ai.score_lead(lead, activities)
+        
+        if "score" in scoring:
+            lead.score = scoring["score"]
+            # Prepend reasoning to notes
+            reason = f"AI Score: {scoring['score']}/100 - {scoring.get('reasoning', '')}"
+            if lead.notes:
+                lead.notes = f"{reason}\n\n{lead.notes}"
+            else:
+                lead.notes = reason
+
+        self.update_lead(lead)
+        return lead
 
     def delete_lead(self, lead_id: str) -> bool:
         """Delete a lead by ID."""
@@ -406,6 +479,13 @@ class CRMManager:
         for status in LeadStatus:
             leads_by_status[status.value] = len([l for l in leads if l.status == status])
 
+        # Top leads by score
+        top_leads = sorted(
+            [l for l in leads if l.score > 0],
+            key=lambda l: l.score,
+            reverse=True
+        )[:5]
+
         return {
             "total_leads": len(leads),
             "total_opportunities": len(opps),
@@ -415,6 +495,7 @@ class CRMManager:
             "cash_in_bank": sum(o.value for o in opps if o.stage == PipelineStage.CASH_IN_BANK),
             "pipeline_by_stage": by_stage,
             "leads_by_status": leads_by_status,
+            "top_leads": [l.model_dump() for l in top_leads],
         }
 
     def print_pipeline(self):

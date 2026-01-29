@@ -114,6 +114,9 @@ GOOGLE_CLIENT_SECRET=your_client_secret
 # PostHog Analytics (Optional)
 NEXT_PUBLIC_POSTHOG_KEY=<your_posthog_project_api_key>
 NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+
+# AI Features (Optional)
+OPENAI_API_KEY=sk-your-openai-api-key
 ```
 
 ### Production Environment Variables

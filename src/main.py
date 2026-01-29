@@ -218,10 +218,17 @@ def crm_list(
             table.add_column("ID", style="dim")
             table.add_column("Company", style="bold")
             table.add_column("Contact")
+            table.add_column("Score", justify="center")
             table.add_column("Status")
             table.add_column("Source")
             for lead in leads:
-                table.add_row(lead.lead_id, lead.company_name, lead.contact_name, lead.status.value, lead.source.value)
+                score_str = str(lead.score)
+                if lead.score >= 80:
+                    score_str = f"[bold green]{lead.score}[/bold green]"
+                elif lead.score >= 50:
+                    score_str = f"[yellow]{lead.score}[/yellow]"
+                
+                table.add_row(lead.lead_id, lead.company_name, lead.contact_name, score_str, lead.status.value, lead.source.value)
             console.print(table)
 
         elif what == "opps":
@@ -261,6 +268,187 @@ def crm_pipeline(
         gc, _ = authenticate(profile)
         crm = CRMManager(SheetManager(gc), sheet)
         crm.print_pipeline()
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@app.command()
+def crm_analyze_risk(
+    opp_id: str = typer.Argument(..., help="Opportunity ID to analyze"),
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """AI-powered deal risk analysis."""
+    from .crm.manager import CRMManager
+    from .crm.ai import AIManager
+    from rich.panel import Panel
+    from rich.text import Text
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+        ai = AIManager()
+        
+        console.print(f"[yellow]Analysing deal history for: {opp_id}...[/yellow]")
+        
+        # Get data
+        opp = crm.get_opportunity(opp_id)
+        if not opp:
+            console.print(f"[red]Opportunity {opp_id} not found.[/red]")
+            return
+            
+        lead = crm.get_lead(opp.lead_id)
+        activities = crm.get_activities(opp_id=opp_id)
+        
+        # Analyze
+        analysis = ai.analyze_deal_risk(opp, lead, activities)
+        
+        # Display
+        risk_color = {
+            "Low": "green",
+            "Medium": "yellow",
+            "High": "orange1",
+            "Critical": "red",
+            "Error": "dim red"
+        }.get(analysis.get("risk_level", "Error"), "white")
+        
+        panel_content = Text()
+        panel_content.append(f"\nDeal: {opp.title}\n", style="bold")
+        panel_content.append(f"Client: {lead.company_name}\n\n")
+        panel_content.append(f"Risk Level: {analysis.get('risk_level', 'Unknown')}\n", style=f"bold {risk_color}")
+        panel_content.append(f"Insight: {analysis.get('insight', 'No summary available.')}\n\n")
+        
+        panel_content.append("Identified Risks:\n", style="bold yellow")
+        for risk in analysis.get("risks", []):
+            panel_content.append(f"• {risk}\n")
+            
+        panel_content.append("\nRecommended Actions:\n", style="bold green")
+        for action in analysis.get("recommended_actions", []):
+            panel_content.append(f"• {action}\n")
+            
+        console.print(Panel(panel_content, title="[bold]AI Deal Risk Analysis[/bold]", border_style=risk_color))
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@app.command()
+def crm_suggest_action(
+    lead_id: str = typer.Argument(..., help="Lead ID to get suggestion for"),
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """AI-powered next best action suggestion for a lead."""
+    from .crm.manager import CRMManager
+    from .crm.ai import AIManager
+    from rich.panel import Panel
+    from rich.text import Text
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+        ai = AIManager()
+        
+        console.print(f"[yellow]Generating suggestion for lead: {lead_id}...[/yellow]")
+        
+        # Get data
+        lead = crm.get_lead(lead_id)
+        if not lead:
+            console.print(f"[red]Lead {lead_id} not found.[/red]")
+            return
+            
+        opps = crm.get_opportunities_for_lead(lead_id)
+        active_opp = next((o for o in opps if o.stage not in ["Closed Won", "Closed Lost", "Cash in Bank"]), None)
+        activities = crm.get_activities(lead_id=lead_id)
+        
+        # Suggest
+        suggestion = ai.suggest_next_action(lead, active_opp, activities)
+        
+        # Display
+        priority_color = {
+            "High": "red",
+            "Medium": "yellow",
+            "Low": "green"
+        }.get(suggestion.get("priority", "Medium"), "white")
+        
+        panel_content = Text()
+        panel_content.append(f"\nAction: {suggestion.get('action', 'Unknown')}\n", style="bold")
+        panel_content.append(f"Priority: {suggestion.get('priority', 'Medium')}\n", style=f"bold {priority_color}")
+        panel_content.append(f"Task Type: {suggestion.get('task_type', 'Task')}\n\n")
+        
+        panel_content.append("Description:\n", style="bold")
+        panel_content.append(f"{suggestion.get('description', 'No description provided.')}\n\n")
+        
+        panel_content.append("AI Reasoning:\n", style="bold dim")
+        panel_content.append(f"{suggestion.get('reasoning', 'No reasoning provided.')}\n")
+        
+        console.print(Panel(panel_content, title="[bold]🎯 Smart Activity Suggestion[/bold]", border_style=priority_color))
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@app.command()
+def crm_score_lead(
+    lead_id: str = typer.Argument(..., help="Lead ID to score"),
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """AI-powered lead scoring (0-100) based on profile and history."""
+    from .crm.manager import CRMManager
+    from .crm.ai import AIManager
+    from rich.panel import Panel
+    from rich.text import Text
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+        ai = AIManager()
+        
+        console.print(f"[yellow]Calculating lead score for: {lead_id}...[/yellow]")
+        
+        # Get data
+        lead = crm.get_lead(lead_id)
+        if not lead:
+            console.print(f"[red]Lead {lead_id} not found.[/red]")
+            return
+            
+        activities = crm.get_activities(lead_id=lead_id)
+        
+        # Score
+        scoring = ai.score_lead(lead, activities)
+        
+        # Update lead
+        score = scoring.get("score", 0)
+        lead.score = score
+        
+        # Prepend reasoning to notes
+        reason = f"AI Score: {score}/100 - {scoring.get('reasoning', '')}"
+        if lead.notes:
+            lead.notes = f"{reason}\n\n{lead.notes}"
+        else:
+            lead.notes = reason
+            
+        crm.update_lead(lead)
+        
+        # Display
+        score_color = "green" if score >= 80 else "yellow" if score >= 50 else "red"
+        
+        panel_content = Text()
+        panel_content.append(f"\nLead: {lead.company_name}\n", style="bold")
+        panel_content.append(f"Score: ", style="bold")
+        panel_content.append(f"{score}/100\n\n", style=f"bold {score_color}")
+        
+        panel_content.append("Reasoning:\n", style="bold")
+        panel_content.append(f"{scoring.get('reasoning', 'No reasoning provided.')}\n\n")
+        
+        panel_content.append("Strengths:\n", style="bold green")
+        for strength in scoring.get("strengths", []):
+            panel_content.append(f"• {strength}\n")
+            
+        panel_content.append("\nWeaknesses:\n", style="bold red")
+        for weakness in scoring.get("weaknesses", []):
+            panel_content.append(f"• {weakness}\n")
+            
+        console.print(Panel(panel_content, title="[bold]🧠 AI Lead Scoring Engine[/bold]", border_style=score_color))
+        
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
 
