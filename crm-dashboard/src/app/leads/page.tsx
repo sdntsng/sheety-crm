@@ -15,6 +15,7 @@ import ConvertLeadModal from "@/components/modals/ConvertLeadModal";
 import { useSettings } from "@/providers/SettingsProvider";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { SkeletonBox, SkeletonTableRow } from "@/components/SkeletonLoader";
 
 function LeadsPageContent() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -116,10 +117,50 @@ function LeadsPageContent() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-[var(--bg-surface)] rounded w-1/4"></div>
-          <div className="h-64 bg-white rounded border border-gray-200"></div>
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="mb-8 flex justify-between items-end border-b-4 border-[var(--text-primary)] pb-4">
+          <div>
+            <SkeletonBox className="h-10 w-64 mb-3" />
+            <SkeletonBox className="h-4 w-72" />
+          </div>
+          <div className="flex gap-3">
+            <SkeletonBox className="h-10 w-28" />
+            <SkeletonBox className="h-10 w-28" />
+          </div>
+        </div>
+
+        <div className="bg-white border-2 border-[var(--border-ink)] shadow-[4px_4px_0px_rgba(0,0,0,0.1)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead className="bg-[var(--bg-paper)] border-b-2 border-[var(--border-ink)]">
+                <tr>
+                  <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">
+                    Company
+                  </th>
+                  <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">
+                    Contact Person
+                  </th>
+                  <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">
+                    Contact Info
+                  </th>
+                  <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">
+                    Score
+                  </th>
+                  <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">
+                    Status
+                  </th>
+                  <th className="p-4 font-sans font-bold text-[var(--text-primary)] w-32 text-center">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-pencil)] divide-dashed">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <SkeletonTableRow key={i} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
@@ -141,9 +182,22 @@ function LeadsPageContent() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Link href="/import" className="btn-secondary flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" strokeLinecap="round" strokeLinejoin="round" />
+          <Link
+            href="/import"
+            className="btn-secondary flex items-center gap-2"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
             Import CSV
           </Link>
@@ -605,9 +659,9 @@ function AddLeadModal({
 }
 
 export default function LeadsPage() {
-    return (
-        <ErrorBoundary>
-            <LeadsPageContent />
-        </ErrorBoundary>
-    );
+  return (
+    <ErrorBoundary>
+      <LeadsPageContent />
+    </ErrorBoundary>
+  );
 }

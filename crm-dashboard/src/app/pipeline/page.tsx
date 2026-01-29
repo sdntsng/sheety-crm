@@ -12,6 +12,10 @@ import { useSettings } from "@/providers/SettingsProvider";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { useSearchParams, useRouter } from "next/navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import {
+  SkeletonBox,
+  SkeletonPipelineColumn,
+} from "@/components/SkeletonLoader";
 
 function PipelinePageContent() {
   const [data, setData] = useState<PipelineData | null>(null);
@@ -98,15 +102,19 @@ function PipelinePageContent() {
   };
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-[var(--bg-surface)] rounded w-1/4 mb-6"></div>
-          <div className="flex gap-4 overflow-x-auto">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="w-72 h-96 bg-[var(--bg-surface)] rounded-xl shrink-0 border border-[var(--border-pencil)]"
-              ></div>
+      <div className="p-8 h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+        <div className="mb-6 flex justify-between items-center bg-[var(--bg-paper)] py-2 border-b-4 border-[var(--text-primary)]">
+          <div>
+            <SkeletonBox className="h-8 w-40 mb-2" />
+            <SkeletonBox className="h-4 w-56" />
+          </div>
+          <SkeletonBox className="h-10 w-28" />
+        </div>
+
+        <div className="flex-1 overflow-x-auto overflow-y-auto md:overflow-y-hidden pb-4">
+          <div className="flex flex-col md:flex-row gap-4 h-full md:w-max min-w-full">
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonPipelineColumn key={i} />
             ))}
           </div>
         </div>
@@ -175,9 +183,9 @@ function PipelinePageContent() {
 }
 
 export default function PipelinePage() {
-    return (
-        <ErrorBoundary>
-            <PipelinePageContent />
-        </ErrorBoundary>
-    );
+  return (
+    <ErrorBoundary>
+      <PipelinePageContent />
+    </ErrorBoundary>
+  );
 }
