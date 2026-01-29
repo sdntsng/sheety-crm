@@ -113,7 +113,7 @@ function PipelinePageContent() {
 
         <div className="flex-1 overflow-x-auto overflow-y-auto md:overflow-y-hidden pb-4">
           <div className="flex flex-col md:flex-row gap-4 h-full md:w-max min-w-full">
-            {[1, 2, 3, 4].map((i) => (
+            {Array.from({ length: 5 }).map((_, i) => (
               <SkeletonPipelineColumn key={i} />
             ))}
           </div>

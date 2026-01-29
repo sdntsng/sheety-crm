@@ -20,6 +20,7 @@ export default function AddOpportunityModal({
 }: AddOpportunityModalProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingLeads, setLoadingLeads] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     lead_id: "",
@@ -34,11 +35,14 @@ export default function AddOpportunityModal({
   }, []);
 
   const loadLeads = async () => {
+    setLoadingLeads(true);
     try {
       const data = await getLeads();
       setLeads(data.leads);
     } catch (err) {
       console.error("Failed to load leads", err);
+    } finally {
+      setLoadingLeads(false);
     }
   };
 
@@ -118,13 +122,16 @@ export default function AddOpportunityModal({
               <div className="relative">
                 <select
                   required
-                  className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-sans appearance-none focus:border-[var(--accent-blue)] focus:outline-none"
+                  disabled={loadingLeads}
+                  className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-sans appearance-none focus:border-[var(--accent-blue)] focus:outline-none disabled:opacity-50"
                   value={formData.lead_id}
                   onChange={(e) =>
                     setFormData({ ...formData, lead_id: e.target.value })
                   }
                 >
-                  <option value="">Select a Lead...</option>
+                  <option value="">
+                    {loadingLeads ? "Loading leads..." : "Select a Lead..."}
+                  </option>
                   {leads.map((lead) => (
                     <option key={lead.lead_id} value={lead.lead_id}>
                       {lead.company_name} ({lead.contact_name})
@@ -132,7 +139,7 @@ export default function AddOpportunityModal({
                   ))}
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-secondary)] text-xs">
-                  ▼
+                  {loadingLeads ? "..." : "▼"}
                 </div>
               </div>
             </div>

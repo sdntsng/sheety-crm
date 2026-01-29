@@ -118,6 +118,7 @@ function LeadsPageContent() {
   if (loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
+        {/* Header Skeleton */}
         <div className="mb-8 flex justify-between items-end border-b-4 border-[var(--text-primary)] pb-4">
           <div>
             <SkeletonBox className="h-10 w-64 mb-3" />
@@ -129,6 +130,14 @@ function LeadsPageContent() {
           </div>
         </div>
 
+        {/* Filters Skeleton */}
+        <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonBox key={i} className="h-9 w-24" />
+          ))}
+        </div>
+
+        {/* Table Skeleton */}
         <div className="bg-white border-2 border-[var(--border-ink)] shadow-[4px_4px_0px_rgba(0,0,0,0.1)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[800px]">

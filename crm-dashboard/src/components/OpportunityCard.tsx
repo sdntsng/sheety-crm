@@ -21,6 +21,7 @@ export default function OpportunityCard({
   onUpdate,
 }: OpportunityCardProps) {
   const [showModal, setShowModal] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [analysis, setAnalysis] = useState<OpportunityAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
@@ -54,9 +55,13 @@ export default function OpportunityCard({
   return (
     <>
       <div
-        className={`paper-card p-3 mb-3 cursor-grab active:cursor-grabbing border-l-4 stage-${stageClass} group relative overflow-hidden`}
+        className={`paper-card p-3 mb-3 cursor-grab active:cursor-grabbing border-l-4 stage-${stageClass} group relative overflow-hidden transition-opacity ${isDragging ? "opacity-50" : "opacity-100"}`}
         draggable
-        onDragStart={(e) => onDragStart(e, opportunity)}
+        onDragStart={(e) => {
+          setIsDragging(true);
+          onDragStart(e, opportunity);
+        }}
+        onDragEnd={() => setIsDragging(false)}
         onClick={() => setShowModal(true)}
       >
         {/* Paper texture overlay for card */}
