@@ -227,8 +227,9 @@ class MockWorksheet:
                     self.manager.update_row(
                         self.sheet_name, row_idx, values[0], self.title
                     )
-            except:
-                pass
+            except Exception:
+                # Intentionally ignore invalid ranges or update errors in this mock implementation.
+                return
 
     def append_row(self, values):
         self.manager.append_row(self.sheet_name, values, self.title)

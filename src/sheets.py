@@ -8,6 +8,19 @@ from .retry import sheets_api_retry
 console = Console()
 
 
+def _column_number_to_a1(col_number: int) -> str:
+    """Convert a 1-indexed column number to an A1 column label (e.g. 1->A, 27->AA)."""
+    if col_number < 1:
+        raise ValueError("col_number must be >= 1")
+
+    letters = ""
+    while col_number:
+        col_number, remainder = divmod(col_number - 1, 26)
+        letters = chr(65 + remainder) + letters
+
+    return letters
+
+
 class SheetManager:
     def __init__(self, gc: gspread.Client):
         self.gc = gc
@@ -144,15 +157,11 @@ class SheetManager:
             return None
         try:
             ws = sh.worksheet(worksheet_name)
-            # Calculate range, e.g., A2:Z2
-            start_cell = f"A{row_index}"
-            end_col = chr(65 + len(row_data) - 1)  # simple logic for < 26 cols
-            if len(row_data) > 26:
-                append_col = "Z"  # Fallback/TODO for >26 cols
+            end_col = _column_number_to_a1(len(row_data))
 
             # gspread update usage: update([cell_list] or range_name, values=[[]])
             # For a single row, values is [[col1, col2, ...]]
-            range_name = f"A{row_index}"
+            range_name = f"A{row_index}:{end_col}{row_index}"
             ws.update(range_name=range_name, values=[row_data])
             console.print(
                 f"[green]Updated row {row_index} in {sheet_name} (Batch)[/green]"

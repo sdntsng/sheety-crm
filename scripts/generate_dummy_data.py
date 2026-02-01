@@ -167,30 +167,33 @@ def main():
     # Clear data if requested
     if args.clear:
         console.print("[bold red]Clearing ALL data from sheet...[/bold red]")
-        if True:  # Skip prompt
-            console.print("Recreating worksheets...")
-            # Re-run creating worksheets to wipe them
-            from src.crm.templates import CRMTemplates
+        # NOTE: --clear is explicit; skip any interactive prompt.
+        console.print("Recreating worksheets...")
+        # Re-run creating worksheets to wipe them
+        from src.crm.templates import CRMTemplates
 
-            templates = CRMTemplates(gc)
+        templates = CRMTemplates(gc)
 
-            # Helper to delete if exists
-            def reset_ws(name):
-                try:
-                    sh.del_worksheet(sh.worksheet(name))
-                except:
-                    pass
+        # Helper to delete if exists
+        def reset_ws(name: str) -> None:
+            try:
+                sh.del_worksheet(sh.worksheet(name))
+            except Exception as exc:
+                # Worksheet may not exist or may not be deletable; log and continue.
+                console.print(
+                    f"[yellow]Skipping reset for worksheet '{name}': {exc}[/yellow]"
+                )
 
-            reset_ws("Leads")
-            reset_ws("Opportunities")
-            reset_ws("Activities")
-            reset_ws("Summary")
+        reset_ws("Leads")
+        reset_ws("Opportunities")
+        reset_ws("Activities")
+        reset_ws("Summary")
 
-            # Re-create structure
-            templates.ensure_worksheet(sh, "Leads")
-            templates.ensure_worksheet(sh, "Opportunities")
-            templates.ensure_worksheet(sh, "Activities")
-            templates.ensure_worksheet(sh, "Summary")
+        # Re-create structure
+        templates.ensure_worksheet(sh, "Leads")
+        templates.ensure_worksheet(sh, "Opportunities")
+        templates.ensure_worksheet(sh, "Activities")
+        templates.ensure_worksheet(sh, "Summary")
 
     # Generate Data
     leads = generate_leads(args.leads)
