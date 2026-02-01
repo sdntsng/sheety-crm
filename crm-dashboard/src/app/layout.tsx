@@ -10,6 +10,7 @@ import { SettingsProvider } from "@/providers/SettingsProvider";
 import { KeyboardShortcutsProvider } from "@/providers/KeyboardShortcutsContext";
 import CommandPalette from "@/components/CommandPalette";
 import MobileBottomNav from "@/components/MobileBottomNav";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Suspense } from "react";
 
 const sans = Outfit({
@@ -73,15 +74,17 @@ export default function RootLayout({
           <SessionProvider>
             <SettingsProvider>
               <KeyboardShortcutsProvider>
-                <div className="min-h-screen flex flex-col bg-paper text-ink">
-                  <Header />
-                  <main className="flex-1 relative">{children}</main>
-                  <Footer />
-                  {/* Spacer for mobile bottom nav */}
-                  <div className="h-20 md:hidden" />
-                  <CommandPalette />
-                  <MobileBottomNav />
-                </div>
+                <ErrorBoundary>
+                  <div className="min-h-screen flex flex-col bg-paper text-ink">
+                    <Header />
+                    <main className="flex-1 relative">{children}</main>
+                    <Footer />
+                    {/* Spacer for mobile bottom nav */}
+                    <div className="h-20 md:hidden" />
+                    <CommandPalette />
+                    <MobileBottomNav />
+                  </div>
+                </ErrorBoundary>
               </KeyboardShortcutsProvider>
             </SettingsProvider>
           </SessionProvider>
