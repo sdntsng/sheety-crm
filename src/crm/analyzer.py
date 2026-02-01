@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from .models import Opportunity, Activity, PipelineStage
 from openai import OpenAI
 
+
 class DealAnalyzer:
     def __init__(self, openai_api_key: Optional[str] = None):
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
@@ -13,14 +14,16 @@ class DealAnalyzer:
         else:
             self.client = None
 
-    def analyze_opportunity(self, opp: Opportunity, activities: List[Activity]) -> Dict[str, Any]:
+    def analyze_opportunity(
+        self, opp: Opportunity, activities: List[Activity]
+    ) -> Dict[str, Any]:
         """
         Analyzes an opportunity for risk and provides insights.
         """
         # 1. Calculate basic metrics
         today = datetime.now()
         age_days = (today - opp.created_at).days
-        
+
         last_activity_date = None
         if activities:
             last_activity_date = max(a.date for a in activities)
@@ -30,41 +33,59 @@ class DealAnalyzer:
 
         # 2. Heuristic risk assessment
         is_stale = days_since_last_activity > 14
-        is_old = age_days > 90 and opp.stage not in [PipelineStage.CLOSED_WON, PipelineStage.CLOSED_LOST]
-        
+        is_old = age_days > 90 and opp.stage not in [
+            PipelineStage.CLOSED_WON,
+            PipelineStage.CLOSED_LOST,
+        ]
+
         risk_score = 0
-        if is_stale: risk_score += 40
-        if is_old: risk_score += 30
-        if opp.probability < 20: risk_score += 20
-        
+        if is_stale:
+            risk_score += 40
+        if is_old:
+            risk_score += 30
+        if opp.probability < 20:
+            risk_score += 20
+
         # 3. AI-powered deep analysis
-        ai_insight = self._get_ai_insight(opp, activities, age_days, days_since_last_activity)
-        
+        ai_insight = self._get_ai_insight(
+            opp, activities, age_days, days_since_last_activity
+        )
+
         return {
             "opp_id": opp.opp_id,
             "risk_score": min(risk_score + ai_insight.get("score_adjustment", 0), 100),
-            "risk_level": "High" if risk_score > 60 else "Medium" if risk_score > 30 else "Low",
+            "risk_level": "High"
+            if risk_score > 60
+            else "Medium"
+            if risk_score > 30
+            else "Low",
             "risk_reason": ai_insight.get("reason", "No immediate risks identified."),
-            "next_best_action": ai_insight.get("next_action", "Continue regular follow-up."),
+            "next_best_action": ai_insight.get(
+                "next_action", "Continue regular follow-up."
+            ),
             "metrics": {
                 "age_days": age_days,
                 "days_since_last_activity": days_since_last_activity,
-                "activity_count": len(activities)
-            }
+                "activity_count": len(activities),
+            },
         }
 
-    def _get_ai_insight(self, opp: Opportunity, activities: List[Activity], age: int, inactive_days: int) -> Dict[str, Any]:
+    def _get_ai_insight(
+        self, opp: Opportunity, activities: List[Activity], age: int, inactive_days: int
+    ) -> Dict[str, Any]:
         if not self.client:
             return {
                 "score_adjustment": 0,
                 "reason": f"Deal is {age} days old. Last activity was {inactive_days} days ago.",
-                "next_action": "Schedule a follow-up meeting."
+                "next_action": "Schedule a follow-up meeting.",
             }
 
-        activity_summary = "\n".join([
-            f"- {a.date.date()}: {a.type.value} - {a.subject}"
-            for a in activities[-5:] # Last 5 activities
-        ])
+        activity_summary = "\n".join(
+            [
+                f"- {a.date.date()}: {a.type.value} - {a.subject}"
+                for a in activities[-5:]  # Last 5 activities
+            ]
+        )
 
         prompt = f"""
         You are a sales expert analyzing a deal for risk.
@@ -95,14 +116,18 @@ class DealAnalyzer:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a sales performance analyzer."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a sales performance analyzer.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             print(f"[Analyzer] AI error: {e}")
             return {}
+
 
 deal_analyzer = DealAnalyzer()
