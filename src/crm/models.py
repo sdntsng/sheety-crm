@@ -4,7 +4,7 @@ CRM Data Models using Pydantic for validation.
 from datetime import datetime, date
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 import uuid
 
 

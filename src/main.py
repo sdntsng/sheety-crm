@@ -433,7 +433,7 @@ def crm_score_lead(
         
         panel_content = Text()
         panel_content.append(f"\nLead: {lead.company_name}\n", style="bold")
-        panel_content.append(f"Score: ", style="bold")
+        panel_content.append("Score: ", style="bold")
         panel_content.append(f"{score}/100\n\n", style=f"bold {score_color}")
         
         panel_content.append("Reasoning:\n", style="bold")
@@ -480,7 +480,7 @@ def crm_sync_emails(
             # Sync for all leads
             console.print(f"[yellow]Syncing emails for all leads (last {days} days)...[/yellow]")
             stats = crm.sync_emails_for_all_leads(days_back=days)
-            console.print(f"[green]✓ Sync complete![/green]")
+            console.print("[green]✓ Sync complete![/green]")
             console.print(f"  Total leads: {stats['total_leads']}")
             console.print(f"  Leads with email: {stats['leads_with_email']}")
             console.print(f"  Emails synced: {stats['emails_synced']}")

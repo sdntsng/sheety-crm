@@ -114,6 +114,10 @@ crm-stop:
 lint-check:
 	@echo "Checking Frontend formatting (Prettier)..."
 	cd crm-dashboard && npm run format:check
+	@echo "Checking Backend lint (ruff)..."
+	./venv/bin/ruff check src api --select F
+
+lint: lint-check
 
 format:
 	@echo "Formatting Frontend (Prettier)..."

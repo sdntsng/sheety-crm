@@ -1,7 +1,6 @@
 import gspread
 from rich.table import Table
 from rich.console import Console
-from typing import List, Optional
 
 from .retry import sheets_api_retry
 
@@ -123,12 +122,7 @@ class SheetManager:
         if not sh: return None
         try:
             ws = sh.worksheet(worksheet_name)
-            # Calculate range, e.g., A2:Z2
-            start_cell = f"A{row_index}"
-            end_col = chr(65 + len(row_data) - 1) # simple logic for < 26 cols
-            if len(row_data) > 26: append_col = "Z" # Fallback/TODO for >26 cols
-            
-            # gspread update usage: update([cell_list] or range_name, values=[[]])
+            # gspread update usage: update(range_name, values=[[]])
             # For a single row, values is [[col1, col2, ...]]
             range_name = f"A{row_index}"
             ws.update(range_name=range_name, values=[row_data])
