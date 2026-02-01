@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks, File
 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 from datetime import date
 import csv
 import io
@@ -22,7 +22,6 @@ load_dotenv()
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.auth import authenticate
 from src.sheets import SheetManager
 from src.crm.manager import CRMManager
 from api.deps import get_crm_session
@@ -35,7 +34,6 @@ from src.crm.ai import AIManager
 
 # New dependency for just authenticated SheetManager (without CRM session)
 async def get_sheet_manager(authorization: Optional[str] = Header(None)):
-    from src.auth import authenticate
     from google.oauth2.credentials import Credentials
     from src.sheets import SheetManager
     import gspread
@@ -50,7 +48,7 @@ async def get_sheet_manager(authorization: Optional[str] = Header(None)):
     
     # MOCK MODE check
     if os.getenv("MOCK_DATA_MODE") == "true":
-        print(f"[Auth] Mock Mode enabled. Using MockSheetManager.")
+        print("[Auth] Mock Mode enabled. Using MockSheetManager.")
         from src.services.local_json import MockSheetManager
         return MockSheetManager()
 
@@ -420,22 +418,7 @@ def delete_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     return {"deleted": True}
 
 
-@app.post("/api/leads/{lead_id}/enrich")
-def enrich_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
-    """Enrich a lead with AI data."""
-    lead = crm.enrich_lead(lead_id)
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
-    return lead.model_dump()
-
-
-@app.post("/api/leads/{lead_id}/score")
-def score_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
-    """Assign an AI lead score (0-100)."""
-    lead = crm.score_lead(lead_id)
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
-    return lead.model_dump()
+# NOTE: Duplicate enrich/score endpoints removed. Use the async endpoints above.
 
 
 @app.post("/api/leads/{lead_id}/generate-email")

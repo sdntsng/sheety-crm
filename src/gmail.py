@@ -7,7 +7,6 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import base64
-import email
 from email.utils import parsedate_to_datetime
 import re
 

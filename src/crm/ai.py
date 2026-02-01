@@ -232,7 +232,7 @@ class AIManager:
             f"Probability: {opportunity.probability}%",
             f"Close Date: {opportunity.close_date.isoformat() if opportunity.close_date else 'Not set'}",
             f"Notes: {opportunity.notes or 'None'}",
-            f"\nLead Info:",
+            "\nLead Info:",
             f"- Company: {lead.company_name}",
             f"- Contact: {lead.contact_name}",
             f"- Status: {lead.status.value}",
