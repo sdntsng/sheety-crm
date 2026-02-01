@@ -10,6 +10,7 @@ import { SettingsProvider } from "@/providers/SettingsProvider";
 import { KeyboardShortcutsProvider } from "@/providers/KeyboardShortcutsContext";
 import CommandPalette from "@/components/CommandPalette";
 import MobileBottomNav from "@/components/MobileBottomNav";
+import NavigationProgress from "@/components/NavigationProgress";
 import { Suspense } from "react";
 
 const sans = Outfit({
@@ -67,6 +68,7 @@ export default function RootLayout({
         className={`${sans.variable} ${mono.variable} ${serif.variable} antialiased font-sans`}
       >
         <PostHogProvider>
+          <NavigationProgress />
           <Suspense fallback={null}>
             <PostHogPageView />
           </Suspense>
