@@ -65,7 +65,13 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryStat
                                     onClick={this.resetError}
                                     className="btn-primary"
                                 >
-                                    Try Again
+                                    Retry
+                                </button>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="px-4 py-2 font-mono text-xs uppercase font-bold border border-[var(--border-pencil)] rounded bg-white hover:bg-[var(--bg-hover)] transition-all"
+                                >
+                                    Reload
                                 </button>
                                 <button
                                     onClick={() => this.props.router?.push('/dashboard')}
