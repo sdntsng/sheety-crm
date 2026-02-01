@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import type { User } from "next-auth";
 import type { JWT } from "next-auth/jwt";
+import type { Provider } from "next-auth/providers";
 import Google from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 
@@ -21,14 +22,15 @@ async function refreshAccessToken(
   token: ExtendedToken,
 ): Promise<ExtendedToken> {
   try {
-    const url =
-      "https://oauth2.googleapis.com/token?" +
-      new URLSearchParams({
-        client_id: process.env.GOOGLE_CLIENT_ID || "",
-        client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
-        grant_type: "refresh_token",
-        refresh_token: token.refreshToken,
-      });
+    const params = new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID || "",
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+      grant_type: "refresh_token",
+    });
+    if (token.refreshToken) {
+      params.set("refresh_token", token.refreshToken);
+    }
+    const url = "https://oauth2.googleapis.com/token?" + params.toString();
 
     const response = await fetch(url, {
       headers: {
@@ -60,7 +62,7 @@ async function refreshAccessToken(
   }
 }
 
-const providers = [
+const providers: Provider[] = [
   Google({
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -132,10 +134,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       };
 
       if (token.user) {
-        enrichedSession.user = token.user as User;
+        const baseUser = session.user ?? {};
+        enrichedSession.user = {
+          ...baseUser,
+          ...token.user,
+          emailVerified:
+            (token.user as { emailVerified?: Date | null }).emailVerified ??
+            (baseUser as { emailVerified?: Date | null }).emailVerified ??
+            null,
+        } as typeof session.user;
       }
-      enrichedSession.accessToken = token.accessToken;
-      enrichedSession.error = token.error;
+      enrichedSession.accessToken = token.accessToken as string | undefined;
+      enrichedSession.error = token.error as string | undefined;
 
       return enrichedSession;
     },
