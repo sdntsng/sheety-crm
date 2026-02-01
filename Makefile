@@ -1,5 +1,5 @@
 
-.PHONY: setup login run lint crm-init crm-api crm-dashboard crm-dev kill-ports lint-check format
+.PHONY: install setup login whoami run lint list-sheets list-files update-cell append-row read-doc crm-init crm-add-lead crm-list crm-pipeline crm-api crm-dashboard crm-dev mock-dev crm-stop kill-ports lint-check format
 
 PYTHON = ./venv/bin/python
 MODULE = src.main
@@ -7,6 +7,10 @@ MODULE = src.main
 # Unique ports for CRM (using 2026 suffix to avoid conflicts)
 API_PORT = 8026
 DASHBOARD_PORT = 3026
+
+# Convenience aliases
+run: crm-dev
+lint: lint-check
 
 # =============================================================================
 # Setup & Auth
@@ -113,8 +117,8 @@ crm-stop:
 
 lint-check:
 	@echo "Checking Frontend formatting (Prettier)..."
-	cd crm-dashboard && npm run format:check
+	cd crm-dashboard && npx prettier --check .
 
 format:
 	@echo "Formatting Frontend (Prettier)..."
-	cd crm-dashboard && npm run format
+	cd crm-dashboard && npx prettier --write .
