@@ -22,6 +22,7 @@
     "lucide-react": "^0.562.0",
     "next": "16.1.2",
     "next-auth": "^5.0.0-beta.30",
+    "nprogress": "^0.2.0",
     "posthog-js": "^1.328.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
