@@ -68,8 +68,8 @@ export default function RootLayout({
         className={`${sans.variable} ${mono.variable} ${serif.variable} antialiased font-sans`}
       >
         <PostHogProvider>
-          <NavigationProgress />
           <Suspense fallback={null}>
+            <NavigationProgress />
             <PostHogPageView />
           </Suspense>
           <SessionProvider>
