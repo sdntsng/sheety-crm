@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `POST /api/import/csv/preview` - Preview mapped data
   - `POST /api/import/csv/execute` - Execute batch import
 - **Navigation**: Import CSV button added to Leads page
+- **Gmail Integration**: Auto-log email activity from Gmail
+  - OAuth scope for Gmail read-only access (`gmail.readonly`)
+  - `GmailManager` service for fetching emails via Gmail API
+  - Email sync functionality in `CRMManager` to auto-log emails as activities
+  - API endpoints: `/api/leads/{lead_id}/sync-emails`, `/api/sync-emails/all`, `/api/leads/{lead_id}/email-summary`
+  - CLI command: `crm-sync-emails` for syncing emails from command line
+  - Background job support for syncing all leads' emails
+  - Privacy-conscious implementation with user consent required
 
 ## [0.52.0] - 2026-01-18
 **AI Enrichment & Data Scaling**

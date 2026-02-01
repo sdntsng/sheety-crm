@@ -10,6 +10,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/documents.readonly",
+    "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
 CREDENTIALS_FILE = "credentials.json"

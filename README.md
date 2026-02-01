@@ -29,6 +29,7 @@ It treats your Google Sheet as the single source of truth. The app is just a bea
 - 📥 **Data Import**: CSV import wizard for migrating from HubSpot, Salesforce, or Excel.
 - ⚡ **Global Search**: Find anything instantly with `Cmd+K` (or `/`).
 - 📝 **Activity Feed**: Log calls, emails, and meetings.
+- 📧 **Gmail Integration**: Auto-sync email communications as activities.
 - 🎨 **Paper Theme**: A distraction-free, tactile "digital paper" aesthetic.
 - 🔒 **Privacy First**: We don't store your data. We verify ownership via Google OAuth.
 
@@ -93,6 +94,7 @@ git push origin feature/your-feature
 
 - [Setup Guide](docs/SETUP_GUIDE.md) — Local & production setup
 - [Architecture](docs/ARCHITECTURE.md) — How Sheety works
+- [Gmail Integration](docs/GMAIL_INTEGRATION.md) — Email sync setup & usage
 
 ## 📄 License
 

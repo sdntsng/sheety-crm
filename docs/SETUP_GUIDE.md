@@ -35,7 +35,10 @@ Complete setup instructions for local development and production deployment.
    - `openid`
    - `https://www.googleapis.com/auth/spreadsheets`
    - `https://www.googleapis.com/auth/drive.file`
+   - `https://www.googleapis.com/auth/gmail.readonly` (for email integration)
 5. Add test users (your email) for development
+
+> ⚠️ **Privacy Note**: The Gmail readonly scope allows Sheety to read your emails for activity logging. This is optional - the app will work without it, but email sync features will not be available.
 
 ### C. Create OAuth Credentials
 

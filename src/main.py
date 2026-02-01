@@ -453,6 +453,44 @@ def crm_score_lead(
         console.print(f"[red]Error: {e}[/red]")
 
 
+@app.command()
+def crm_sync_emails(
+    lead_id: str = typer.Option(None, help="Sync emails for specific lead ID"),
+    days: int = typer.Option(7, help="Days back to search"),
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """Sync emails from Gmail and log as activities."""
+    from .crm.manager import CRMManager
+    try:
+        gc, creds = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet, google_creds=creds)
+        
+        if lead_id:
+            # Sync for specific lead
+            lead = crm.get_lead(lead_id)
+            if not lead:
+                console.print(f"[red]Lead {lead_id} not found[/red]")
+                return
+            
+            console.print(f"[yellow]Syncing emails for {lead.company_name}...[/yellow]")
+            activities = crm.sync_emails_for_lead(lead, days_back=days)
+            console.print(f"[green]✓ Synced {len(activities)} emails[/green]")
+        else:
+            # Sync for all leads
+            console.print(f"[yellow]Syncing emails for all leads (last {days} days)...[/yellow]")
+            stats = crm.sync_emails_for_all_leads(days_back=days)
+            console.print(f"[green]✓ Sync complete![/green]")
+            console.print(f"  Total leads: {stats['total_leads']}")
+            console.print(f"  Leads with email: {stats['leads_with_email']}")
+            console.print(f"  Emails synced: {stats['emails_synced']}")
+            if stats['errors'] > 0:
+                console.print(f"  [red]Errors: {stats['errors']}[/red]")
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
 if __name__ == "__main__":
     app()
+
 
