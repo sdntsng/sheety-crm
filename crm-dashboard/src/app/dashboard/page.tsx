@@ -10,6 +10,7 @@ import Link from "next/link";
 import SheetSelector from "@/components/SheetSelector";
 import { SkeletonBox, SkeletonStatCard } from "@/components/SkeletonLoader";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import OnboardingTour, { isTourCompleted } from "@/components/OnboardingTour";
 
 function DashboardSkeleton({ subtitle }: { subtitle: string }) {
   return (
@@ -84,6 +85,7 @@ function DashboardPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
   const [checkingStorage, setCheckingStorage] = useState(true);
+  const [runTour, setRunTour] = useState(false);
 
   useEffect(() => {
     // Check for sheet selection in local storage
@@ -92,6 +94,24 @@ function DashboardPageContent() {
       setSelectedSheet(saved);
     }
     setCheckingStorage(false);
+
+    // Check if we should run the tour (first login)
+    if (saved && !isTourCompleted()) {
+      let retryCount = 0;
+      const maxRetries = 10;
+
+      const checkElementsAndStartTour = () => {
+        const dashboardLink = document.querySelector('[data-tour="dashboard"]');
+        if (dashboardLink) {
+          setRunTour(true);
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(checkElementsAndStartTour, 200);
+        }
+      };
+
+      setTimeout(checkElementsAndStartTour, 500);
+    }
   }, []);
 
   const handleSheetSelection = (sheet: { id: string; name: string }) => {
@@ -351,6 +371,9 @@ function DashboardPageContent() {
           </div>
         </div>
       </div>
+      {/* Onboarding Tour */}
+      <OnboardingTour run={runTour} onComplete={() => setRunTour(false)} />
+
     </div>
   );
 }

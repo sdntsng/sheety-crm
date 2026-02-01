@@ -84,9 +84,9 @@ const CompareIcon = () => (
 );
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: DashboardIcon },
-  { href: "/pipeline", label: "Pipeline", icon: PipelineIcon },
-  { href: "/leads", label: "Leads", icon: LeadsIcon },
+  { href: "/dashboard", label: "Dashboard", icon: DashboardIcon, tourId: "dashboard" },
+  { href: "/pipeline", label: "Pipeline", icon: PipelineIcon, tourId: "pipeline" },
+  { href: "/leads", label: "Leads", icon: LeadsIcon, tourId: "leads" },
 ];
 
 export default function Header() {
@@ -239,6 +239,7 @@ export default function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  data-tour={item.tourId}
                   className={`header-nav-item flex items-center gap-2 ${pathname === item.href ? "active border-b-2 border-[var(--accent-blue)] text-[var(--accent-blue)]" : "border-transparent"}`}
                 >
                   <Icon />
@@ -267,6 +268,7 @@ export default function Header() {
               {/* Settings Link */}
               <Link
                 href="/settings"
+                data-tour="settings"
                 className="p-2 text-[var(--color-ink-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-full transition-colors"
                 title="Settings"
               >

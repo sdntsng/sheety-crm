@@ -212,6 +212,7 @@ function LeadsPageContent() {
           </Link>
           <button
             className="btn-primary flex items-center gap-2"
+            data-tour="add-lead"
             onClick={() => setShowModal(true)}
           >
             <span className="text-xl leading-none">+</span> New Entry
