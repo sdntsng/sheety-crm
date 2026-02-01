@@ -1,6 +1,7 @@
 """
 CRM Data Models using Pydantic for validation.
 """
+
 from datetime import datetime, date
 from enum import Enum
 from typing import Optional
@@ -15,6 +16,7 @@ def generate_id() -> str:
 
 class LeadStatus(str, Enum):
     """Lead lifecycle statuses."""
+
     NEW = "New"
     CONTACTED = "Contacted"
     QUALIFIED = "Qualified"
@@ -25,6 +27,7 @@ class LeadStatus(str, Enum):
 
 class LeadSource(str, Enum):
     """How leads are acquired."""
+
     WEBSITE = "Website"
     REFERRAL = "Referral"
     COLD_OUTREACH = "Cold Outreach"
@@ -35,6 +38,7 @@ class LeadSource(str, Enum):
 
 class CompanySize(str, Enum):
     """Company size buckets."""
+
     TINY = "1-10"
     SMALL = "11-50"
     MEDIUM = "51-200"
@@ -44,6 +48,7 @@ class CompanySize(str, Enum):
 
 class PipelineStage(str, Enum):
     """Sales pipeline stages - from first contact to cash in bank."""
+
     PROSPECTING = "Prospecting"
     DISCOVERY = "Discovery"
     PROPOSAL = "Proposal"
@@ -58,6 +63,7 @@ class PipelineStage(str, Enum):
 
 class ActivityType(str, Enum):
     """Types of activities logged."""
+
     CALL = "Call"
     EMAIL = "Email"
     MEETING = "Meeting"
@@ -67,6 +73,7 @@ class ActivityType(str, Enum):
 
 class Lead(BaseModel):
     """A sales lead - typically a company/organization."""
+
     lead_id: str = Field(default_factory=generate_id)
     company_name: str
     contact_name: str
@@ -96,7 +103,9 @@ class Lead(BaseModel):
             self.contact_name,
             self.contact_email or "",
             self.contact_phone or "",
-            self.status.value if self.status != LeadStatus.UNKNOWN else (self.status_raw or ""),
+            self.status.value
+            if self.status != LeadStatus.UNKNOWN
+            else (self.status_raw or ""),
             self.source.value,
             self.industry or "",
             self.company_size.value if self.company_size else "",
@@ -124,7 +133,7 @@ class Lead(BaseModel):
                     return enum_cls(val)
                 except ValueError:
                     return default
-            
+
             def safe_int(val, default=None):
                 if not val:
                     return default
@@ -137,7 +146,7 @@ class Lead(BaseModel):
             status_val = row[5] if len(row) > 5 else None
             status = LeadStatus.NEW
             status_raw = None
-            
+
             if status_val:
                 try:
                     status = LeadStatus(status_val)
@@ -153,9 +162,13 @@ class Lead(BaseModel):
                 contact_phone=row[4] if len(row) > 4 and row[4] else None,
                 status=status,
                 status_raw=status_raw,
-                source=safe_enum(LeadSource, row[6] if len(row) > 6 else None, LeadSource.OTHER),
+                source=safe_enum(
+                    LeadSource, row[6] if len(row) > 6 else None, LeadSource.OTHER
+                ),
                 industry=row[7] if len(row) > 7 and row[7] else None,
-                company_size=safe_enum(CompanySize, row[8] if len(row) > 8 else None, None),
+                company_size=safe_enum(
+                    CompanySize, row[8] if len(row) > 8 else None, None
+                ),
                 notes=row[9] if len(row) > 9 and row[9] else None,
                 website=row[10] if len(row) > 10 and row[10] else None,
                 linkedin_url=row[11] if len(row) > 11 and row[11] else None,
@@ -163,8 +176,12 @@ class Lead(BaseModel):
                 enrichment_status=row[13] if len(row) > 13 and row[13] else None,
                 score=safe_int(row[14] if len(row) > 14 else None),
                 heat_level=row[15] if len(row) > 15 and row[15] else None,
-                created_at=datetime.fromisoformat(row[16]) if len(row) > 16 and row[16] else datetime.now(),
-                updated_at=datetime.fromisoformat(row[17]) if len(row) > 17 and row[17] else datetime.now(),
+                created_at=datetime.fromisoformat(row[16])
+                if len(row) > 16 and row[16]
+                else datetime.now(),
+                updated_at=datetime.fromisoformat(row[17])
+                if len(row) > 17 and row[17]
+                else datetime.now(),
                 owner=row[18] if len(row) > 18 and row[18] else None,
             )
         except Exception as e:
@@ -180,18 +197,31 @@ class Lead(BaseModel):
     def headers(cls) -> list:
         """Return column headers for the Leads sheet."""
         return [
-            "lead_id", "company_name", "contact_name", "contact_email", "contact_phone",
-            "status", "source", "industry", "company_size", "notes",
-            "website", "linkedin_url", "logo_url", "enrichment_status",
-            "score", "heat_level",
-            "created_at", "updated_at", "owner"
+            "lead_id",
+            "company_name",
+            "contact_name",
+            "contact_email",
+            "contact_phone",
+            "status",
+            "source",
+            "industry",
+            "company_size",
+            "notes",
+            "website",
+            "linkedin_url",
+            "logo_url",
+            "enrichment_status",
+            "score",
+            "heat_level",
+            "created_at",
+            "updated_at",
+            "owner",
         ]
-
-
 
 
 class Opportunity(BaseModel):
     """A sales opportunity - a potential deal."""
+
     opp_id: str = Field(default_factory=generate_id)
     lead_id: str
     title: str
@@ -218,7 +248,9 @@ class Opportunity(BaseModel):
             self.opp_id,
             self.lead_id,
             self.title,
-            self.stage.value if self.stage != PipelineStage.UNKNOWN else (self.stage_raw or ""),
+            self.stage.value
+            if self.stage != PipelineStage.UNKNOWN
+            else (self.stage_raw or ""),
             str(self.value),
             str(self.probability),
             str(self.expected_value),
@@ -245,7 +277,7 @@ class Opportunity(BaseModel):
                     return float(clean) if clean else default
                 except (ValueError, TypeError):
                     return default
-            
+
             def safe_int(val, default=0):
                 if not val:
                     return default
@@ -253,7 +285,7 @@ class Opportunity(BaseModel):
                     return int(float(str(val)))
                 except (ValueError, TypeError):
                     return default
-            
+
             def safe_enum(enum_cls, val, default):
                 if not val:
                     return default
@@ -261,7 +293,7 @@ class Opportunity(BaseModel):
                     return enum_cls(val)
                 except ValueError:
                     return default
-            
+
             def safe_date(val):
                 if not val:
                     return None
@@ -269,7 +301,7 @@ class Opportunity(BaseModel):
                     return date.fromisoformat(str(val)[:10])
                 except (ValueError, TypeError):
                     return None
-            
+
             def safe_datetime(val):
                 if not val:
                     return None
@@ -277,12 +309,12 @@ class Opportunity(BaseModel):
                     return datetime.fromisoformat(str(val))
                 except (ValueError, TypeError):
                     return None
-            
+
             # Custom stage parsing logic
             stage_val = row[3] if len(row) > 3 else None
             stage = PipelineStage.PROSPECTING
             stage_raw = None
-            
+
             if stage_val:
                 try:
                     stage = PipelineStage(stage_val)
@@ -302,8 +334,10 @@ class Opportunity(BaseModel):
                 close_date=safe_date(row[7] if len(row) > 7 else None),
                 product=row[8] if len(row) > 8 and row[8] else None,
                 notes=row[9] if len(row) > 9 and row[9] else None,
-                created_at=safe_datetime(row[10] if len(row) > 10 else None) or datetime.now(),
-                updated_at=safe_datetime(row[11] if len(row) > 11 else None) or datetime.now(),
+                created_at=safe_datetime(row[10] if len(row) > 10 else None)
+                or datetime.now(),
+                updated_at=safe_datetime(row[11] if len(row) > 11 else None)
+                or datetime.now(),
                 closed_at=safe_datetime(row[12] if len(row) > 12 else None),
                 owner=row[13] if len(row) > 13 and row[13] else None,
             )
@@ -319,13 +353,26 @@ class Opportunity(BaseModel):
     def headers(cls) -> list:
         """Return column headers for the Opportunities sheet."""
         return [
-            "opp_id", "lead_id", "title", "stage", "value", "probability", "expected_value",
-            "close_date", "product", "notes", "created_at", "updated_at", "closed_at", "owner"
+            "opp_id",
+            "lead_id",
+            "title",
+            "stage",
+            "value",
+            "probability",
+            "expected_value",
+            "close_date",
+            "product",
+            "notes",
+            "created_at",
+            "updated_at",
+            "closed_at",
+            "owner",
         ]
 
 
 class Activity(BaseModel):
     """An activity log entry."""
+
     activity_id: str = Field(default_factory=generate_id)
     lead_id: str
     opp_id: Optional[str] = None
@@ -366,6 +413,12 @@ class Activity(BaseModel):
     def headers(cls) -> list:
         """Return column headers for the Activities sheet."""
         return [
-            "activity_id", "lead_id", "opp_id", "type", "subject",
-            "description", "date", "created_by"
+            "activity_id",
+            "lead_id",
+            "opp_id",
+            "type",
+            "subject",
+            "description",
+            "date",
+            "created_by",
         ]

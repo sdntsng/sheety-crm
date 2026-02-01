@@ -10,9 +10,10 @@ import os
 # In a real production app, use Redis or Memcached.
 _user_sessions: Dict[str, CRMManager] = {}
 
+
 async def get_crm_session(
     authorization: Optional[str] = Header(None),
-    x_sheet_id: Optional[str] = Header(None)
+    x_sheet_id: Optional[str] = Header(None),
 ) -> CRMManager:
     """
     Dependency that returns a CRMManager authenticated with the user's Bearer token.
@@ -25,38 +26,44 @@ async def get_crm_session(
         # Check if we have server credentials loaded globally (from server.py's old logic)
         # But better to just re-authentication using src.auth default
         from src.auth import authenticate
+
         try:
-             # This uses local token.json or Service Account Env
-             # This uses local token.json or Service Account Env
-             gc, creds = authenticate()
-             
-             # Use a fixed key for local dev session
-             cache_key = f"local_dev::{x_sheet_id or 'default'}"
-             
-             if cache_key in _user_sessions:
-                 return _user_sessions[cache_key]
-                 
-             sheet_name = x_sheet_id or "Sales Pipeline 2026"
-             crm = CRMManager(SheetManager(gc), sheet_name=sheet_name, google_creds=creds)
-             _user_sessions[cache_key] = crm
-             return crm
+            # This uses local token.json or Service Account Env
+            # This uses local token.json or Service Account Env
+            gc, creds = authenticate()
+
+            # Use a fixed key for local dev session
+            cache_key = f"local_dev::{x_sheet_id or 'default'}"
+
+            if cache_key in _user_sessions:
+                return _user_sessions[cache_key]
+
+            sheet_name = x_sheet_id or "Sales Pipeline 2026"
+            crm = CRMManager(
+                SheetManager(gc), sheet_name=sheet_name, google_creds=creds
+            )
+            _user_sessions[cache_key] = crm
+            return crm
         except Exception as e:
             print(f"Auth Fallback Error: {e}")
-            raise HTTPException(status_code=401, detail="Authentication required (Bearer Token or Server Credentials)")
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required (Bearer Token or Server Credentials)",
+            )
 
     # 2. Multi-Tenant / SaaS Mode
     token = authorization.replace("Bearer ", "").strip()
     if not token:
-         raise HTTPException(status_code=401, detail="Invalid authorization header")
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
 
     # MOCK MODE check
     if os.getenv("MOCK_DATA_MODE") == "true":
         # Accept any token, or specific mock token
         print(f"[MockMode] Using Mock Data Service for token: {token[:10]}...")
         from src.services.local_json import MockSheetManager
-        
+
         # We can cache mock sessions too if we want, but it's file based so cheap to re-init
-        sm = MockSheetManager() # Uses data/mock_crm.json
+        sm = MockSheetManager()  # Uses data/mock_crm.json
         sheet_name = x_sheet_id if x_sheet_id else "Sales Pipeline 2026"
         return CRMManager(sm, sheet_name=sheet_name)
 
@@ -72,7 +79,7 @@ async def get_crm_session(
         # NOTE: We only have access_token here. Refresh handled by Frontend (NextAuth).
         creds = Credentials(token=token)
         gc = gspread.authorize(creds)
-        
+
         # Instantiate CRM Manager for this user
         # We assume the user has the "Sales Pipeline 2026" sheet.
         # If not, errors will occur in methods, can be handled there.
@@ -80,10 +87,10 @@ async def get_crm_session(
         # Use provided sheet_id or default
         sheet_name = x_sheet_id if x_sheet_id else "Sales Pipeline 2026"
         crm = CRMManager(sm, sheet_name=sheet_name, google_creds=creds)
-        
+
         _user_sessions[cache_key] = crm
         return crm
-        
+
     except Exception as e:
         print(f"Auth Error: {e}")
         raise HTTPException(status_code=401, detail="Invalid or expired token")
