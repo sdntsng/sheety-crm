@@ -3,24 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<string | null>(null);
+  const [theme, setTheme] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const stored = localStorage.getItem("theme");
+    if (stored) return stored;
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches;
+    return prefersDark ? "dark" : "light";
+  });
 
   useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    let initialTheme: string;
-
-    if (stored) {
-      initialTheme = stored;
-    } else {
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
-      initialTheme = prefersDark ? "dark" : "light";
-    }
-
-    setTheme(initialTheme);
-    document.documentElement.setAttribute("data-theme", initialTheme);
-  }, []);
+    if (!theme) return;
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   const toggleTheme = useCallback(() => {
     if (!theme) return;

@@ -14,48 +14,39 @@ const SettingsContext = createContext<SettingsContextType | undefined>(
 );
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [hiddenStages, setHiddenStages] = useState<string[]>([]);
-  const [hiddenStatuses, setHiddenStatuses] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const savedStages = localStorage.getItem("crm_settings_hidden_stages");
-    const savedStatuses = localStorage.getItem("crm_settings_hidden_statuses");
-
-    if (savedStages) {
-      try {
-        setHiddenStages(JSON.parse(savedStages));
-      } catch (e) {
-        console.error("Failed to parse hidden stages", e);
-      }
+  const readStored = (key: string) => {
+    if (typeof window === "undefined") return [] as string[];
+    const stored = localStorage.getItem(key);
+    if (!stored) return [] as string[];
+    try {
+      return JSON.parse(stored) as string[];
+    } catch (e) {
+      console.error(`Failed to parse ${key}`, e);
+      return [] as string[];
     }
-    if (savedStatuses) {
-      try {
-        setHiddenStatuses(JSON.parse(savedStatuses));
-      } catch (e) {
-        console.error("Failed to parse hidden statuses", e);
-      }
-    }
-    setLoaded(true);
-  }, []);
+  };
+
+  const [hiddenStages, setHiddenStages] = useState<string[]>(() =>
+    readStored("crm_settings_hidden_stages"),
+  );
+  const [hiddenStatuses, setHiddenStatuses] = useState<string[]>(() =>
+    readStored("crm_settings_hidden_statuses"),
+  );
 
   // Save to localStorage on change
   useEffect(() => {
-    if (!loaded) return;
     localStorage.setItem(
       "crm_settings_hidden_stages",
       JSON.stringify(hiddenStages),
     );
-  }, [hiddenStages, loaded]);
+  }, [hiddenStages]);
 
   useEffect(() => {
-    if (!loaded) return;
     localStorage.setItem(
       "crm_settings_hidden_statuses",
       JSON.stringify(hiddenStatuses),
     );
-  }, [hiddenStatuses, loaded]);
+  }, [hiddenStatuses]);
 
   const toggleStage = (stage: string) => {
     setHiddenStages((prev) =>

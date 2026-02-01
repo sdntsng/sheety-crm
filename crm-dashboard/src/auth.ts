@@ -1,4 +1,6 @@
 import NextAuth from "next-auth";
+import type { User } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import Google from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 
@@ -7,7 +9,17 @@ import CredentialsProvider from "next-auth/providers/credentials";
  * `accessToken` and `accessTokenExpires`. If an error occurs,
  * returns the old token and an error property
  */
-async function refreshAccessToken(token: any) {
+type ExtendedToken = JWT & {
+  accessToken?: string;
+  accessTokenExpires?: number;
+  refreshToken?: string;
+  error?: string;
+  user?: User;
+};
+
+async function refreshAccessToken(
+  token: ExtendedToken,
+): Promise<ExtendedToken> {
   try {
     const url =
       "https://oauth2.googleapis.com/token?" +
@@ -48,7 +60,7 @@ async function refreshAccessToken(token: any) {
   }
 }
 
-const providers: any[] = [
+const providers = [
   Google({
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -79,7 +91,7 @@ if (process.env.NEXT_PUBLIC_MOCK_AUTH === "true") {
           email: "dev@localhost",
           image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
           accessToken: "mock_token_xyz", // Backend checks this
-        } as any;
+        } as User;
       },
     }),
   );
@@ -104,9 +116,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Return previous token if the access token has not expired yet
-      // @ts-ignore
-      const expiresAt = token.accessTokenExpires as number;
-      if (Date.now() < expiresAt) {
+      const expiresAt = token.accessTokenExpires;
+      if (typeof expiresAt === "number" && Date.now() < expiresAt) {
         return token;
       }
 
@@ -115,14 +126,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return refreshAccessToken(token);
     },
     async session({ session, token }) {
-      // @ts-ignore
-      session.user = token.user;
-      // @ts-ignore
-      session.accessToken = token.accessToken;
-      // @ts-ignore
-      session.error = token.error;
+      const enrichedSession = session as typeof session & {
+        accessToken?: string;
+        error?: string;
+      };
 
-      return session;
+      if (token.user) {
+        enrichedSession.user = token.user as User;
+      }
+      enrichedSession.accessToken = token.accessToken;
+      enrichedSession.error = token.error;
+
+      return enrichedSession;
     },
   },
   pages: {

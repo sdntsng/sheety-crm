@@ -150,7 +150,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 // Helper for authenticated requests with session error detection
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  let headers: Record<string, string> = {
+  const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
 
@@ -461,38 +461,44 @@ export interface ImportExecuteResponse {
 
 export async function uploadCSV(file: File): Promise<CSVUploadResponse> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append("file", file);
 
   const response = await fetchWithAuth(`${API_BASE}/api/import/csv/upload`, {
-    method: 'POST',
+    method: "POST",
     body: formData,
   });
   return handleResponse(response);
 }
 
-export async function previewImport(file: File, mappings: ColumnMapping[]): Promise<ImportPreviewResponse> {
+export async function previewImport(
+  file: File,
+  mappings: ColumnMapping[],
+): Promise<ImportPreviewResponse> {
   const formData = new FormData();
-  formData.append('file', file);
-  
+  formData.append("file", file);
+
   const url = new URL(`${API_BASE}/api/import/csv/preview`);
-  url.searchParams.append('mappings', JSON.stringify(mappings));
-  
+  url.searchParams.append("mappings", JSON.stringify(mappings));
+
   const response = await fetchWithAuth(url.toString(), {
-    method: 'POST',
+    method: "POST",
     body: formData,
   });
   return handleResponse(response);
 }
 
-export async function executeImport(file: File, mappings: ColumnMapping[]): Promise<ImportExecuteResponse> {
+export async function executeImport(
+  file: File,
+  mappings: ColumnMapping[],
+): Promise<ImportExecuteResponse> {
   const formData = new FormData();
-  formData.append('file', file);
-  
+  formData.append("file", file);
+
   const url = new URL(`${API_BASE}/api/import/csv/execute`);
-  url.searchParams.append('mappings', JSON.stringify(mappings));
-  
+  url.searchParams.append("mappings", JSON.stringify(mappings));
+
   const response = await fetchWithAuth(url.toString(), {
-    method: 'POST',
+    method: "POST",
     body: formData,
   });
   return handleResponse(response);

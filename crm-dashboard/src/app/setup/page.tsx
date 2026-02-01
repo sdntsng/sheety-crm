@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSheet, addSchemaToSheet } from "@/lib/api";
 import { useSession } from "next-auth/react";
@@ -16,23 +16,16 @@ interface Sheet {
 export default function SetupPage() {
   const router = useRouter();
   const { data: session, status } = useSession(); // Get status to check loading/unauth
-  const [openPicker, authResponse] = useDrivePicker();
+  const [openPicker] = useDrivePicker();
 
   // State
-  const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newSheetName, setNewSheetName] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("selected_sheet_name");
-    if (saved) setSelectedSheet(saved);
-  }, []);
-
   const handleOpenPicker = () => {
-    // @ts-ignore
-    const token = session?.accessToken;
+    const token = (session as { accessToken?: string } | null)?.accessToken;
 
     if (!token) {
       setError("Authentication token missing. Please sign in again.");
@@ -57,8 +50,7 @@ export default function SetupPage() {
   };
 
   const handleOpenSchemaPicker = () => {
-    // @ts-ignore
-    const token = session?.accessToken;
+    const token = (session as { accessToken?: string } | null)?.accessToken;
 
     if (!token) {
       setError("Authentication token missing. Please sign in again.");
@@ -80,8 +72,10 @@ export default function SetupPage() {
           try {
             await addSchemaToSheet(doc.id);
             alert("Schema sheet added successfully!");
-          } catch (err: any) {
-            setError(err.message || "Failed to add schema sheet");
+          } catch (err: unknown) {
+            const message =
+              err instanceof Error ? err.message : "Failed to add schema sheet";
+            setError(message);
           } finally {
             setCreating(false);
           }
@@ -93,7 +87,6 @@ export default function SetupPage() {
   const handleSelect = (sheet: Sheet) => {
     localStorage.setItem("selected_sheet_id", sheet.id);
     localStorage.setItem("selected_sheet_name", sheet.name);
-    setSelectedSheet(sheet.name);
     setTimeout(() => router.push("/"), 500);
   };
 

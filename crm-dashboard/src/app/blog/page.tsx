@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Category = "All" | "Comparison" | "Thoughts" | "Guide";
@@ -105,12 +105,6 @@ export default function BlogIndex() {
   const searchParams = useSearchParams();
   const initialCategory = (searchParams.get("category") as Category) || "All";
   const [filter, setFilter] = useState<Category>(initialCategory);
-
-  // Update filter if URL changes
-  useEffect(() => {
-    const cat = searchParams.get("category") as Category;
-    if (cat) setFilter(cat);
-  }, [searchParams]);
 
   const filteredArticles = articles.filter((article) =>
     filter === "All" ? true : article.category === filter,

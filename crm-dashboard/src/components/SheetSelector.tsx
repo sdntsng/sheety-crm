@@ -29,8 +29,7 @@ export default function SheetSelector({ onSheetSelected }: SheetSelectorProps) {
   const [error, setError] = useState<string | null>(null);
 
   const handleOpenPicker = () => {
-    // @ts-ignore
-    const token = session?.accessToken;
+    const token = (session as { accessToken?: string } | null)?.accessToken;
 
     if (!token) {
       setError("Authentication token missing. Please sign in again.");

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import SearchBar from "./SearchBar";
 import SheetyIcon from "./icons/SheetyIcon";
 import ThemeToggle from "./ThemeToggle";
@@ -84,15 +84,24 @@ const CompareIcon = () => (
 );
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: DashboardIcon, tourId: "dashboard" },
-  { href: "/pipeline", label: "Pipeline", icon: PipelineIcon, tourId: "pipeline" },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: DashboardIcon,
+    tourId: "dashboard",
+  },
+  {
+    href: "/pipeline",
+    label: "Pipeline",
+    icon: PipelineIcon,
+    tourId: "pipeline",
+  },
   { href: "/leads", label: "Leads", icon: LeadsIcon, tourId: "leads" },
 ];
 
 export default function Header() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSheetMenu, setShowSheetMenu] = useState(false);
   const [showCompareMenu, setShowCompareMenu] = useState(false);
@@ -102,14 +111,11 @@ export default function Header() {
 
   const isAuthenticated = status === "authenticated";
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      const saved = localStorage.getItem("selected_sheet_name");
-      setSelectedSheet(saved);
-    } else {
-      setSelectedSheet(null);
-    }
-  }, [pathname, isAuthenticated]);
+  const selectedSheet = useMemo(() => {
+    if (!isAuthenticated) return null;
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("selected_sheet_name");
+  }, [isAuthenticated, pathname]);
 
   // Close menus on outside click
   useEffect(() => {
