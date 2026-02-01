@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Opportunity,
   Activity,
   getActivities,
-  createActivity,
   getOpportunityAnalysis,
   OpportunityAnalysis,
 } from "@/lib/api";
+import ActivityTimeline from "@/components/ActivityTimeline";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { SkeletonActivityItem } from "@/components/SkeletonLoader";
 
@@ -27,8 +27,6 @@ export default function OpportunityDetailModal({
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [analysis, setAnalysis] = useState<OpportunityAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
-  const [newNote, setNewNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadActivities();
@@ -61,30 +59,6 @@ export default function OpportunityDetailModal({
       console.error("Failed to load analysis", err);
     } finally {
       setLoadingAnalysis(false);
-    }
-  };
-
-  const handleAddNote = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNote.trim()) return;
-
-    setSubmitting(true);
-    try {
-      await createActivity({
-        lead_id: opportunity.lead_id,
-        opp_id: opportunity.opp_id,
-        type: "Note",
-        subject: "Quick Update",
-        description: newNote,
-        created_by: "User",
-      });
-      setNewNote("");
-      loadActivities();
-      onUpdate();
-    } catch (err) {
-      console.error("Failed to add note", err);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -255,73 +229,24 @@ export default function OpportunityDetailModal({
               )}
             </div>
 
-            <h3 className="font-sans font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
-              <span>Activity Log</span>
-              <div className="h-px bg-[var(--border-pencil)] flex-1"></div>
-            </h3>
-
-            {/* Timeline */}
-            <div className="space-y-8 pl-4 border-l-2 border-[var(--border-pencil)] border-dotted ml-2">
-              {loadingActivities ? (
-                <>
-                  {Array.from({ length: 3 }, (_, i) => (
-                    <SkeletonActivityItem key={i} />
-                  ))}
-                </>
-              ) : activities.length === 0 ? (
-                <p className="font-sans italic text-[var(--text-muted)] pl-4">
-                  No notes or activities recorded yet.
-                </p>
-              ) : (
-                activities.map((activity) => (
-                  <div key={activity.activity_id} className="relative pl-6">
-                    {/* Bullet Point */}
-                    <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[var(--text-primary)]"></div>
-
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-between items-baseline">
-                        <span className="font-sans text-[var(--text-primary)] text-lg leading-snug">
-                          {activity.description || activity.subject}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.5 border border-[var(--border-pencil)] rounded bg-white text-[var(--text-secondary)]">
-                          {activity.type}
-                        </span>
-                        <span className="font-mono text-xs text-[var(--text-muted)]">
-                          {new Date(activity.date).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            {loadingActivities ? (
+              <div className="space-y-8 pl-4 border-l-2 border-[var(--border-pencil)] border-dotted ml-2">
+                {Array.from({ length: 3 }, (_, i) => (
+                  <SkeletonActivityItem key={i} />
+                ))}
+              </div>
+            ) : (
+              <ActivityTimeline
+                activities={activities}
+                leadId={opportunity.lead_id}
+                oppId={opportunity.opp_id}
+                onActivityAdded={() => {
+                  loadActivities();
+                  onUpdate();
+                }}
+              />
+            )}
           </div>
-        </div>
-
-        {/* Footer / Input - Sticky Note Style */}
-        <div className="p-4 md:p-6 bg-[var(--bg-paper)] border-t-2 border-[var(--border-ink)] z-10 shadow-[0px_-4px_10px_rgba(0,0,0,0.05)]">
-          <form
-            onSubmit={handleAddNote}
-            className="flex flex-col md:flex-row gap-4"
-          >
-            <input
-              type="text"
-              placeholder="Type a new note here..."
-              className="flex-1 bg-white border border-[var(--border-pencil)] px-4 py-3 font-sans shadow-inner focus:border-[var(--accent-blue)] focus:outline-none"
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={submitting || !newNote.trim()}
-              className="btn-primary whitespace-nowrap px-6"
-            >
-              {submitting ? "Posting..." : "Add Note"}
-            </button>
-          </form>
         </div>
       </div>
     </div>
