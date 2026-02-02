@@ -1,6 +1,7 @@
 """
 CRM Manager - Business logic layer for CRM operations.
 """
+
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from rich.console import Console
@@ -9,8 +10,14 @@ from google.oauth2.credentials import Credentials
 
 from ..sheets import SheetManager
 from .models import (
-    Lead, Opportunity, Activity,
-    LeadStatus, PipelineStage, ActivityType, CompanySize
+    Lead,
+    Opportunity,
+    Activity,
+    LeadStatus,
+    PipelineStage,
+    ActivityType,
+    LeadSource,
+    CompanySize,
 )
 from .templates import CRMTemplates
 from .enrichment import enrichment_service
@@ -38,12 +45,12 @@ class CRMManager:
         self,
         sheet_manager: SheetManager,
         sheet_name: str = SHEET_NAME,
-        google_creds: Optional[Credentials] = None
+        google_creds: Optional[Credentials] = None,
     ):
         self.sm = sheet_manager
         self.sheet_name = sheet_name
         self.google_creds = google_creds
-        
+
         # Caching
         self._cache: Dict[str, List[Any]] = {}
         self._last_fetch: Dict[str, datetime] = {}
@@ -88,7 +95,7 @@ class CRMManager:
         except gspread.exceptions.WorksheetNotFound:
             self._ensure_worksheet_exists(LEADS_WS)
             self.sm.append_row(self.sheet_name, lead.to_row(), LEADS_WS)
-            
+
         self._invalidate_cache(LEADS_WS)
         return lead
 
@@ -96,20 +103,20 @@ class CRMManager:
         """Batch add leads to the CRM."""
         if not leads:
             return 0
-            
+
         now = datetime.now()
         rows_to_append = []
         for lead in leads:
             lead.created_at = now
             lead.updated_at = now
             rows_to_append.append(lead.to_row())
-            
+
         try:
             self.sm.append_rows(self.sheet_name, rows_to_append, LEADS_WS)
         except gspread.exceptions.WorksheetNotFound:
             self._ensure_worksheet_exists(LEADS_WS)
             self.sm.append_rows(self.sheet_name, rows_to_append, LEADS_WS)
-            
+
         self._invalidate_cache(LEADS_WS)
         return len(leads)
 
@@ -119,34 +126,39 @@ class CRMManager:
         if data is None:
             try:
                 data = self.sm.read_data(self.sheet_name, LEADS_WS)
-                
+
                 # Migrate schema if needed
                 if data and len(data) > 0:
                     headers = data[0]
                     expected_headers = Lead.headers()
                     if len(headers) < len(expected_headers):
-                        print(f"[CRMManager] Migrating Leads sheet schema for {self.sheet_name}")
+                        print(
+                            f"[CRMManager] Migrating Leads sheet schema for {self.sheet_name}"
+                        )
                         # Update headers
-                        self.sm.update_row(self.sheet_name, 1, expected_headers, LEADS_WS)
+                        self.sm.update_row(
+                            self.sheet_name, 1, expected_headers, LEADS_WS
+                        )
                         # Re-read data after update (optional, but safer)
                         data[0] = expected_headers
                         self._set_cached_data(LEADS_WS, data)
 
             except gspread.exceptions.WorksheetNotFound:
                 return []
-                
+
             if data:
                 self._set_cached_data(LEADS_WS, data)
-        
+
         if not data or len(data) < 2:
             return []
-        
+
         # Check if we need to adjust row length for migration
         processed_leads = []
         headers = data[0]
         for row in data[1:]:
-            if not row or not row[0]: continue
-            
+            if not row or not row[0]:
+                continue
+
             # If row is shorter than expected, it's likely an old format
             # Old format had created_at at index 10.
             # New format has website at index 10.
@@ -159,7 +171,7 @@ class CRMManager:
                 processed_leads.append(Lead.from_row(new_row))
             else:
                 processed_leads.append(Lead.from_row(row))
-                
+
         return processed_leads
 
     def get_lead(self, lead_id: str) -> Optional[Lead]:
@@ -172,14 +184,17 @@ class CRMManager:
         data = self._get_cached_data(LEADS_WS)
         if not data:
             data = self.sm.read_data(self.sheet_name, LEADS_WS)
-            if data: self._set_cached_data(LEADS_WS, data)
-            
-        if not data: return False
+            if data:
+                self._set_cached_data(LEADS_WS, data)
+
+        if not data:
+            return False
 
         # Iterate raw data to find ID (col 0)
         # Skip header (index 0)
         for i, row in enumerate(data):
-            if i == 0: continue
+            if i == 0:
+                continue
             if row and row[0] == lead.lead_id:
                 lead.updated_at = datetime.now()
                 row_index = i + 1  # 1-indexed sheet
@@ -265,7 +280,9 @@ class CRMManager:
 
             # Save updates
             self.update_lead(lead)
-            print(f"[CRMManager] Scored lead {lead_id}: {lead.score} ({lead.heat_level})")
+            print(
+                f"[CRMManager] Scored lead {lead_id}: {lead.score} ({lead.heat_level})"
+            )
             return lead
 
         except Exception as e:
@@ -278,10 +295,12 @@ class CRMManager:
         if not data:
             data = self.sm.read_data(self.sheet_name, LEADS_WS)
 
-        if not data: return False
+        if not data:
+            return False
 
         for i, row in enumerate(data):
-            if i == 0: continue
+            if i == 0:
+                continue
             if row and row[0] == lead_id:
                 row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, LEADS_WS)
@@ -312,7 +331,7 @@ class CRMManager:
         except gspread.exceptions.WorksheetNotFound:
             self._ensure_worksheet_exists(OPPS_WS)
             self.sm.append_row(self.sheet_name, opp.to_row(), OPPS_WS)
-            
+
         self._invalidate_cache(OPPS_WS)
         return opp
 
@@ -323,7 +342,7 @@ class CRMManager:
             data = self.sm.read_data(self.sheet_name, OPPS_WS)
             if data:
                 self._set_cached_data(OPPS_WS, data)
-        
+
         if not data or len(data) < 2:
             return []
         return [Opportunity.from_row(row) for row in data[1:] if row[0]]
@@ -342,20 +361,23 @@ class CRMManager:
         data = self._get_cached_data(OPPS_WS)
         if not data:
             data = self.sm.read_data(self.sheet_name, OPPS_WS)
-            if data: self._set_cached_data(OPPS_WS, data)
-            
-        if not data: return False
-        
+            if data:
+                self._set_cached_data(OPPS_WS, data)
+
+        if not data:
+            return False
+
         # Iterate raw data to find ID (col 0)
         for i, row in enumerate(data):
-            if i == 0: continue
+            if i == 0:
+                continue
             if row and row[0] == opp.opp_id:
                 opp.updated_at = datetime.now()
                 row_index = i + 1
-                
+
                 new_row = opp.to_row()
                 self.sm.update_row(self.sheet_name, row_index, new_row, OPPS_WS)
-                
+
                 # Optimistic cache update
                 data[i] = new_row
                 self._set_cached_data(OPPS_WS, data)
@@ -369,7 +391,11 @@ class CRMManager:
             return False
         opp.stage = new_stage
         opp.updated_at = datetime.now()
-        if new_stage in [PipelineStage.CLOSED_WON, PipelineStage.CLOSED_LOST, PipelineStage.CASH_IN_BANK]:
+        if new_stage in [
+            PipelineStage.CLOSED_WON,
+            PipelineStage.CLOSED_LOST,
+            PipelineStage.CASH_IN_BANK,
+        ]:
             opp.closed_at = datetime.now()
         return self.update_opportunity(opp)
 
@@ -378,11 +404,13 @@ class CRMManager:
         data = self._get_cached_data(OPPS_WS)
         if not data:
             data = self.sm.read_data(self.sheet_name, OPPS_WS)
-            
-        if not data: return False
+
+        if not data:
+            return False
 
         for i, row in enumerate(data):
-            if i == 0: continue
+            if i == 0:
+                continue
             if row and row[0] == opp_id:
                 row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, OPPS_WS)
@@ -404,11 +432,13 @@ class CRMManager:
         except gspread.exceptions.WorksheetNotFound:
             self._ensure_worksheet_exists(ACTIVITIES_WS)
             self.sm.append_row(self.sheet_name, activity.to_row(), ACTIVITIES_WS)
-            
+
         self._invalidate_cache(ACTIVITIES_WS)
         return activity
 
-    def get_activities(self, lead_id: Optional[str] = None, opp_id: Optional[str] = None) -> List[Activity]:
+    def get_activities(
+        self, lead_id: Optional[str] = None, opp_id: Optional[str] = None
+    ) -> List[Activity]:
         """Get activities, optionally filtered by lead or opportunity."""
         data = self._get_cached_data(ACTIVITIES_WS)
         if data is None:
@@ -446,22 +476,28 @@ class CRMManager:
         # Lead stats
         leads_by_status = {}
         for status in LeadStatus:
-            leads_by_status[status.value] = len([l for l in leads if l.status == status])
+            leads_by_status[status.value] = len(
+                [l for l in leads if l.status == status]
+            )
 
         # Top leads by score
         top_leads = sorted(
-            [l for l in leads if l.score > 0],
-            key=lambda l: l.score,
-            reverse=True
+            [l for l in leads if l.score > 0], key=lambda l: l.score, reverse=True
         )[:5]
 
         return {
             "total_leads": len(leads),
             "total_opportunities": len(opps),
-            "total_pipeline_value": sum(o.value for o in opps if o.stage not in [PipelineStage.CLOSED_LOST]),
+            "total_pipeline_value": sum(
+                o.value for o in opps if o.stage not in [PipelineStage.CLOSED_LOST]
+            ),
             "total_expected_value": sum(o.expected_value for o in opps),
-            "closed_won_value": sum(o.value for o in opps if o.stage == PipelineStage.CLOSED_WON),
-            "cash_in_bank": sum(o.value for o in opps if o.stage == PipelineStage.CASH_IN_BANK),
+            "closed_won_value": sum(
+                o.value for o in opps if o.stage == PipelineStage.CLOSED_WON
+            ),
+            "cash_in_bank": sum(
+                o.value for o in opps if o.stage == PipelineStage.CASH_IN_BANK
+            ),
             "pipeline_by_stage": by_stage,
             "leads_by_status": leads_by_status,
             "top_leads": [l.model_dump() for l in top_leads],
@@ -487,47 +523,46 @@ class CRMManager:
             )
 
         console.print(table)
-        console.print(f"\n[bold]Total Pipeline Value:[/bold] ${summary['total_pipeline_value']:,.0f}")
-        console.print(f"[bold]Cash in Bank:[/bold] [green]${summary['cash_in_bank']:,.0f}[/green]")
+        console.print(
+            f"\n[bold]Total Pipeline Value:[/bold] ${summary['total_pipeline_value']:,.0f}"
+        )
+        console.print(
+            f"[bold]Cash in Bank:[/bold] [green]${summary['cash_in_bank']:,.0f}[/green]"
+        )
 
     # -------------------------------------------------------------------------
     # Gmail Integration
     # -------------------------------------------------------------------------
 
     def sync_emails_for_lead(
-        self,
-        lead: Lead,
-        days_back: int = 30,
-        auto_log: bool = True
+        self, lead: Lead, days_back: int = 30, auto_log: bool = True
     ) -> List[Activity]:
         """Sync emails for a specific lead and optionally auto-log as activities.
-        
+
         Args:
             lead: Lead object with contact email
             days_back: How many days back to search for emails
             auto_log: Whether to automatically log emails as activities
-            
+
         Returns:
             List of Activity objects created from emails
         """
         if not self.google_creds:
             raise ValueError("Google credentials required for Gmail sync")
-        
+
         if not lead.contact_email:
             return []
-        
+
         from ..gmail import GmailManager
-        
+
         gmail = GmailManager(self.google_creds)
         emails = gmail.search_emails_by_contact(
-            contact_email=lead.contact_email,
-            max_results=50,
-            days_back=days_back
+            contact_email=lead.contact_email, max_results=50, days_back=days_back
         )
-        
+
         activities = []
         existing_activities = self.get_activities(lead_id=lead.lead_id)
-        
+
         # Create a set of existing email IDs to avoid duplicates
         # Use a combination of subject, date, and snippet for uniqueness
         existing_email_keys = {
@@ -535,109 +570,104 @@ class CRMManager:
             for a in existing_activities
             if a.type == ActivityType.EMAIL
         }
-        
+
         for email_data in emails:
             # Create unique key from subject, date, and snippet
             email_key = f"{email_data['subject']}_{email_data['date'].date()}_{email_data['snippet'][:50]}"
-            
+
             # Skip if already logged
             if email_key in existing_email_keys:
                 continue
-            
+
             # Create activity from email
             activity = Activity(
                 lead_id=lead.lead_id,
                 type=ActivityType.EMAIL,
-                subject=email_data['subject'],
-                description=email_data['snippet'][:MAX_EMAIL_DESCRIPTION_LENGTH],
-                date=email_data['date'],
-                created_by="Gmail Sync"
+                subject=email_data["subject"],
+                description=email_data["snippet"][:MAX_EMAIL_DESCRIPTION_LENGTH],
+                date=email_data["date"],
+                created_by="Gmail Sync",
             )
-            
+
             if auto_log:
                 self.log_activity(activity)
-            
+
             activities.append(activity)
-        
+
         return activities
 
     def sync_emails_for_all_leads(
-        self,
-        days_back: int = 7,
-        auto_log: bool = True
+        self, days_back: int = 7, auto_log: bool = True
     ) -> Dict[str, int]:
         """Sync emails for all leads with email addresses.
-        
+
         Args:
             days_back: How many days back to search
             auto_log: Whether to automatically log emails
-            
+
         Returns:
             Dictionary with sync statistics
         """
         if not self.google_creds:
             raise ValueError("Google credentials required for Gmail sync")
-        
+
         leads = self.get_leads()
         stats = {
-            'total_leads': len(leads),
-            'leads_with_email': 0,
-            'emails_synced': 0,
-            'errors': 0
+            "total_leads": len(leads),
+            "leads_with_email": 0,
+            "emails_synced": 0,
+            "errors": 0,
         }
-        
+
         for lead in leads:
             if not lead.contact_email:
                 continue
-            
-            stats['leads_with_email'] += 1
-            
+
+            stats["leads_with_email"] += 1
+
             try:
                 activities = self.sync_emails_for_lead(
-                    lead=lead,
-                    days_back=days_back,
-                    auto_log=auto_log
+                    lead=lead, days_back=days_back, auto_log=auto_log
                 )
-                stats['emails_synced'] += len(activities)
+                stats["emails_synced"] += len(activities)
             except Exception as e:
                 print(f"Error syncing emails for {lead.company_name}: {e}")
-                stats['errors'] += 1
-        
+                stats["errors"] += 1
+
         return stats
 
     def get_email_activity_summary(self, lead_id: str) -> Dict[str, Any]:
         """Get summary of email activities for a lead.
-        
+
         Args:
             lead_id: Lead ID
-            
+
         Returns:
             Dictionary with email activity statistics
         """
         activities = self.get_activities(lead_id=lead_id)
         email_activities = [a for a in activities if a.type == ActivityType.EMAIL]
-        
+
         if not email_activities:
             return {
-                'total_emails': 0,
-                'last_email_date': None,
-                'first_email_date': None,
+                "total_emails": 0,
+                "last_email_date": None,
+                "first_email_date": None,
             }
-        
+
         # Sort by date
         sorted_emails = sorted(email_activities, key=lambda x: x.date)
-        
+
         return {
-            'total_emails': len(email_activities),
-            'last_email_date': sorted_emails[-1].date if sorted_emails else None,
-            'first_email_date': sorted_emails[0].date if sorted_emails else None,
-            'recent_emails': [
+            "total_emails": len(email_activities),
+            "last_email_date": sorted_emails[-1].date if sorted_emails else None,
+            "first_email_date": sorted_emails[0].date if sorted_emails else None,
+            "recent_emails": [
                 {
-                    'subject': a.subject,
-                    'date': a.date,
-                    'snippet': a.description[:100] if a.description else ''
+                    "subject": a.subject,
+                    "date": a.date,
+                    "snippet": a.description[:100] if a.description else "",
                 }
                 for a in sorted_emails[-5:]  # Last 5 emails
-            ]
+            ],
         }
-

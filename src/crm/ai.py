@@ -1,11 +1,13 @@
 """
 AI Manager for generating email drafts and other context-aware content.
 """
+
 import os
 import requests
 import json
 from typing import Optional, Dict, Any
 from .models import Lead, Activity, Opportunity
+
 
 class AIManager:
     """Manages AI-powered features for the CRM."""
@@ -18,7 +20,7 @@ class AIManager:
         self,
         lead: Lead,
         opportunity: Optional[Opportunity] = None,
-        activities: list[Activity] = []
+        activities: list[Activity] = [],
     ) -> Dict[str, Any]:
         """
         Suggest the 'Next Best Action' for a lead or opportunity.
@@ -29,7 +31,7 @@ class AIManager:
                 "description": "AI suggestion requires an API key.",
                 "reasoning": "AI analysis requires an API key to provide personalized suggestions.",
                 "priority": "Medium",
-                "task_type": "Task"
+                "task_type": "Task",
             }
 
         # Build context
@@ -66,25 +68,30 @@ class AIManager:
         try:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             payload = {
                 "model": "gpt-4o-mini",
                 "messages": [
-                    {"role": "system", "content": "You are a proactive sales coach and CRM assistant. Return data only in valid JSON format."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a proactive sales coach and CRM assistant. Return data only in valid JSON format.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                "response_format": { "type": "json_object" },
-                "temperature": 0.4
+                "response_format": {"type": "json_object"},
+                "temperature": 0.4,
             }
-            
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=15)
+
+            response = requests.post(
+                self.api_url, headers=headers, json=payload, timeout=15
+            )
             response.raise_for_status()
-            
+
             result = response.json()
             content = result["choices"][0]["message"]["content"].strip()
             return json.loads(content)
-            
+
         except Exception as e:
             print(f"[AI] Error suggesting next action: {e}")
             return {
@@ -92,25 +99,25 @@ class AIManager:
                 "description": f"An error occurred while generating a suggestion: {str(e)}",
                 "reasoning": "AI analysis failed, so a manual check of the lead's status is recommended.",
                 "priority": "Medium",
-                "task_type": "Task"
+                "task_type": "Task",
             }
 
     def generate_email_draft(
-        self, 
-        lead: Lead, 
-        activities: list[Activity] = [], 
-        purpose: str = "Introduction", 
-        tone: str = "Professional"
+        self,
+        lead: Lead,
+        activities: list[Activity] = [],
+        purpose: str = "Introduction",
+        tone: str = "Professional",
     ) -> str:
         """Generate a context-aware email draft for a lead."""
-        
+
         # If no API key, return a helpful message or a basic template
         if not self.api_key:
             return self._generate_template_fallback(lead, purpose)
 
         # Build context from lead and activities
         context = self._build_context(lead, activities)
-        
+
         prompt = f"""
         You are a helpful sales assistant. Generate a {tone} email draft to {lead.contact_name} at {lead.company_name}.
         
@@ -130,23 +137,28 @@ class AIManager:
         try:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             payload = {
                 "model": "gpt-4o-mini",  # Using a cost-effective model
                 "messages": [
-                    {"role": "system", "content": "You are a professional sales assistant specializing in personalized outreach."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a professional sales assistant specializing in personalized outreach.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                "temperature": 0.7
+                "temperature": 0.7,
             }
-            
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=10)
+
+            response = requests.post(
+                self.api_url, headers=headers, json=payload, timeout=10
+            )
             response.raise_for_status()
-            
+
             result = response.json()
             return result["choices"][0]["message"]["content"].strip()
-            
+
         except Exception as e:
             print(f"[AI] Error generating email: {e}")
             return f"Error: Could not generate email draft. {str(e)}\n\nFallback Template:\n{self._generate_template_fallback(lead, purpose)}"
@@ -164,7 +176,13 @@ class AIManager:
         if lead.contact_email and "@" in lead.contact_email:
             domain = lead.contact_email.split("@")[-1]
             # Ignore common public domains
-            if domain in ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com"]:
+            if domain in [
+                "gmail.com",
+                "outlook.com",
+                "hotmail.com",
+                "yahoo.com",
+                "icloud.com",
+            ]:
                 domain = ""
 
         prompt = f"""
@@ -184,34 +202,36 @@ class AIManager:
         try:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             payload = {
                 "model": "gpt-4o-mini",
                 "messages": [
-                    {"role": "system", "content": "You are a business research assistant. Return data only in valid JSON format."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a business research assistant. Return data only in valid JSON format.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                "response_format": { "type": "json_object" },
-                "temperature": 0.3
+                "response_format": {"type": "json_object"},
+                "temperature": 0.3,
             }
-            
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=15)
+
+            response = requests.post(
+                self.api_url, headers=headers, json=payload, timeout=15
+            )
             response.raise_for_status()
-            
+
             result = response.json()
             content = result["choices"][0]["message"]["content"].strip()
             return json.loads(content)
-            
+
         except Exception as e:
             print(f"[AI] Error enriching lead data: {e}")
             return {}
 
     def analyze_deal_risk(
-        self,
-        opportunity: Opportunity,
-        lead: Lead,
-        activities: list[Activity] = []
+        self, opportunity: Opportunity, lead: Lead, activities: list[Activity] = []
     ) -> Dict[str, Any]:
         """
         Analyze an opportunity for risks and blockers based on history.
@@ -221,7 +241,9 @@ class AIManager:
             return {
                 "risk_level": "Unknown",
                 "risks": ["AI analysis requires an API key."],
-                "recommended_actions": ["Configure OPENAI_API_KEY to enable deal risk analysis."]
+                "recommended_actions": [
+                    "Configure OPENAI_API_KEY to enable deal risk analysis."
+                ],
             }
 
         # Build context from opportunity, lead, and activities
@@ -242,7 +264,9 @@ class AIManager:
         if activities:
             context.append("\nRecent Activity History:")
             for act in activities[-10:]:  # Last 10 activities for deeper context
-                context.append(f"- {act.date.date()} ({act.type.value}): {act.subject} - {act.description or ''}")
+                context.append(
+                    f"- {act.date.date()} ({act.type.value}): {act.subject} - {act.description or ''}"
+                )
 
         prompt = f"""
         Analyze the following sales deal for risks, blockers, and potential red flags.
@@ -261,38 +285,39 @@ class AIManager:
         try:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             payload = {
                 "model": "gpt-4o-mini",
                 "messages": [
-                    {"role": "system", "content": "You are a senior sales strategy consultant. Return data only in valid JSON format."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a senior sales strategy consultant. Return data only in valid JSON format.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                "response_format": { "type": "json_object" },
-                "temperature": 0.4
+                "response_format": {"type": "json_object"},
+                "temperature": 0.4,
             }
-            
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=15)
+
+            response = requests.post(
+                self.api_url, headers=headers, json=payload, timeout=15
+            )
             response.raise_for_status()
-            
+
             result = response.json()
             content = result["choices"][0]["message"]["content"].strip()
             return json.loads(content)
-            
+
         except Exception as e:
             print(f"[AI] Error analyzing deal risk: {e}")
             return {
                 "risk_level": "Error",
                 "risks": [f"Analysis failed: {str(e)}"],
-                "recommended_actions": ["Try again later or check API configuration."]
+                "recommended_actions": ["Try again later or check API configuration."],
             }
 
-    def score_lead(
-        self,
-        lead: Lead,
-        activities: list[Activity] = []
-    ) -> Dict[str, Any]:
+    def score_lead(self, lead: Lead, activities: list[Activity] = []) -> Dict[str, Any]:
         """
         Assign a score (0-100) to a lead based on company, role, and interaction history.
         """
@@ -301,12 +326,12 @@ class AIManager:
                 "score": 50,
                 "reasoning": "AI scoring requires an API key. Defaulting to 50.",
                 "strengths": [],
-                "weaknesses": ["No AI analysis performed"]
+                "weaknesses": ["No AI analysis performed"],
             }
 
         # Build context
         context = self._build_context(lead, activities)
-        
+
         prompt = f"""
         You are an expert sales operations analyst. Your task is to assign a "Lead Score" from 0 to 100 to the following lead.
         
@@ -334,32 +359,37 @@ class AIManager:
         try:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             payload = {
                 "model": "gpt-4o-mini",
                 "messages": [
-                    {"role": "system", "content": "You are a data-driven sales analyst. Return data only in valid JSON format."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a data-driven sales analyst. Return data only in valid JSON format.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                "response_format": { "type": "json_object" },
-                "temperature": 0.2
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2,
             }
-            
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=15)
+
+            response = requests.post(
+                self.api_url, headers=headers, json=payload, timeout=15
+            )
             response.raise_for_status()
-            
+
             result = response.json()
             content = result["choices"][0]["message"]["content"].strip()
             return json.loads(content)
-            
+
         except Exception as e:
             print(f"[AI] Error scoring lead: {e}")
             return {
                 "score": 0,
                 "reasoning": f"An error occurred during scoring: {str(e)}",
                 "strengths": [],
-                "weaknesses": ["AI Scoring Failed"]
+                "weaknesses": ["AI Scoring Failed"],
             }
 
     def _build_context(self, lead: Lead, activities: list[Activity]) -> str:
@@ -370,21 +400,23 @@ class AIManager:
             f"- Industry: {lead.industry or 'Unknown'}",
             f"- Lead Status: {lead.status.value}",
             f"- Source: {lead.source.value}",
-            f"- Notes: {lead.notes or 'None'}"
+            f"- Notes: {lead.notes or 'None'}",
         ]
-        
+
         if activities:
             context.append("\nRecent Activities:")
             for act in activities[-3:]:  # Last 3 activities
-                context.append(f"- {act.date.date()}: {act.subject} - {act.description or ''}")
-                
+                context.append(
+                    f"- {act.date.date()}: {act.subject} - {act.description or ''}"
+                )
+
         return "\n".join(context)
 
     def _generate_template_fallback(self, lead: Lead, purpose: str) -> str:
         """Basic template fallback when AI is unavailable."""
         subject = f"{purpose} - {lead.company_name}"
         body = f"Hi {lead.contact_name},\n\n"
-        
+
         if "Intro" in purpose:
             body += f"I've been following {lead.company_name}'s work in the {lead.industry or 'industry'} and was impressed by what you're doing. "
             body += "I'd love to connect and share how we might be able to help you achieve your goals.\n\n"
@@ -394,7 +426,7 @@ class AIManager:
         else:
             body += f"I'm reaching out regarding {lead.company_name}. "
             body += "I'd love to schedule a brief call to discuss how we can work together.\n\n"
-            
+
         body += "Are you available for a 15-minute chat next week?\n\nBest regards,\n\n[Your Name]\n[Your Company]"
-        
+
         return f"Subject: {subject}\n\n{body}"
