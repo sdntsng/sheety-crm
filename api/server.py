@@ -3,7 +3,15 @@ FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
 
-from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks, File, UploadFile
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Query,
+    Header,
+    BackgroundTasks,
+    File,
+    UploadFile,
+)
 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
@@ -28,10 +36,17 @@ from src.crm.manager import CRMManager
 from api.deps import get_crm_session
 from fastapi import Depends
 from src.crm.models import (
-    Lead, Opportunity, Activity,
-    LeadStatus, LeadSource, PipelineStage, ActivityType, CompanySize
+    Lead,
+    Opportunity,
+    Activity,
+    LeadStatus,
+    LeadSource,
+    PipelineStage,
+    ActivityType,
+    CompanySize,
 )
 from src.crm.ai import AIManager
+
 
 # New dependency for just authenticated SheetManager (without CRM session)
 async def get_sheet_manager(authorization: Optional[str] = Header(None)):
@@ -39,19 +54,22 @@ async def get_sheet_manager(authorization: Optional[str] = Header(None)):
     from google.oauth2.credentials import Credentials
     from src.sheets import SheetManager
     import gspread
-    
+
     # Require Bearer token
     if not authorization:
-        raise HTTPException(status_code=401, detail="Authorization header required. Please sign in.")
-    
+        raise HTTPException(
+            status_code=401, detail="Authorization header required. Please sign in."
+        )
+
     token = authorization.replace("Bearer ", "").strip()
     if not token:
         raise HTTPException(status_code=401, detail="Invalid authorization header")
-    
+
     # MOCK MODE check
     if os.getenv("MOCK_DATA_MODE") == "true":
         print(f"[Auth] Mock Mode enabled. Using MockSheetManager.")
         from src.services.local_json import MockSheetManager
+
         return MockSheetManager()
 
     try:
@@ -65,14 +83,15 @@ async def get_sheet_manager(authorization: Optional[str] = Header(None)):
     except Exception as e:
         print(f"[Auth] Token auth failed: {e}")
         raise HTTPException(
-            status_code=401, 
-            detail="Google authentication failed. Please sign out and sign in again to refresh your session."
+            status_code=401,
+            detail="Google authentication failed. Please sign out and sign in again to refresh your session.",
         )
+
 
 app = FastAPI(
     title="Sales CRM API",
     description="REST API for Sales Pipeline CRM backed by Google Sheets",
-    version="0.52.0"
+    version="0.52.0",
 )
 
 # CORS for Next.js frontend
@@ -98,10 +117,10 @@ app.add_middleware(
 # Global CRM manager removed in favor of Dependency Injection (api.deps)
 
 
-
-# 
+#
 # Request/Response Models
-# 
+#
+
 
 class LeadCreate(BaseModel):
     company_name: str
@@ -196,9 +215,10 @@ class EmailDraftRequest(BaseModel):
     tone: Optional[str] = "Professional"
 
 
-# 
+#
 # Root & Health
-# 
+#
+
 
 @app.get("/")
 def root():
@@ -222,11 +242,13 @@ class CreateSheetRequest(BaseModel):
 
 
 @app.post("/api/sheets/create")
-def create_crm_sheet(request: CreateSheetRequest, sm: SheetManager = Depends(get_sheet_manager)):
+def create_crm_sheet(
+    request: CreateSheetRequest, sm: SheetManager = Depends(get_sheet_manager)
+):
     """Create a new CRM spreadsheet with all required worksheets."""
     from src.crm.templates import CRMTemplates
     import traceback
-    
+
     try:
         print(f"[CreateSheet] Creating CRM sheet: {request.name}")
         templates = CRMTemplates(sm.gc)
@@ -234,11 +256,7 @@ def create_crm_sheet(request: CreateSheetRequest, sm: SheetManager = Depends(get
         print(f"[CreateSheet] Successfully created: {sh.url}")
         return {
             "success": True,
-            "sheet": {
-                "id": sh.id,
-                "name": request.name,
-                "url": sh.url
-            }
+            "sheet": {"id": sh.id, "name": request.name, "url": sh.url},
         }
     except Exception as e:
         print(f"[CreateSheet] ERROR: {e}")
@@ -251,7 +269,7 @@ def ensure_schema_sheet(sheet_id: str, sm: SheetManager = Depends(get_sheet_mana
     """Add the Schema reference sheet to an existing CRM."""
     from src.crm.templates import CRMTemplates
     import traceback
-    
+
     try:
         print(f"[SchemaSheet] Adding schema to sheet: {sheet_id}")
         sh = sm.gc.open_by_key(sheet_id)
@@ -265,9 +283,10 @@ def ensure_schema_sheet(sheet_id: str, sm: SheetManager = Depends(get_sheet_mana
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 
+#
 # Leads Endpoints
-# 
+#
+
 
 @app.get("/api/leads")
 def list_leads(
@@ -298,9 +317,9 @@ def get_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
 
 @app.post("/api/leads", status_code=201)
 def create_lead(
-    data: LeadCreate, 
+    data: LeadCreate,
     background_tasks: BackgroundTasks,
-    crm: CRMManager = Depends(get_crm_session)
+    crm: CRMManager = Depends(get_crm_session),
 ):
     """Create a new lead."""
     lead = Lead(
@@ -308,10 +327,16 @@ def create_lead(
         contact_name=data.contact_name,
         contact_email=data.contact_email,
         contact_phone=data.contact_phone,
-        status=LeadStatus(data.status) if data.status in [s.value for s in LeadStatus] else LeadStatus.NEW,
-        source=LeadSource(data.source) if data.source in [s.value for s in LeadSource] else LeadSource.OTHER,
+        status=LeadStatus(data.status)
+        if data.status in [s.value for s in LeadStatus]
+        else LeadStatus.NEW,
+        source=LeadSource(data.source)
+        if data.source in [s.value for s in LeadSource]
+        else LeadSource.OTHER,
         industry=data.industry,
-        company_size=CompanySize(data.company_size) if data.company_size in [s.value for s in CompanySize] else None,
+        company_size=CompanySize(data.company_size)
+        if data.company_size in [s.value for s in CompanySize]
+        else None,
         notes=data.notes,
         website=data.website,
         linkedin_url=data.linkedin_url,
@@ -319,7 +344,7 @@ def create_lead(
         owner=data.owner,
     )
     created = crm.add_lead(lead)
-    
+
     # Enrichment
     if data.auto_enrich:
         # Synchronous enrich + return enriched record if possible
@@ -337,7 +362,9 @@ def create_lead(
 
 
 @app.put("/api/leads/{lead_id}")
-def update_lead(lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_crm_session)):
+def update_lead(
+    lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_crm_session)
+):
     """Update an existing lead."""
     lead = crm.get_lead(lead_id)
     if not lead:
@@ -383,30 +410,30 @@ def update_lead(lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_cr
 
 @app.post("/api/leads/{lead_id}/enrich")
 def enrich_lead(
-    lead_id: str, 
+    lead_id: str,
     background_tasks: BackgroundTasks,
-    crm: CRMManager = Depends(get_crm_session)
+    crm: CRMManager = Depends(get_crm_session),
 ):
     """Manually trigger enrichment for a lead."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+
     background_tasks.add_task(crm.enrich_lead, lead_id)
     return {"message": "Enrichment started", "lead_id": lead_id}
 
 
 @app.post("/api/leads/{lead_id}/score")
 def score_lead(
-    lead_id: str, 
+    lead_id: str,
     background_tasks: BackgroundTasks,
-    crm: CRMManager = Depends(get_crm_session)
+    crm: CRMManager = Depends(get_crm_session),
 ):
     """Manually trigger AI scoring for a lead."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+
     background_tasks.add_task(crm.score_lead, lead_id)
     return {"message": "Scoring started", "lead_id": lead_id}
 
@@ -440,86 +467,77 @@ def score_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
 
 @app.post("/api/leads/{lead_id}/generate-email")
 def generate_lead_email(
-    lead_id: str, 
-    request: EmailDraftRequest,
-    crm: CRMManager = Depends(get_crm_session)
+    lead_id: str, request: EmailDraftRequest, crm: CRMManager = Depends(get_crm_session)
 ):
     """Generate an AI email draft for a lead."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+
     # Get recent activities for context
     activities = crm.get_activities(lead_id=lead_id)
-    
+
     ai = AIManager()
     draft = ai.generate_email_draft(
-        lead=lead, 
-        activities=activities, 
-        purpose=request.purpose, 
-        tone=request.tone
+        lead=lead, activities=activities, purpose=request.purpose, tone=request.tone
     )
-    
+
     return {"draft": draft}
 
 
 @app.get("/api/leads/{lead_id}/suggest-action")
-def suggest_lead_action(
-    lead_id: str,
-    crm: CRMManager = Depends(get_crm_session)
-):
+def suggest_lead_action(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     """Suggest the 'Next Best Action' for a lead using AI."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+
     # Get associated opportunities (if any)
     opps = crm.get_opportunities_for_lead(lead_id)
     # Prefer the most recent/relevant opportunity if multiple exist
-    active_opp = next((o for o in opps if o.stage not in [PipelineStage.CLOSED_WON, PipelineStage.CLOSED_LOST]), None)
-    
+    active_opp = next(
+        (
+            o
+            for o in opps
+            if o.stage not in [PipelineStage.CLOSED_WON, PipelineStage.CLOSED_LOST]
+        ),
+        None,
+    )
+
     # Get recent activities for context
     activities = crm.get_activities(lead_id=lead_id)
-    
+
     ai = AIManager()
     suggestion = ai.suggest_next_action(
-        lead=lead,
-        opportunity=active_opp,
-        activities=activities
+        lead=lead, opportunity=active_opp, activities=activities
     )
-    
+
     return suggestion
 
 
 @app.post("/api/opportunities/{opp_id}/analyze-risk")
-def analyze_opportunity_risk(
-    opp_id: str,
-    crm: CRMManager = Depends(get_crm_session)
-):
+def analyze_opportunity_risk(opp_id: str, crm: CRMManager = Depends(get_crm_session)):
     """Analyze opportunity for risks and blockers using AI."""
     opp = crm.get_opportunity(opp_id)
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
-    
+
     lead = crm.get_lead(opp.lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Associated lead not found")
-        
+
     activities = crm.get_activities(opp_id=opp_id)
-    
+
     ai = AIManager()
-    analysis = ai.analyze_deal_risk(
-        opportunity=opp,
-        lead=lead,
-        activities=activities
-    )
-    
+    analysis = ai.analyze_deal_risk(opportunity=opp, lead=lead, activities=activities)
+
     return analysis
 
 
-# 
+#
 # Opportunities Endpoints
-# 
+#
+
 
 @app.get("/api/opportunities")
 def list_opportunities(
@@ -557,7 +575,9 @@ def analyze_opportunity(opp_id: str, crm: CRMManager = Depends(get_crm_session))
 
 
 @app.post("/api/opportunities", status_code=201)
-def create_opportunity(data: OpportunityCreate, crm: CRMManager = Depends(get_crm_session)):
+def create_opportunity(
+    data: OpportunityCreate, crm: CRMManager = Depends(get_crm_session)
+):
     """Create a new opportunity."""
 
     # Verify lead exists
@@ -568,7 +588,9 @@ def create_opportunity(data: OpportunityCreate, crm: CRMManager = Depends(get_cr
     opp = Opportunity(
         lead_id=data.lead_id,
         title=data.title,
-        stage=PipelineStage(data.stage) if data.stage in [s.value for s in PipelineStage] else PipelineStage.PROSPECTING,
+        stage=PipelineStage(data.stage)
+        if data.stage in [s.value for s in PipelineStage]
+        else PipelineStage.PROSPECTING,
         value=data.value,
         probability=data.probability,
         close_date=data.close_date,
@@ -581,7 +603,9 @@ def create_opportunity(data: OpportunityCreate, crm: CRMManager = Depends(get_cr
 
 
 @app.put("/api/opportunities/{opp_id}")
-def update_opportunity(opp_id: str, data: OpportunityUpdate, crm: CRMManager = Depends(get_crm_session)):
+def update_opportunity(
+    opp_id: str, data: OpportunityUpdate, crm: CRMManager = Depends(get_crm_session)
+):
     """Update an existing opportunity."""
     opp = crm.get_opportunity(opp_id)
     if not opp:
@@ -611,18 +635,20 @@ def update_opportunity(opp_id: str, data: OpportunityUpdate, crm: CRMManager = D
 
 
 @app.patch("/api/opportunities/{opp_id}/stage")
-def update_opportunity_stage(opp_id: str, data: StageUpdate, crm: CRMManager = Depends(get_crm_session)):
+def update_opportunity_stage(
+    opp_id: str, data: StageUpdate, crm: CRMManager = Depends(get_crm_session)
+):
     """Update only the stage of an opportunity (for drag-and-drop)."""
     # Validate enum lookup
     try:
         target_stage = PipelineStage(data.stage)
     except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid stage: {data.stage}")
+        raise HTTPException(status_code=400, detail=f"Invalid stage: {data.stage}")
 
     success = crm.move_opportunity_stage(opp_id, target_stage)
     if not success:
         raise HTTPException(status_code=404, detail="Opportunity not found")
-        
+
     return {"updated": True, "new_stage": data.stage}
 
 
@@ -635,9 +661,10 @@ def delete_opportunity(opp_id: str, crm: CRMManager = Depends(get_crm_session)):
     return {"deleted": True}
 
 
-# 
+#
 # Activities Endpoints
-# 
+#
+
 
 @app.get("/api/activities")
 def list_activities(
@@ -647,7 +674,10 @@ def list_activities(
 ):
     """Get activities, optionally filtered by lead or opportunity."""
     activities = crm.get_activities(lead_id=lead_id, opp_id=opp_id)
-    return {"activities": [a.model_dump() for a in activities], "count": len(activities)}
+    return {
+        "activities": [a.model_dump() for a in activities],
+        "count": len(activities),
+    }
 
 
 @app.post("/api/activities", status_code=201)
@@ -662,7 +692,9 @@ def create_activity(data: ActivityCreate, crm: CRMManager = Depends(get_crm_sess
     activity = Activity(
         lead_id=data.lead_id,
         opp_id=data.opp_id,
-        type=ActivityType(data.type) if data.type in [t.value for t in ActivityType] else ActivityType.NOTE,
+        type=ActivityType(data.type)
+        if data.type in [t.value for t in ActivityType]
+        else ActivityType.NOTE,
         subject=data.subject,
         description=data.description,
         created_by=data.created_by,
@@ -671,9 +703,10 @@ def create_activity(data: ActivityCreate, crm: CRMManager = Depends(get_crm_sess
     return created.model_dump()
 
 
-# 
+#
 # Dashboard Endpoints
-# 
+#
+
 
 @app.get("/api/dashboard")
 def get_dashboard(crm: CRMManager = Depends(get_crm_session)):
@@ -696,7 +729,9 @@ def get_pipeline(crm: CRMManager = Depends(get_crm_session)):
             "opportunities": [
                 {
                     **o.model_dump(),
-                    "lead": leads.get(o.lead_id).model_dump() if o.lead_id in leads else None
+                    "lead": leads.get(o.lead_id).model_dump()
+                    if o.lead_id in leads
+                    else None,
                 }
                 for o in stage_opps
             ],
@@ -722,9 +757,10 @@ def get_config():
     }
 
 
-# 
+#
 # Search Endpoint
-# 
+#
+
 
 @app.get("/api/search")
 def search_all(
@@ -736,29 +772,34 @@ def search_all(
     Returns results grouped by entity type.
     """
     query = q.lower().strip()
-    
+
     # Search leads
     leads = crm.get_leads()
     matching_leads = [
-        l for l in leads
+        l
+        for l in leads
         if query in l.company_name.lower()
         or query in l.contact_name.lower()
         or (l.contact_email and query in l.contact_email.lower())
         or (l.industry and query in l.industry.lower())
     ]
-    
+
     # Search opportunities
     opps = crm.get_opportunities()
     leads_by_id = {l.lead_id: l for l in leads}
     matching_opps = [
-        o for o in opps
+        o
+        for o in opps
         if query in o.title.lower()
         or (o.product and query in o.product.lower())
         or (o.notes and query in o.notes.lower())
         # Also match by company name of associated lead
-        or (o.lead_id in leads_by_id and query in leads_by_id[o.lead_id].company_name.lower())
+        or (
+            o.lead_id in leads_by_id
+            and query in leads_by_id[o.lead_id].company_name.lower()
+        )
     ]
-    
+
     return {
         "query": q,
         "results": {
@@ -773,7 +814,9 @@ def search_all(
                 {
                     **o.model_dump(),
                     "type": "opportunity",
-                    "lead": leads_by_id.get(o.lead_id).model_dump() if o.lead_id in leads_by_id else None,
+                    "lead": leads_by_id.get(o.lead_id).model_dump()
+                    if o.lead_id in leads_by_id
+                    else None,
                 }
                 for o in matching_opps[:10]
             ],
@@ -782,24 +825,28 @@ def search_all(
     }
 
 
-# 
+#
 
 # Data Import Endpoints
-# 
+#
+
 
 class ColumnMapping(BaseModel):
     """Mapping of CSV column to CRM field."""
+
     csv_column: str
     crm_field: str
 
 
 class ImportPreviewRequest(BaseModel):
     """Request for previewing CSV data with column mappings."""
+
     mappings: List[ColumnMapping]
 
 
 class ImportRequest(BaseModel):
     """Request for importing CSV data."""
+
     mappings: List[ColumnMapping]
 
 
@@ -811,13 +858,13 @@ async def upload_csv_file(
     Upload and parse a CSV file.
     Returns the headers and first 5 rows for preview and mapping.
     """
-    if not file.filename or not file.filename.endswith('.csv'):
+    if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
 
     try:
         # Read file content
         content = await file.read()
-        decoded_content = content.decode('utf-8')
+        decoded_content = content.decode("utf-8")
 
         # Parse CSV
         csv_reader = csv.reader(io.StringIO(decoded_content))
@@ -841,7 +888,9 @@ async def upload_csv_file(
             "suggested_mappings": suggested_mappings,
         }
     except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please use UTF-8.")
+        raise HTTPException(
+            status_code=400, detail="Invalid CSV encoding. Please use UTF-8."
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error parsing CSV: {str(e)}")
 
@@ -855,18 +904,19 @@ async def preview_import(
     Preview how CSV data will be imported with the given column mappings.
     Returns first 5 rows mapped to CRM fields.
     """
-    if not file.filename or not file.filename.endswith('.csv'):
+    if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
 
     try:
         # Parse mappings from JSON string
         import json
+
         mappings_list = json.loads(mappings)
-        mapping_dict = {m['csv_column']: m['crm_field'] for m in mappings_list}
+        mapping_dict = {m["csv_column"]: m["crm_field"] for m in mappings_list}
 
         # Read and parse CSV
         content = await file.read()
-        decoded_content = content.decode('utf-8')
+        decoded_content = content.decode("utf-8")
         csv_reader = csv.reader(io.StringIO(decoded_content))
         rows = list(csv_reader)
 
@@ -892,7 +942,9 @@ async def preview_import(
             "row_count": len(preview_data),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error previewing import: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error previewing import: {str(e)}"
+        )
 
 
 @app.post("/api/import/csv/execute")
@@ -905,18 +957,19 @@ async def execute_import(
     Execute the CSV import with the given column mappings.
     Batch appends leads to the Google Sheet.
     """
-    if not file.filename or not file.filename.endswith('.csv'):
+    if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
 
     try:
         # Parse mappings from JSON string
         import json
+
         mappings_list = json.loads(mappings)
-        mapping_dict = {m['csv_column']: m['crm_field'] for m in mappings_list}
+        mapping_dict = {m["csv_column"]: m["crm_field"] for m in mappings_list}
 
         # Read and parse CSV
         content = await file.read()
-        decoded_content = content.decode('utf-8')
+        decoded_content = content.decode("utf-8")
         csv_reader = csv.reader(io.StringIO(decoded_content))
         rows = list(csv_reader)
 
@@ -931,10 +984,13 @@ async def execute_import(
         errors = []
 
         # Check if required mappings exist
-        if 'company_name' not in mapping_dict.values() or 'contact_name' not in mapping_dict.values():
+        if (
+            "company_name" not in mapping_dict.values()
+            or "contact_name" not in mapping_dict.values()
+        ):
             raise HTTPException(
                 status_code=400,
-                detail="Mapping must include both 'Company Name' and 'Contact Name' fields."
+                detail="Mapping must include both 'Company Name' and 'Contact Name' fields.",
             )
 
         for idx, row in enumerate(data_rows, start=2):  # Start at 2 (1 is header)
@@ -950,50 +1006,53 @@ async def execute_import(
                     continue
 
                 # Required fields check
-                if not mapped_data.get('company_name') or not mapped_data.get('contact_name'):
-                    errors.append({
-                        "row": idx,
-                        "error": "Missing required fields: company_name or contact_name"
-                    })
+                if not mapped_data.get("company_name") or not mapped_data.get(
+                    "contact_name"
+                ):
+                    errors.append(
+                        {
+                            "row": idx,
+                            "error": "Missing required fields: company_name or contact_name",
+                        }
+                    )
                     continue
 
                 # Create Lead object
-                status_value = mapped_data.get('status', '')
+                status_value = mapped_data.get("status", "")
                 if status_value and status_value in [s.value for s in LeadStatus]:
                     status = LeadStatus(status_value)
                 else:
                     status = LeadStatus.NEW
-                
-                source_value = mapped_data.get('source', '')
+
+                source_value = mapped_data.get("source", "")
                 if source_value and source_value in [s.value for s in LeadSource]:
                     source = LeadSource(source_value)
                 else:
                     source = LeadSource.OTHER
-                
-                company_size_value = mapped_data.get('company_size', '')
+
+                company_size_value = mapped_data.get("company_size", "")
                 company_size = None
-                if company_size_value and company_size_value in [s.value for s in CompanySize]:
+                if company_size_value and company_size_value in [
+                    s.value for s in CompanySize
+                ]:
                     company_size = CompanySize(company_size_value)
-                
+
                 lead = Lead(
-                    company_name=mapped_data.get('company_name', ''),
-                    contact_name=mapped_data.get('contact_name', ''),
-                    contact_email=mapped_data.get('contact_email'),
-                    contact_phone=mapped_data.get('contact_phone'),
+                    company_name=mapped_data.get("company_name", ""),
+                    contact_name=mapped_data.get("contact_name", ""),
+                    contact_email=mapped_data.get("contact_email"),
+                    contact_phone=mapped_data.get("contact_phone"),
                     status=status,
                     source=source,
-                    industry=mapped_data.get('industry'),
+                    industry=mapped_data.get("industry"),
                     company_size=company_size,
-                    notes=mapped_data.get('notes'),
-                    owner=mapped_data.get('owner'),
+                    notes=mapped_data.get("notes"),
+                    owner=mapped_data.get("owner"),
                 )
                 leads_to_import.append(lead)
 
             except Exception as e:
-                errors.append({
-                    "row": idx,
-                    "error": str(e)
-                })
+                errors.append({"row": idx, "error": str(e)})
 
         # Batch import leads
         imported_count = 0
@@ -1001,7 +1060,10 @@ async def execute_import(
             try:
                 imported_count = crm.batch_add_leads(leads_to_import)
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to import to Google Sheets: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to import to Google Sheets: {str(e)}",
+                )
 
         return {
             "success": True,
@@ -1023,30 +1085,56 @@ def _auto_detect_mappings(headers: List[str]) -> List[Dict[str, str]]:
     """
     # Common header name patterns
     field_patterns = {
-        'company_name': ['company', 'company name', 'organization', 'org', 'business', 'firm', 'account'],
-        'contact_name': ['contact', 'name', 'contact name', 'full name', 'person', 'lead', 'client'],
-        'contact_email': ['email', 'e-mail', 'contact email', 'email address', 'mail'],
-        'contact_phone': ['phone', 'telephone', 'contact phone', 'phone number', 'mobile', 'cell', 'tel'],
-        'status': ['status', 'lead status', 'stage', 'phase'],
-        'source': ['source', 'lead source', 'origin', 'channel', 'medium', 'campaign'],
-        'industry': ['industry', 'sector', 'vertical', 'business type'],
-        'company_size': ['size', 'company size', 'employees', 'headcount', 'staff'],
-        'notes': ['notes', 'note', 'description', 'comments', 'remarks', 'about'],
-        'owner': ['owner', 'assigned to', 'rep', 'sales rep', 'agent', 'assignee'],
+        "company_name": [
+            "company",
+            "company name",
+            "organization",
+            "org",
+            "business",
+            "firm",
+            "account",
+        ],
+        "contact_name": [
+            "contact",
+            "name",
+            "contact name",
+            "full name",
+            "person",
+            "lead",
+            "client",
+        ],
+        "contact_email": ["email", "e-mail", "contact email", "email address", "mail"],
+        "contact_phone": [
+            "phone",
+            "telephone",
+            "contact phone",
+            "phone number",
+            "mobile",
+            "cell",
+            "tel",
+        ],
+        "status": ["status", "lead status", "stage", "phase"],
+        "source": ["source", "lead source", "origin", "channel", "medium", "campaign"],
+        "industry": ["industry", "sector", "vertical", "business type"],
+        "company_size": ["size", "company size", "employees", "headcount", "staff"],
+        "notes": ["notes", "note", "description", "comments", "remarks", "about"],
+        "owner": ["owner", "assigned to", "rep", "sales rep", "agent", "assignee"],
     }
 
     suggestions = []
     used_crm_fields = set()
-    
+
     for header in headers:
-        header_clean = header.lower().strip().replace('_', ' ').replace('-', ' ')
-        
+        header_clean = header.lower().strip().replace("_", " ").replace("-", " ")
+
         best_match = None
         for crm_field, patterns in field_patterns.items():
             if crm_field in used_crm_fields:
                 continue
-                
-            if header_clean in patterns or any(pattern == header_clean for pattern in patterns):
+
+            if header_clean in patterns or any(
+                pattern == header_clean for pattern in patterns
+            ):
                 best_match = crm_field
                 break
 
@@ -1055,21 +1143,28 @@ def _auto_detect_mappings(headers: List[str]) -> List[Dict[str, str]]:
             for crm_field, patterns in field_patterns.items():
                 if crm_field in used_crm_fields:
                     continue
-                if any(pattern in header_clean or header_clean in pattern for pattern in patterns):
+                if any(
+                    pattern in header_clean or header_clean in pattern
+                    for pattern in patterns
+                ):
                     best_match = crm_field
                     break
 
         if best_match:
-            suggestions.append({
-                "csv_column": header,
-                "crm_field": best_match,
-            })
+            suggestions.append(
+                {
+                    "csv_column": header,
+                    "crm_field": best_match,
+                }
+            )
             used_crm_fields.add(best_match)
 
     return suggestions
 
+
 # Gmail Integration Endpoints
-# 
+#
+
 
 class EmailSyncRequest(BaseModel):
     days_back: int = 7
@@ -1078,36 +1173,32 @@ class EmailSyncRequest(BaseModel):
 
 @app.post("/api/leads/{lead_id}/sync-emails")
 def sync_lead_emails(
-    lead_id: str,
-    request: EmailSyncRequest,
-    crm: CRMManager = Depends(get_crm_session)
+    lead_id: str, request: EmailSyncRequest, crm: CRMManager = Depends(get_crm_session)
 ):
     """Sync emails for a specific lead and log them as activities."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+
     if not lead.contact_email:
         raise HTTPException(status_code=400, detail="Lead has no email address")
-    
+
     if not crm.google_creds:
         raise HTTPException(
             status_code=400,
-            detail="Gmail access not configured. Please ensure you've granted Gmail permissions."
+            detail="Gmail access not configured. Please ensure you've granted Gmail permissions.",
         )
-    
+
     try:
         activities = crm.sync_emails_for_lead(
-            lead=lead,
-            days_back=request.days_back,
-            auto_log=request.auto_log
+            lead=lead, days_back=request.days_back, auto_log=request.auto_log
         )
-        
+
         return {
             "success": True,
             "lead_id": lead_id,
             "emails_synced": len(activities),
-            "activities": [a.model_dump() for a in activities]
+            "activities": [a.model_dump() for a in activities],
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Email sync failed: {str(e)}")
@@ -1117,54 +1208,42 @@ def sync_lead_emails(
 def sync_all_emails_background(
     background_tasks: BackgroundTasks,
     request: EmailSyncRequest,
-    crm: CRMManager = Depends(get_crm_session)
+    crm: CRMManager = Depends(get_crm_session),
 ):
     """Sync emails for all leads in the background."""
     if not crm.google_creds:
         raise HTTPException(
             status_code=400,
-            detail="Gmail access not configured. Please ensure you've granted Gmail permissions."
+            detail="Gmail access not configured. Please ensure you've granted Gmail permissions.",
         )
-    
+
     # Add sync task to background
     background_tasks.add_task(
-        _background_email_sync,
-        crm,
-        request.days_back,
-        request.auto_log
+        _background_email_sync, crm, request.days_back, request.auto_log
     )
-    
+
     return {
         "success": True,
         "message": "Email sync started in background",
-        "days_back": request.days_back
+        "days_back": request.days_back,
     }
 
 
 def _background_email_sync(crm: CRMManager, days_back: int, auto_log: bool):
     """Background task for syncing emails."""
     try:
-        stats = crm.sync_emails_for_all_leads(
-            days_back=days_back,
-            auto_log=auto_log
-        )
+        stats = crm.sync_emails_for_all_leads(days_back=days_back, auto_log=auto_log)
         print(f"[Gmail Sync] Completed: {stats}")
     except Exception as e:
         print(f"[Gmail Sync] Error: {e}")
 
 
 @app.get("/api/leads/{lead_id}/email-summary")
-def get_lead_email_summary(
-    lead_id: str,
-    crm: CRMManager = Depends(get_crm_session)
-):
+def get_lead_email_summary(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     """Get email activity summary for a lead."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+
     summary = crm.get_email_activity_summary(lead_id)
     return summary
-
-
-

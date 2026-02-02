@@ -5,8 +5,11 @@ import requests
 from openai import OpenAI
 from .models import Lead, CompanySize
 
+
 class EnrichmentService:
-    def __init__(self, openai_api_key: Optional[str] = None, brave_api_key: Optional[str] = None):
+    def __init__(
+        self, openai_api_key: Optional[str] = None, brave_api_key: Optional[str] = None
+    ):
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         self.brave_api_key = brave_api_key or os.getenv("BRAVE_API_KEY")
         if self.openai_api_key:
@@ -17,17 +20,17 @@ class EnrichmentService:
     def search_company(self, company_name: str) -> str:
         if not self.brave_api_key:
             return f"No Brave API key. Searching for: {company_name}"
-        
+
         url = "https://api.search.brave.com/res/v1/web/search"
         headers = {
             "Accept": "application/json",
-            "X-Subscription-Token": self.brave_api_key
+            "X-Subscription-Token": self.brave_api_key,
         }
         params = {
             "q": f"{company_name} company official website linkedin logo industry",
-            "count": 5
+            "count": 5,
         }
-        
+
         try:
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
@@ -47,7 +50,7 @@ class EnrichmentService:
 
         print(f"[Enrichment] Enriching lead: {lead.company_name}")
         search_results = self.search_company(lead.company_name)
-        
+
         prompt = f"""
         You are a lead enrichment assistant. Given a company name and search results, extract the following details.
         
@@ -63,26 +66,30 @@ class EnrichmentService:
         
         Do not include any other text or explanation.
         """
-        
+
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant that extracts structured data from search results."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that extracts structured data from search results.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
-            
+
             content = response.choices[0].message.content
             if not content:
                 return {}
-                
+
             data = json.loads(content)
             print(f"[Enrichment] Found data: {data}")
             return data
         except Exception as e:
             print(f"[Enrichment] AI enrichment error: {e}")
             return {}
+
 
 enrichment_service = EnrichmentService()
