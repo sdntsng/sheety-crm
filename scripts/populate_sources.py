@@ -1,6 +1,5 @@
 from src.auth import authenticate
 from src.sheets import SheetManager
-import typer
 import time
 
 
@@ -8,7 +7,6 @@ def main():
     gc, _ = authenticate("default")
     manager = SheetManager(gc)
     sheet_name = "16lekpuWvgcQc9uFcGJn5slPYmKBTlC328ixUBUcGF8g"
-    worksheet_name = "Sheet1"
 
     # DEFINING THE MASSIVE LIST (Targeting 100+ items)
     # Schema: [Category, Element, JSON, Description, Current/LongTerm, DB, Source, Perms, Notes]

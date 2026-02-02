@@ -16,7 +16,6 @@ from .models import (
     LeadStatus,
     PipelineStage,
     ActivityType,
-    LeadSource,
     CompanySize,
 )
 from .templates import CRMTemplates
@@ -177,7 +176,7 @@ class CRMManager:
     def get_lead(self, lead_id: str) -> Optional[Lead]:
         """Get a specific lead by ID."""
         leads = self.get_leads()
-        return next((l for l in leads if l.lead_id == lead_id), None)
+        return next((lead for lead in leads if lead.lead_id == lead_id), None)
 
     def update_lead(self, lead: Lead) -> bool:
         """Update an existing lead."""
@@ -477,12 +476,14 @@ class CRMManager:
         leads_by_status = {}
         for status in LeadStatus:
             leads_by_status[status.value] = len(
-                [l for l in leads if l.status == status]
+                [lead for lead in leads if lead.status == status]
             )
 
         # Top leads by score
         top_leads = sorted(
-            [l for l in leads if l.score > 0], key=lambda l: l.score, reverse=True
+            [lead for lead in leads if lead.score > 0],
+            key=lambda lead: lead.score,
+            reverse=True,
         )[:5]
 
         return {
@@ -500,7 +501,7 @@ class CRMManager:
             ),
             "pipeline_by_stage": by_stage,
             "leads_by_status": leads_by_status,
-            "top_leads": [l.model_dump() for l in top_leads],
+            "top_leads": [lead.model_dump() for lead in top_leads],
         }
 
     def print_pipeline(self):

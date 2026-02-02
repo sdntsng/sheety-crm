@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from faker import Faker
 import argparse
 from rich.console import Console
-from rich.progress import track
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -94,7 +93,7 @@ def generate_opportunities(leads, ratio=0.6):
 
 def generate_activities(leads, opps, count_per_entity=3):
     activities = []
-    console.print(f"[bold]Generating Activities...[/bold]")
+    console.print("[bold]Generating Activities...[/bold]")
 
     # Activities for leads
     for lead in leads:
@@ -201,21 +200,21 @@ def main():
     activities = generate_activities(leads, opps)
 
     # Push to Sheets (Batch would be better but simple loops work for script)
-    console.print(f"\n[bold cyan]Pushing data to Google Sheets...[/bold cyan]")
+    console.print("\n[bold cyan]Pushing data to Google Sheets...[/bold cyan]")
 
-    with console.status("Adding Leads...") as status:
+    with console.status("Adding Leads..."):
         for lead in leads:
             crm.add_lead(lead)
 
-    with console.status("Adding Opportunities...") as status:
+    with console.status("Adding Opportunities..."):
         for opp in opps:
             crm.add_opportunity(opp)
 
-    with console.status("Adding Activities...") as status:
+    with console.status("Adding Activities..."):
         for act in activities:  # Limit activities if too many
             crm.log_activity(act)
 
-    console.print(f"\n[bold green]Success![/bold green]")
+    console.print("\n[bold green]Success![/bold green]")
     console.print(f"Added {len(leads)} Leads")
     console.print(f"Added {len(opps)} Opportunities")
     console.print(f"Added {len(activities)} Activities")

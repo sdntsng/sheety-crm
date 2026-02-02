@@ -3,7 +3,17 @@ FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
 
-from fastapi import (
+import os
+import sys
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from fastapi import (  # noqa: E402
     FastAPI,
     HTTPException,
     Query,
@@ -13,28 +23,18 @@ from fastapi import (
     UploadFile,
 )
 
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, field_validator
-from typing import List, Optional, Dict
-from datetime import date
-import csv
-import io
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from pydantic import BaseModel, field_validator  # noqa: E402
+from typing import List, Optional, Dict  # noqa: E402
+from datetime import date  # noqa: E402
+import csv  # noqa: E402
+import io  # noqa: E402
 
-import sys
-import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from src.sheets import SheetManager
-from src.crm.manager import CRMManager
-from api.deps import get_crm_session
-from fastapi import Depends
-from src.crm.models import (
+from src.sheets import SheetManager  # noqa: E402
+from src.crm.manager import CRMManager  # noqa: E402
+from api.deps import get_crm_session  # noqa: E402
+from fastapi import Depends  # noqa: E402
+from src.crm.models import (  # noqa: E402
     Lead,
     Opportunity,
     Activity,
@@ -44,7 +44,7 @@ from src.crm.models import (
     ActivityType,
     CompanySize,
 )
-from src.crm.ai import AIManager
+from src.crm.ai import AIManager  # noqa: E402
 
 
 # New dependency for just authenticated SheetManager (without CRM session)
@@ -297,11 +297,11 @@ def list_leads(
     leads = crm.get_leads()
 
     if status:
-        leads = [l for l in leads if l.status.value == status]
+        leads = [lead for lead in leads if lead.status.value == status]
     if source:
-        leads = [l for l in leads if l.source.value == source]
+        leads = [lead for lead in leads if lead.source.value == source]
 
-    return {"leads": [l.model_dump() for l in leads], "count": len(leads)}
+    return {"leads": [lead.model_dump() for lead in leads], "count": len(leads)}
 
 
 @app.get("/api/leads/{lead_id}")
@@ -701,7 +701,7 @@ def get_dashboard(crm: CRMManager = Depends(get_crm_session)):
 def get_pipeline(crm: CRMManager = Depends(get_crm_session)):
     """Get pipeline data formatted for Kanban view."""
     opps = crm.get_opportunities()
-    leads = {l.lead_id: l for l in crm.get_leads()}
+    leads = {lead.lead_id: lead for lead in crm.get_leads()}
 
     # Group by stage
     pipeline = {}
@@ -759,17 +759,17 @@ def search_all(
     # Search leads
     leads = crm.get_leads()
     matching_leads = [
-        l
-        for l in leads
-        if query in l.company_name.lower()
-        or query in l.contact_name.lower()
-        or (l.contact_email and query in l.contact_email.lower())
-        or (l.industry and query in l.industry.lower())
+        lead
+        for lead in leads
+        if query in lead.company_name.lower()
+        or query in lead.contact_name.lower()
+        or (lead.contact_email and query in lead.contact_email.lower())
+        or (lead.industry and query in lead.industry.lower())
     ]
 
     # Search opportunities
     opps = crm.get_opportunities()
-    leads_by_id = {l.lead_id: l for l in leads}
+    leads_by_id = {lead.lead_id: lead for lead in leads}
     matching_opps = [
         o
         for o in opps
@@ -788,10 +788,10 @@ def search_all(
         "results": {
             "leads": [
                 {
-                    **l.model_dump(),
+                    **lead.model_dump(),
                     "type": "lead",
                 }
-                for l in matching_leads[:10]  # Limit to 10 results
+                for lead in matching_leads[:10]  # Limit to 10 results
             ],
             "opportunities": [
                 {
