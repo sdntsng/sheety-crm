@@ -17,7 +17,9 @@ lint: lint-check
 # =============================================================================
 
 install:
-	pip install -r requirements.txt
+	@echo "Creating Python venv (./venv) if it doesn't exist..."
+	@test -d venv || python3 -m venv venv
+	$(PYTHON) -m pip install -r requirements.txt
 	cd crm-dashboard && npm install
 
 setup:
@@ -117,8 +119,16 @@ crm-stop:
 
 lint-check:
 	@echo "Checking Frontend formatting (Prettier)..."
-	cd crm-dashboard && npx prettier --check .
+	cd crm-dashboard && npm run format:check
+	@echo "Checking Backend formatting (Ruff)..."
+	$(PYTHON) -m ruff format --check src api scripts
+	@echo "Checking Backend lint (Ruff)..."
+	$(PYTHON) -m ruff check src api scripts
+
+lint: lint-check
 
 format:
 	@echo "Formatting Frontend (Prettier)..."
-	cd crm-dashboard && npx prettier --write .
+	cd crm-dashboard && npm run format
+	@echo "Formatting Backend (Ruff)..."
+	$(PYTHON) -m ruff format src api scripts

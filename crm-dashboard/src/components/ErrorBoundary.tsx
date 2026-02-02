@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -65,10 +65,19 @@ class ErrorBoundaryClass extends Component<
               </p>
               <div className="flex gap-3 justify-center">
                 <button onClick={this.resetError} className="btn-primary">
-                  Try Again
+                  Retry
                 </button>
                 <button
-                  onClick={() => this.props.router?.push("/dashboard")}
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 font-mono text-xs uppercase font-bold border border-[var(--border-pencil)] rounded bg-white hover:bg-[var(--bg-hover)] transition-all"
+                >
+                  Reload
+                </button>
+                <button
+                  onClick={() => {
+                    this.resetError();
+                    this.props.router?.push("/dashboard");
+                  }}
                   className="px-4 py-2 font-mono text-xs uppercase font-bold border border-[var(--border-pencil)] rounded bg-white hover:bg-[var(--bg-hover)] transition-all"
                 >
                   Go to Dashboard
@@ -90,9 +99,10 @@ export function ErrorBoundary({
   fallback,
 }: Omit<ErrorBoundaryProps, "router">) {
   const router = useRouter();
+  const pathname = usePathname();
 
   return (
-    <ErrorBoundaryClass router={router} fallback={fallback}>
+    <ErrorBoundaryClass key={pathname} router={router} fallback={fallback}>
       {children}
     </ErrorBoundaryClass>
   );
