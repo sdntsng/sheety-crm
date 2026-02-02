@@ -373,7 +373,6 @@ function DashboardPageContent() {
       </div>
       {/* Onboarding Tour */}
       <OnboardingTour run={runTour} onComplete={() => setRunTour(false)} />
-
     </div>
   );
 }

@@ -182,7 +182,8 @@ export default function SettingsPage() {
         {/* Tour Settings */}
         <section>
           <h2 className="text-2xl font-sans font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-            <span className="text-[var(--accent-yellow)]">■</span> Getting Started
+            <span className="text-[var(--accent-yellow)]">■</span> Getting
+            Started
           </h2>
           <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
             <p className="font-mono text-xs text-[var(--text-secondary)] mb-4 uppercase tracking-wider">
@@ -190,7 +191,8 @@ export default function SettingsPage() {
             </p>
             <div className="space-y-3">
               <p className="font-sans text-sm text-[var(--text-secondary)]">
-                Restart the onboarding tour to learn about the key features of Sheety CRM.
+                Restart the onboarding tour to learn about the key features of
+                Sheety CRM.
               </p>
               <button
                 onClick={() => {

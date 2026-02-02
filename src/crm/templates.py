@@ -1,11 +1,20 @@
 """
 CRM Sheet Templates - Creates and initializes the CRM Google Sheet structure.
 """
+
 import gspread
 import time
 from rich.console import Console
 
-from .models import Lead, Opportunity, Activity, PipelineStage, LeadStatus, LeadSource, CompanySize
+from .models import (
+    Lead,
+    Opportunity,
+    Activity,
+    PipelineStage,
+    LeadStatus,
+    LeadSource,
+    CompanySize,
+)
 
 console = Console()
 
@@ -16,7 +25,9 @@ class CRMTemplates:
     def __init__(self, gc: gspread.Client):
         self.gc = gc
 
-    def create_crm_sheet(self, name: str = "Sales Pipeline 2026") -> gspread.Spreadsheet:
+    def create_crm_sheet(
+        self, name: str = "Sales Pipeline 2026"
+    ) -> gspread.Spreadsheet:
         """Create a new CRM spreadsheet with all required worksheets."""
         console.print(f"[bold blue]Creating CRM: {name}[/bold blue]")
 
@@ -32,18 +43,18 @@ class CRMTemplates:
         self.setup_leads_sheet(leads_ws)
         console.print("[green]✓ Set up Leads worksheet[/green]")
         time.sleep(1.5)  # Rate limit safety
-        
+
         self.ensure_worksheet(sh, "Opportunities")
         console.print("[green]✓ Set up Opportunities worksheet[/green]")
         time.sleep(1.5)
-        
+
         self.ensure_worksheet(sh, "Activities")
         console.print("[green]✓ Set up Activities worksheet[/green]")
         time.sleep(1.5)
-        
+
         self.ensure_worksheet(sh, "Summary")
         console.print("[green]✓ Set up Summary dashboard[/green]")
-        
+
         self.ensure_worksheet(sh, "_Schema")
         console.print("[green]✓ Set up Schema reference[/green]")
 
@@ -57,7 +68,7 @@ class CRMTemplates:
         except gspread.exceptions.WorksheetNotFound:
             console.print(f"[yellow]Worksheet '{name}' missing. Creating...[/yellow]")
             ws = sh.add_worksheet(title=name, rows=1000, cols=20)
-            
+
             if name == "Leads":
                 self.setup_leads_sheet(ws)
             elif name == "Opportunities":
@@ -68,7 +79,7 @@ class CRMTemplates:
                 self.setup_summary_sheet(ws)
             elif name == "_Schema":
                 self.setup_schema_sheet(ws)
-            
+
             return ws
 
     def setup_leads_sheet(self, ws: gspread.Worksheet):
@@ -77,10 +88,13 @@ class CRMTemplates:
         ws.append_row(headers)
 
         # Bold headers
-        ws.format("A1:S1", {
-            "textFormat": {"bold": True},
-            "backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.3}
-        })
+        ws.format(
+            "A1:S1",
+            {
+                "textFormat": {"bold": True},
+                "backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.3},
+            },
+        )
 
         # Freeze header row
         ws.freeze(rows=1)
@@ -105,10 +119,13 @@ class CRMTemplates:
         headers = Opportunity.headers()
         ws.append_row(headers)
 
-        ws.format("A1:N1", {
-            "textFormat": {"bold": True},
-            "backgroundColor": {"red": 0.2, "green": 0.3, "blue": 0.2}
-        })
+        ws.format(
+            "A1:N1",
+            {
+                "textFormat": {"bold": True},
+                "backgroundColor": {"red": 0.2, "green": 0.3, "blue": 0.2},
+            },
+        )
 
         ws.freeze(rows=1)
         ws.set_basic_filter()
@@ -118,24 +135,31 @@ class CRMTemplates:
         self._add_dropdown_validation(ws, "D2:D1000", stage_values)
 
         # Currency format for value column (E)
-        ws.format("E2:E1000", {"numberFormat": {"type": "CURRENCY", "pattern": "$#,##0.00"}})
+        ws.format(
+            "E2:E1000", {"numberFormat": {"type": "CURRENCY", "pattern": "$#,##0.00"}}
+        )
 
         # Percentage format for probability column (F)
         ws.format("F2:F1000", {"numberFormat": {"type": "NUMBER", "pattern": "0%"}})
 
         # Expected value formula in column G
         # Note: We'll set this as a formula that auto-calculates
-        ws.format("G2:G1000", {"numberFormat": {"type": "CURRENCY", "pattern": "$#,##0.00"}})
+        ws.format(
+            "G2:G1000", {"numberFormat": {"type": "CURRENCY", "pattern": "$#,##0.00"}}
+        )
 
     def setup_activities_sheet(self, ws: gspread.Worksheet):
         """Set up the Activities worksheet."""
         headers = Activity.headers()
         ws.append_row(headers)
 
-        ws.format("A1:H1", {
-            "textFormat": {"bold": True},
-            "backgroundColor": {"red": 0.3, "green": 0.2, "blue": 0.2}
-        })
+        ws.format(
+            "A1:H1",
+            {
+                "textFormat": {"bold": True},
+                "backgroundColor": {"red": 0.3, "green": 0.2, "blue": 0.2},
+            },
+        )
 
         ws.freeze(rows=1)
         ws.set_basic_filter()
@@ -152,11 +176,20 @@ class CRMTemplates:
             ws.format("A3", {"textFormat": {"bold": True, "fontSize": 12}})
 
             metrics = [
-                ("Total Leads", '=COUNTA(Leads!A:A)-1'),
-                ("Total Opportunities", '=COUNTA(Opportunities!A:A)-1'),
-                ("Pipeline Value", '=SUMIF(Opportunities!D:D,"<>Closed Lost",Opportunities!E:E)'),
-                ("Closed Won Value", '=SUMIF(Opportunities!D:D,"Closed Won",Opportunities!E:E)'),
-                ("Cash in Bank", '=SUMIF(Opportunities!D:D,"Cash in Bank",Opportunities!E:E)'),
+                ("Total Leads", "=COUNTA(Leads!A:A)-1"),
+                ("Total Opportunities", "=COUNTA(Opportunities!A:A)-1"),
+                (
+                    "Pipeline Value",
+                    '=SUMIF(Opportunities!D:D,"<>Closed Lost",Opportunities!E:E)',
+                ),
+                (
+                    "Closed Won Value",
+                    '=SUMIF(Opportunities!D:D,"Closed Won",Opportunities!E:E)',
+                ),
+                (
+                    "Cash in Bank",
+                    '=SUMIF(Opportunities!D:D,"Cash in Bank",Opportunities!E:E)',
+                ),
             ]
 
             row = 4
@@ -166,7 +199,9 @@ class CRMTemplates:
                 row += 1
 
             # Format value cells
-            ws.format("B6:B8", {"numberFormat": {"type": "CURRENCY", "pattern": "$#,##0"}})
+            ws.format(
+                "B6:B8", {"numberFormat": {"type": "CURRENCY", "pattern": "$#,##0"}}
+            )
 
             # Pipeline by Stage
             ws.update_acell("A10", "Pipeline by Stage")
@@ -180,11 +215,19 @@ class CRMTemplates:
             row = 12
             for stage in PipelineStage:
                 ws.update_acell(f"A{row}", stage.value)
-                ws.update_acell(f"B{row}", f'=COUNTIF(Opportunities!D:D,"{stage.value}")')
-                ws.update_acell(f"C{row}", f'=SUMIF(Opportunities!D:D,"{stage.value}",Opportunities!E:E)')
+                ws.update_acell(
+                    f"B{row}", f'=COUNTIF(Opportunities!D:D,"{stage.value}")'
+                )
+                ws.update_acell(
+                    f"C{row}",
+                    f'=SUMIF(Opportunities!D:D,"{stage.value}",Opportunities!E:E)',
+                )
                 row += 1
 
-            ws.format(f"C12:C{row-1}", {"numberFormat": {"type": "CURRENCY", "pattern": "$#,##0"}})
+            ws.format(
+                f"C12:C{row - 1}",
+                {"numberFormat": {"type": "CURRENCY", "pattern": "$#,##0"}},
+            )
 
             # Leads by Status
             ws.update_acell("A22", "Leads by Status")
@@ -196,7 +239,9 @@ class CRMTemplates:
                 ws.update_acell(f"B{row}", f'=COUNTIF(Leads!F:F,"{status.value}")')
                 row += 1
         except Exception as e:
-            console.print(f"[yellow]Warning: Could not fully set up Summary sheet: {e}[/yellow]")
+            console.print(
+                f"[yellow]Warning: Could not fully set up Summary sheet: {e}[/yellow]"
+            )
             row += 1
 
     def setup_schema_sheet(self, ws: gspread.Worksheet):
@@ -205,13 +250,28 @@ class CRMTemplates:
             # Title
             ws.update_acell("A1", "CRM Data Schema Reference")
             ws.format("A1", {"textFormat": {"bold": True, "fontSize": 14}})
-            
+
             # --- 1. Pipeline Stages ---
             ws.update_acell("A3", "Pipeline Stages (Opportunities)")
-            ws.format("A3", {"textFormat": {"bold": True, "fontSize": 11, "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8}}})
+            ws.format(
+                "A3",
+                {
+                    "textFormat": {
+                        "bold": True,
+                        "fontSize": 11,
+                        "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8},
+                    }
+                },
+            )
             ws.update("A4:B4", [["Stage Name", "Description"]])
-            ws.format("A4:B4", {"textFormat": {"bold": True}, "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9}})
-            
+            ws.format(
+                "A4:B4",
+                {
+                    "textFormat": {"bold": True},
+                    "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9},
+                },
+            )
+
             stages = [
                 ("Prospecting", "Initial research and outreach"),
                 ("Discovery", "First meeting/call to understand needs"),
@@ -224,15 +284,30 @@ class CRMTemplates:
                 ("Cash in Bank", "Payment received"),
                 ("Unknown", "Fallback for unrecognized stages"),
             ]
-            ws.update(f"A5:B{4+len(stages)}", stages)
-            
+            ws.update(f"A5:B{4 + len(stages)}", stages)
+
             # --- 2. Lead Statuses ---
             start_row = 6 + len(stages)
             ws.update_acell(f"A{start_row}", "Lead Statuses")
-            ws.format(f"A{start_row}", {"textFormat": {"bold": True, "fontSize": 11, "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8}}})
-            ws.update(f"A{start_row+1}:B{start_row+1}", [["Status", "Description"]])
-            ws.format(f"A{start_row+1}:B{start_row+1}", {"textFormat": {"bold": True}, "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9}})
-            
+            ws.format(
+                f"A{start_row}",
+                {
+                    "textFormat": {
+                        "bold": True,
+                        "fontSize": 11,
+                        "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8},
+                    }
+                },
+            )
+            ws.update(f"A{start_row + 1}:B{start_row + 1}", [["Status", "Description"]])
+            ws.format(
+                f"A{start_row + 1}:B{start_row + 1}",
+                {
+                    "textFormat": {"bold": True},
+                    "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9},
+                },
+            )
+
             statuses = [
                 ("New", "Just added, no action yet"),
                 ("Contacted", "Outreach attempted or conversation started"),
@@ -241,35 +316,71 @@ class CRMTemplates:
                 ("Lost", "No longer pursuing"),
                 ("Unknown", "Fallback for unrecognized statuses"),
             ]
-            ws.update(f"A{start_row+2}:B{start_row+1+len(statuses)}", statuses)
-            
+            ws.update(f"A{start_row + 2}:B{start_row + 1 + len(statuses)}", statuses)
+
             # --- 3. Lead Sources ---
             start_row = start_row + len(statuses) + 3
             ws.update_acell(f"A{start_row}", "Lead Sources")
-            ws.format(f"A{start_row}", {"textFormat": {"bold": True, "fontSize": 11, "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8}}})
-            ws.update(f"A{start_row+1}:B{start_row+1}", [["Source", "Description"]])
-            ws.format(f"A{start_row+1}:B{start_row+1}", {"textFormat": {"bold": True}, "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9}})
-            
+            ws.format(
+                f"A{start_row}",
+                {
+                    "textFormat": {
+                        "bold": True,
+                        "fontSize": 11,
+                        "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8},
+                    }
+                },
+            )
+            ws.update(f"A{start_row + 1}:B{start_row + 1}", [["Source", "Description"]])
+            ws.format(
+                f"A{start_row + 1}:B{start_row + 1}",
+                {
+                    "textFormat": {"bold": True},
+                    "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9},
+                },
+            )
+
             sources = [[s.value, ""] for s in LeadSource]
-            ws.update(f"A{start_row+2}:B{start_row+1+len(sources)}", sources)
+            ws.update(f"A{start_row + 2}:B{start_row + 1 + len(sources)}", sources)
 
             # --- 4. Company Sizes ---
             start_row = start_row + len(sources) + 3
             ws.update_acell(f"A{start_row}", "Company Sizes")
-            ws.format(f"A{start_row}", {"textFormat": {"bold": True, "fontSize": 11, "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8}}})
-            ws.update(f"A{start_row+1}:B{start_row+1}", [["Size Bucket", "Description"]])
-            ws.format(f"A{start_row+1}:B{start_row+1}", {"textFormat": {"bold": True}, "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9}})
-            
+            ws.format(
+                f"A{start_row}",
+                {
+                    "textFormat": {
+                        "bold": True,
+                        "fontSize": 11,
+                        "foregroundColor": {"red": 0.2, "green": 0.4, "blue": 0.8},
+                    }
+                },
+            )
+            ws.update(
+                f"A{start_row + 1}:B{start_row + 1}", [["Size Bucket", "Description"]]
+            )
+            ws.format(
+                f"A{start_row + 1}:B{start_row + 1}",
+                {
+                    "textFormat": {"bold": True},
+                    "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9},
+                },
+            )
+
             sizes = [[s.value, ""] for s in CompanySize]
-            ws.update(f"A{start_row+2}:B{start_row+1+len(sizes)}", sizes)
-            
+            ws.update(f"A{start_row + 2}:B{start_row + 1 + len(sizes)}", sizes)
+
             # Auto-resize columns
             # ws.columns_auto_resize(0, 1)
-            
-        except Exception as e:
-            console.print(f"[yellow]Warning: Could not fully populate Schema sheet: {e}[/yellow]")
 
-    def _add_dropdown_validation(self, ws: gspread.Worksheet, range_str: str, values: list):
+        except Exception as e:
+            console.print(
+                f"[yellow]Warning: Could not fully populate Schema sheet: {e}[/yellow]"
+            )
+
+    def _add_dropdown_validation(
+        self, ws: gspread.Worksheet, range_str: str, values: list
+    ):
         """Add dropdown data validation to a range."""
         # Note: gspread's data validation API is limited
         # For full dropdown support, we'd use the Sheets API directly

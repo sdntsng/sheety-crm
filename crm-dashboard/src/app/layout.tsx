@@ -11,6 +11,7 @@ import { KeyboardShortcutsProvider } from "@/providers/KeyboardShortcutsContext"
 import CommandPalette from "@/components/CommandPalette";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import NavigationProgress from "@/components/NavigationProgress";
 import { Suspense } from "react";
 
 const sans = Outfit({
@@ -69,6 +70,7 @@ export default function RootLayout({
       >
         <PostHogProvider>
           <Suspense fallback={null}>
+            <NavigationProgress />
             <PostHogPageView />
           </Suspense>
           <SessionProvider>
