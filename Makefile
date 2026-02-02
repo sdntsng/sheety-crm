@@ -118,6 +118,10 @@ lint-check:
 	cd crm-dashboard && npm run format:check
 	@echo "Checking Backend formatting (Ruff)..."
 	$(PYTHON) -m ruff format --check src api scripts
+	@echo "Checking Backend lint (Ruff)..."
+	$(PYTHON) -m ruff check src api scripts
+
+lint: lint-check
 
 format:
 	@echo "Formatting Frontend (Prettier)..."

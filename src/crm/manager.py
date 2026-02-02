@@ -19,7 +19,6 @@ from .models import (
     LeadSource,
     CompanySize,
 )
-from .ai import AIManager
 from .templates import CRMTemplates
 from .enrichment import enrichment_service
 from .analyzer import deal_analyzer
@@ -208,88 +207,14 @@ class CRMManager:
         return False
 
     def enrich_lead(self, lead_id: str) -> Optional[Lead]:
-        """Enrich a lead with AI data and update it in the sheet."""
+        """Enrich a lead with AI data and persist updates to the sheet.
+
+        Safe to use in FastAPI BackgroundTasks: updates `enrichment_status` and
+        saves intermediate state.
+        """
         lead = self.get_lead(lead_id)
         if not lead:
             return None
-
-        ai = AIManager()
-        enrichment = ai.enrich_lead_data(lead)
-
-        if not enrichment:
-            return lead
-
-        # Update lead fields
-        if enrichment.get("industry"):
-            lead.industry = enrichment["industry"]
-
-        if enrichment.get("company_size"):
-            try:
-                lead.company_size = CompanySize(enrichment["company_size"])
-            except ValueError:
-                pass
-
-        if enrichment.get("description"):
-            # Append description to notes or prepend it
-            desc = f"AI Description: {enrichment['description']}"
-            if lead.notes:
-                lead.notes = f"{desc}\n\n{lead.notes}"
-            else:
-                lead.notes = desc
-
-        self.update_lead(lead)
-        return lead
-
-    def score_lead(self, lead_id: str) -> Optional[Lead]:
-        """Assign an AI lead score and update it in the sheet."""
-        lead = self.get_lead(lead_id)
-        if not lead:
-            return None
-
-        activities = self.get_activities(lead_id=lead_id)
-        ai = AIManager()
-        scoring = ai.score_lead(lead, activities)
-
-        if "score" in scoring:
-            lead.score = scoring["score"]
-            # Prepend reasoning to notes
-            reason = (
-                f"AI Score: {scoring['score']}/100 - {scoring.get('reasoning', '')}"
-            )
-            if lead.notes:
-                lead.notes = f"{reason}\n\n{lead.notes}"
-            else:
-                lead.notes = reason
-
-        self.update_lead(lead)
-        return lead
-
-    def delete_lead(self, lead_id: str) -> bool:
-        """Delete a lead by ID."""
-        data = self._get_cached_data(LEADS_WS)
-        if not data:
-            data = self.sm.read_data(self.sheet_name, LEADS_WS)
-
-        if not data:
-            return False
-
-        for i, row in enumerate(data):
-            if i == 0:
-                continue
-            if row and row[0] == lead_id:
-                row_index = i + 1
-                self.sm.delete_row(self.sheet_name, row_index, LEADS_WS)
-                # Optimistic cache update
-                data.pop(i)
-                self._set_cached_data(LEADS_WS, data)
-                return True
-        return False
-
-    def enrich_lead(self, lead_id: str):
-        """Perform AI enrichment for a lead."""
-        lead = self.get_lead(lead_id)
-        if not lead:
-            return
 
         # 1. Mark as enriching
         lead.enrichment_status = "Enriching"
@@ -322,19 +247,28 @@ class CRMManager:
             # 4. Save updates
             self.update_lead(lead)
 
-            # 5. Automatically score after enrichment
-            self.score_lead(lead_id)
+            # 5. Best-effort auto-score after enrichment
+            try:
+                self.score_lead(lead_id)
+            except Exception as e:
+                print(f"[CRMManager] Auto-scoring failed for {lead_id}: {e}")
+
+            return lead
 
         except Exception as e:
             print(f"[CRMManager] Enrichment failed for {lead_id}: {e}")
             lead.enrichment_status = "Failed"
             self.update_lead(lead)
+            return lead
 
-    def score_lead(self, lead_id: str):
-        """Perform AI scoring for a lead."""
+    def score_lead(self, lead_id: str) -> Optional[Lead]:
+        """Perform AI scoring for a lead and persist updates to the sheet.
+
+        Returns the updated Lead (or None if not found).
+        """
         lead = self.get_lead(lead_id)
         if not lead:
-            return
+            return None
 
         activities = self.get_activities(lead_id=lead_id)
 
@@ -349,9 +283,32 @@ class CRMManager:
             print(
                 f"[CRMManager] Scored lead {lead_id}: {lead.score} ({lead.heat_level})"
             )
+            return lead
 
         except Exception as e:
             print(f"[CRMManager] Scoring failed for {lead_id}: {e}")
+            return lead
+
+    def delete_lead(self, lead_id: str) -> bool:
+        """Delete a lead by ID."""
+        data = self._get_cached_data(LEADS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, LEADS_WS)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == lead_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, LEADS_WS)
+                # Optimistic cache update
+                data.pop(i)
+                self._set_cached_data(LEADS_WS, data)
+                return True
+        return False
 
     def analyze_deal(self, opp_id: str) -> Dict[str, Any]:
         """Perform AI analysis for a deal."""

@@ -3,7 +3,7 @@ import json
 from typing import Optional, Dict, Any
 import requests
 from openai import OpenAI
-from .models import Lead, CompanySize
+from .models import Lead
 
 
 class EnrichmentService:

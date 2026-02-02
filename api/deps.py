@@ -1,4 +1,4 @@
-from fastapi import Header, HTTPException, Depends
+from fastapi import Header, HTTPException
 from typing import Dict, Optional
 import gspread
 from google.oauth2.credentials import Credentials

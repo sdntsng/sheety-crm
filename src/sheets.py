@@ -1,7 +1,6 @@
 import gspread
 from rich.table import Table
 from rich.console import Console
-from typing import List, Optional
 
 from .retry import sheets_api_retry
 

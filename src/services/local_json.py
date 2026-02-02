@@ -1,6 +1,5 @@
 import json
 import os
-from typing import List, Optional, Any
 from rich.console import Console
 from rich.table import Table
 

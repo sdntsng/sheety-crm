@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime, date
+from datetime import datetime
 from typing import List, Optional, Dict, Any
 from .models import Opportunity, Activity, PipelineStage
 from openai import OpenAI
