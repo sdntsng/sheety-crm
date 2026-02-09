@@ -223,11 +223,12 @@ def crm_list(
             table.add_column("Status")
             table.add_column("Source")
             for lead in leads:
-                score_str = str(lead.score)
-                if lead.score >= 80:
-                    score_str = f"[bold green]{lead.score}[/bold green]"
-                elif lead.score >= 50:
-                    score_str = f"[yellow]{lead.score}[/yellow]"
+                score_value = lead.score or 0
+                score_str = str(score_value)
+                if score_value >= 80:
+                    score_str = f"[bold green]{score_value}[/bold green]"
+                elif score_value >= 50:
+                    score_str = f"[yellow]{score_value}[/yellow]"
                 
                 table.add_row(lead.lead_id, lead.company_name, lead.contact_name, score_str, lead.status.value, lead.source.value)
             console.print(table)
@@ -542,6 +543,129 @@ def crm_report_daily(
         else:
             console.print(result)
 
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def crm_export(
+    entity: str = typer.Argument(..., help="Entity to export: leads|opportunities|activities|tasks"),
+    output: str = typer.Option(..., help="Output CSV file path"),
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """Export CRM data to CSV."""
+    from .crm.manager import CRMManager
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+        payload = crm.export_entity_csv(entity)
+        with open(output, "w", encoding="utf-8") as f:
+            f.write(payload)
+        console.print(f"[green]Exported {entity} to {output}[/green]")
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def crm_ai_ask(
+    question: str = typer.Argument(..., help="Question for CRM coach"),
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """Provide AI-style coaching advice from CRM context."""
+    from .crm.manager import CRMManager
+    from rich.panel import Panel
+    from rich.text import Text
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+        summary = crm.get_pipeline_summary()
+
+        answer = "Focus on clear next steps and a dated follow-up."
+        lower_q = question.lower()
+        if "discount" in lower_q or "price" in lower_q:
+            answer = "Reframe to ROI outcomes and trade scope before discounting."
+        elif "stuck" in lower_q or "slow" in lower_q:
+            answer = "Identify the blocker and schedule a decision-oriented call."
+        elif "forecast" in lower_q:
+            answer = (
+                f"Current expected value is ${summary['total_expected_value']:,.0f} "
+                f"across {summary['total_opportunities']} opportunities."
+            )
+
+        text = Text()
+        text.append("Question:\n", style="bold")
+        text.append(f"{question}\n\n")
+        text.append("Answer:\n", style="bold green")
+        text.append(answer)
+        console.print(Panel(text, title="[bold]CRM AI Ask[/bold]"))
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def crm_connector_connect(
+    provider: str = typer.Argument(..., help="Provider key: google_calendar|gmail|slack"),
+    config: str = typer.Option("{}", help="JSON config payload"),
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """Connect or update a connector configuration."""
+    from .crm.manager import CRMManager
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+        config_payload = json.loads(config)
+        if not isinstance(config_payload, dict):
+            raise ValueError("config must be a JSON object")
+        connection = crm.upsert_integration(provider, config_payload)
+        console.print_json(json.dumps(connection.model_dump(), default=str))
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def crm_connector_sync(
+    provider: str = typer.Argument(..., help="Provider key: google_calendar|gmail|slack"),
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """Run a connector sync and print summary."""
+    from .crm.manager import CRMManager
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+        result = crm.run_integration_sync(provider)
+        console.print_json(json.dumps(result, default=str))
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def crm_connector_status(
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """List connector status rows."""
+    from .crm.manager import CRMManager
+    from rich.table import Table
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+        rows = crm.get_integrations()
+        table = Table(title="CRM Connectors")
+        table.add_column("Provider", style="bold")
+        table.add_column("Status")
+        table.add_column("Last Sync")
+        for row in rows:
+            table.add_row(row.provider, row.status, row.last_sync_at.isoformat() if row.last_sync_at else "-")
+        console.print(table)
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(code=1)
