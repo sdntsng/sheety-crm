@@ -15,6 +15,7 @@ from .models import (
     CustomFieldValue,
     IntegrationConnection,
     IntegrationSyncRun,
+    AuditLogEntry,
     PipelineStage,
     LeadStatus,
     LeadSource,
@@ -83,6 +84,10 @@ class CRMTemplates:
 
         self.ensure_worksheet(sh, "_IntegrationSyncRuns")
         console.print("[green]✓ Set up Integration Sync Runs worksheet[/green]")
+        time.sleep(1.5)
+
+        self.ensure_worksheet(sh, "_AuditLog")
+        console.print("[green]✓ Set up Audit Log worksheet[/green]")
         
         self.ensure_worksheet(sh, "_Schema")
         console.print("[green]✓ Set up Schema reference[/green]")
@@ -118,6 +123,8 @@ class CRMTemplates:
                 self.setup_integrations_sheet(ws)
             elif name == "_IntegrationSyncRuns":
                 self.setup_integration_sync_runs_sheet(ws)
+            elif name == "_AuditLog":
+                self.setup_audit_log_sheet(ws)
             elif name == "_Schema":
                 self.setup_schema_sheet(ws)
             
@@ -264,6 +271,17 @@ class CRMTemplates:
         ws.format("A1:I1", {
             "textFormat": {"bold": True},
             "backgroundColor": {"red": 0.18, "green": 0.28, "blue": 0.32}
+        })
+        ws.freeze(rows=1)
+        ws.set_basic_filter()
+
+    def setup_audit_log_sheet(self, ws: gspread.Worksheet):
+        """Set up audit log worksheet."""
+        headers = AuditLogEntry.headers()
+        ws.append_row(headers)
+        ws.format("A1:H1", {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.28, "green": 0.21, "blue": 0.21}
         })
         ws.freeze(rows=1)
         ws.set_basic_filter()

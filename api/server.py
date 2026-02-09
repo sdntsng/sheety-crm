@@ -350,6 +350,27 @@ def _opportunity_payload(crm: CRMManager, opp: Opportunity) -> Dict[str, Any]:
     return payload
 
 
+def _log_audit(
+    crm: CRMManager,
+    action: str,
+    entity: str,
+    record_id: Optional[str] = None,
+    status: str = "success",
+    metadata: Optional[Dict[str, Any]] = None,
+):
+    """Best-effort audit logging helper."""
+    try:
+        crm.log_audit_event(
+            action=action,
+            entity=entity,
+            record_id=record_id,
+            status=status,
+            metadata=metadata or {},
+        )
+    except Exception as exc:
+        print(f"[Audit] Failed to log event {action}/{entity}: {exc}")
+
+
 def _parse_ai_intent(query: str, crm: CRMManager) -> Dict[str, Any]:
     normalized = query.strip()
     lowered = normalized.lower()
@@ -649,13 +670,36 @@ def merge_duplicate_leads(
 ):
     """Merge duplicate leads and rewire related records."""
     try:
-        return crm.merge_duplicate_leads(
+        result = crm.merge_duplicate_leads(
             payload.lead_a_id,
             payload.lead_b_id,
             primary_id=payload.primary_id,
             selected_fields=payload.selected_fields,
         )
+        _log_audit(
+            crm,
+            action="merge_duplicates",
+            entity="leads",
+            record_id=result.get("primary_lead_id"),
+            metadata={
+                "lead_a_id": payload.lead_a_id,
+                "lead_b_id": payload.lead_b_id,
+                "moved": result.get("moved", {}),
+            },
+        )
+        return result
     except ValueError as exc:
+        _log_audit(
+            crm,
+            action="merge_duplicates",
+            entity="leads",
+            status="failed",
+            metadata={
+                "lead_a_id": payload.lead_a_id,
+                "lead_b_id": payload.lead_b_id,
+                "error": str(exc),
+            },
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
@@ -696,6 +740,13 @@ def create_lead(
     created = crm.add_lead(lead)
     if data.custom_fields:
         crm.set_custom_field_values("leads", created.lead_id, data.custom_fields)
+    _log_audit(
+        crm,
+        action="create",
+        entity="lead",
+        record_id=created.lead_id,
+        metadata={"company_name": created.company_name},
+    )
     
     # Enrichment
     if data.auto_enrich:
@@ -758,6 +809,12 @@ def update_lead(lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_cr
     success = crm.update_lead(lead)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update lead")
+    _log_audit(
+        crm,
+        action="update",
+        entity="lead",
+        record_id=lead_id,
+    )
     return _lead_payload(crm, lead)
 
 
@@ -797,6 +854,7 @@ def delete_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     success = crm.delete_lead(lead_id)
     if not success:
         raise HTTPException(status_code=404, detail="Lead not found")
+    _log_audit(crm, action="delete", entity="lead", record_id=lead_id)
     return {"deleted": True}
 
 
@@ -1328,6 +1386,13 @@ def connect_integration(
 ):
     """Connect or update an integration provider."""
     connection = crm.upsert_integration(provider, payload.config)
+    _log_audit(
+        crm,
+        action="integration_connect",
+        entity="integration",
+        record_id=connection.provider,
+        metadata={"config_keys": sorted(payload.config.keys())},
+    )
     return connection.model_dump()
 
 
@@ -1346,7 +1411,26 @@ def sync_integration(
             max_retries=max(0, min(request_payload.max_retries, 3)),
         )
     except ValueError as exc:
+        _log_audit(
+            crm,
+            action="integration_sync",
+            entity="integration",
+            record_id=provider,
+            status="failed",
+            metadata={"error": str(exc), "idempotency_key": request_payload.idempotency_key},
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _log_audit(
+        crm,
+        action="integration_sync",
+        entity="integration",
+        record_id=provider,
+        metadata={
+            "idempotency_key": request_payload.idempotency_key,
+            "synced_records": result.get("synced_records"),
+            "deduplicated": result.get("deduplicated", False),
+        },
+    )
     return result
 
 
@@ -1420,22 +1504,38 @@ def bulk_operation(
     op = payload.operation.strip().lower()
 
     try:
+        result: Optional[Dict[str, Any]] = None
         if entity_name == "leads":
             if op == "update_status":
                 if not payload.status:
                     raise HTTPException(status_code=400, detail="status is required for update_status")
-                return crm.bulk_update_lead_status(payload.ids, payload.status)
+                result = crm.bulk_update_lead_status(payload.ids, payload.status)
             if op == "delete":
-                return crm.bulk_delete_leads(payload.ids)
+                result = crm.bulk_delete_leads(payload.ids)
 
         if entity_name in {"opportunities", "opps"}:
             if op == "update_stage":
                 if not payload.stage:
                     raise HTTPException(status_code=400, detail="stage is required for update_stage")
-                return crm.bulk_update_opportunity_stage(payload.ids, payload.stage)
+                result = crm.bulk_update_opportunity_stage(payload.ids, payload.stage)
             if op == "delete":
-                return crm.bulk_delete_opportunities(payload.ids)
+                result = crm.bulk_delete_opportunities(payload.ids)
+        if result is not None:
+            _log_audit(
+                crm,
+                action=f"bulk_{op}",
+                entity=entity_name,
+                metadata={"requested_ids": len(payload.ids), "result": result},
+            )
+            return result
     except ValueError as exc:
+        _log_audit(
+            crm,
+            action=f"bulk_{op}",
+            entity=entity_name,
+            status="failed",
+            metadata={"error": str(exc), "requested_ids": len(payload.ids)},
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     raise HTTPException(
@@ -1563,6 +1663,22 @@ def get_config():
 
 
 # =============================================================================
+# Audit Endpoints
+# =============================================================================
+
+@app.get("/api/audit")
+def list_audit_events(
+    limit: int = Query(100, ge=1, le=500),
+    action: Optional[str] = Query(None),
+    entity: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List audit trail events."""
+    events = crm.get_audit_events(limit=limit, action=action, entity=entity)
+    return {"events": [item.model_dump() for item in events], "count": len(events)}
+
+
+# =============================================================================
 # Search Endpoint
 # =============================================================================
 
@@ -1652,6 +1768,13 @@ def execute_ai_operation(
             source=LeadSource(op.get("source")) if op.get("source") in [s.value for s in LeadSource] else LeadSource.OTHER,
         )
         created = crm.add_lead(lead)
+        _log_audit(
+            crm,
+            action="ai_execute",
+            entity="lead",
+            record_id=created.lead_id,
+            metadata={"operation": op_type},
+        )
         return {
             "success": True,
             "operation": op_type,
@@ -1670,11 +1793,31 @@ def execute_ai_operation(
         updated = crm.move_opportunity_stage(opp_id, target_stage)
         if not updated:
             raise HTTPException(status_code=404, detail="Opportunity not found")
+        _log_audit(
+            crm,
+            action="ai_execute",
+            entity="opportunity",
+            record_id=opp_id,
+            metadata={"operation": op_type, "stage": stage},
+        )
         return {"success": True, "operation": op_type, "result": {"opp_id": opp_id, "stage": stage}}
 
     if op_type == "pipeline_summary":
+        _log_audit(
+            crm,
+            action="ai_execute",
+            entity="pipeline",
+            metadata={"operation": op_type},
+        )
         return {"success": True, "operation": op_type, "result": crm.get_pipeline_summary()}
 
+    _log_audit(
+        crm,
+        action="ai_execute",
+        entity="unknown",
+        status="failed",
+        metadata={"operation": op_type},
+    )
     raise HTTPException(status_code=400, detail=f"Unsupported AI operation: {op_type}")
 
 
@@ -1801,6 +1944,13 @@ def apply_parsed_notes(
             crm.update_lead(lead)
             applied["lead_notes_updated"] = True
 
+    _log_audit(
+        crm,
+        action="ai_parse_notes_apply",
+        entity="notes",
+        record_id=request.lead_id or request.opp_id,
+        metadata={"applied": applied},
+    )
     return {"success": True, "applied": applied}
 
 

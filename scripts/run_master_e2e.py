@@ -351,6 +351,10 @@ def run() -> int:
         call("list_integrations_after_connect", "GET", "/api/integrations")
         call("list_integration_runs_provider", "GET", "/api/integrations/google_calendar/runs?limit=10")
         call("list_integration_runs_all", "GET", "/api/integrations/runs?limit=20")
+        audit_resp = call("list_audit_events", "GET", "/api/audit?limit=30")
+        if audit_resp.status_code == 200:
+            audit_count = int(audit_resp.json().get("count", 0))
+            record("audit_events_populated", audit_count > 0, f"count={audit_count}")
 
         # CSV import availability check (depends on multipart install)
         import_status = call("csv_import_endpoint_check", "POST", "/api/import/csv/upload", expected=(422, 503))

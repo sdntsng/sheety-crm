@@ -135,6 +135,17 @@ export interface IntegrationSyncRun {
   finished_at?: string;
 }
 
+export interface AuditLogEvent {
+  event_id: string;
+  action: string;
+  entity: string;
+  record_id?: string;
+  status: string;
+  actor?: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface DashboardData {
   total_leads: number;
   total_opportunities: number;
@@ -712,6 +723,19 @@ export async function getAllIntegrationRuns(limit: number = 50): Promise<{
   count: number;
 }> {
   const response = await fetchWithAuth(`${API_BASE}/api/integrations/runs?limit=${limit}`);
+  return handleResponse(response);
+}
+
+export async function getAuditEvents(params?: {
+  limit?: number;
+  action?: string;
+  entity?: string;
+}): Promise<{ events: AuditLogEvent[]; count: number }> {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.action) query.set("action", params.action);
+  if (params?.entity) query.set("entity", params.entity);
+  const response = await fetchWithAuth(`${API_BASE}/api/audit?${query}`);
   return handleResponse(response);
 }
 

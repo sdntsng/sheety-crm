@@ -23,6 +23,7 @@ from .models import (
     CustomFieldValue,
     IntegrationConnection,
     IntegrationSyncRun,
+    AuditLogEntry,
     TaskPriority,
     TaskStatus,
     LeadStatus,
@@ -51,6 +52,7 @@ CUSTOM_FIELDS_WS = "_CustomFields"
 CUSTOM_VALUES_WS = "_CustomFieldValues"
 INTEGRATIONS_WS = "_Integrations"
 INTEGRATION_RUNS_WS = "_IntegrationSyncRuns"
+AUDIT_LOG_WS = "_AuditLog"
 SUMMARY_WS = "Summary"
 
 
@@ -959,6 +961,62 @@ class CRMManager:
             for row in data[1:]
             if row and row[0]
         ]
+
+    def log_audit_event(
+        self,
+        action: str,
+        entity: str,
+        record_id: Optional[str] = None,
+        status: str = "success",
+        actor: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> AuditLogEntry:
+        """Append an audit entry for mutating or sensitive operations."""
+        self._ensure_headers(AUDIT_LOG_WS, AuditLogEntry.headers())
+        event = AuditLogEntry(
+            action=action,
+            entity=entity,
+            record_id=record_id,
+            status=status,
+            actor=actor,
+            metadata=metadata or {},
+            created_at=datetime.now(),
+        )
+        self.sm.append_row(self.sheet_name, event.to_row(), AUDIT_LOG_WS)
+        self._invalidate_cache(AUDIT_LOG_WS)
+        return event
+
+    def get_audit_events(
+        self,
+        limit: int = 100,
+        action: Optional[str] = None,
+        entity: Optional[str] = None,
+    ) -> List[AuditLogEntry]:
+        """Read audit trail entries newest-first."""
+        data = self._get_cached_data(AUDIT_LOG_WS)
+        if data is None:
+            self._ensure_headers(AUDIT_LOG_WS, AuditLogEntry.headers())
+            data = self.sm.read_data(self.sheet_name, AUDIT_LOG_WS)
+            if data:
+                self._set_cached_data(AUDIT_LOG_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        events = [
+            AuditLogEntry.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+        if action:
+            action_key = action.strip().lower()
+            events = [item for item in events if item.action.lower() == action_key]
+        if entity:
+            entity_key = entity.strip().lower()
+            events = [item for item in events if item.entity.lower() == entity_key]
+
+        events.sort(key=lambda item: item.created_at, reverse=True)
+        return events[:limit]
 
     def get_integration_runs(
         self,

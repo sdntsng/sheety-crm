@@ -761,3 +761,62 @@ class IntegrationSyncRun(BaseModel):
             "started_at",
             "finished_at",
         ]
+
+
+class AuditLogEntry(BaseModel):
+    """System audit trail entry."""
+    event_id: str = Field(default_factory=generate_id)
+    action: str
+    entity: str
+    record_id: Optional[str] = None
+    status: str = "success"
+    actor: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    def to_row(self) -> list:
+        return [
+            self.event_id,
+            self.action,
+            self.entity,
+            self.record_id or "",
+            self.status,
+            self.actor or "",
+            json.dumps(self.metadata),
+            self.created_at.isoformat(),
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "AuditLogEntry":
+        raw_meta = row[6] if len(row) > 6 and row[6] else "{}"
+        try:
+            metadata = json.loads(raw_meta)
+            if not isinstance(metadata, dict):
+                metadata = {}
+        except (json.JSONDecodeError, TypeError):
+            metadata = {}
+
+        created_raw = row[7] if len(row) > 7 and row[7] else None
+        return cls(
+            event_id=str(row[0]) if row and row[0] else generate_id(),
+            action=str(row[1]) if len(row) > 1 else "",
+            entity=str(row[2]) if len(row) > 2 else "",
+            record_id=str(row[3]) if len(row) > 3 and row[3] else None,
+            status=str(row[4]) if len(row) > 4 and row[4] else "success",
+            actor=str(row[5]) if len(row) > 5 and row[5] else None,
+            metadata=metadata,
+            created_at=datetime.fromisoformat(created_raw) if created_raw else datetime.now(),
+        )
+
+    @classmethod
+    def headers(cls) -> list:
+        return [
+            "event_id",
+            "action",
+            "entity",
+            "record_id",
+            "status",
+            "actor",
+            "metadata",
+            "created_at",
+        ]

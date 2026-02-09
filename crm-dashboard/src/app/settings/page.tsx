@@ -5,10 +5,12 @@ import {
   connectIntegration,
   createCustomField,
   deleteCustomField,
+  getAuditEvents,
   getAllIntegrationRuns,
   getConfig,
   getCustomFields,
   getIntegrations,
+  AuditLogEvent,
   IntegrationSyncRun,
   syncIntegration,
   Config,
@@ -41,21 +43,24 @@ export default function SettingsPage() {
   const [integrationSyncKey, setIntegrationSyncKey] = useState("");
   const [integrationRuns, setIntegrationRuns] = useState<IntegrationSyncRun[]>([]);
   const [integrationError, setIntegrationError] = useState<string | null>(null);
+  const [auditEvents, setAuditEvents] = useState<AuditLogEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const [data, fields, integrationsData, runsData] = await Promise.all([
+        const [data, fields, integrationsData, runsData, auditData] = await Promise.all([
           getConfig(),
           getCustomFields(),
           getIntegrations(),
           getAllIntegrationRuns(30),
+          getAuditEvents({ limit: 25 }),
         ]);
         setConfig(data);
         setCustomFields(fields.fields);
         setIntegrations(integrationsData.integrations);
         setIntegrationRuns(runsData.runs);
+        setAuditEvents(auditData.events);
       } catch (err) {
         console.error("Failed to fetch config for settings:", err);
       } finally {
@@ -126,12 +131,14 @@ export default function SettingsPage() {
   };
 
   const refreshIntegrations = async () => {
-    const [connections, runs] = await Promise.all([
+    const [connections, runs, audit] = await Promise.all([
       getIntegrations(),
       getAllIntegrationRuns(30),
+      getAuditEvents({ limit: 25 }),
     ]);
     setIntegrations(connections.integrations);
     setIntegrationRuns(runs.runs);
+    setAuditEvents(audit.events);
   };
 
   const connectProvider = async (e: React.FormEvent) => {
@@ -554,6 +561,40 @@ export default function SettingsPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-sans font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+            <span className="text-[var(--accent-red)]">■</span> Audit Trail
+          </h2>
+          <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)] space-y-2">
+            {auditEvents.length === 0 && (
+              <p className="font-mono text-xs text-[var(--text-secondary)]">
+                No audit events yet.
+              </p>
+            )}
+            {auditEvents.slice(0, 15).map((event) => (
+              <div
+                key={event.event_id}
+                className="border border-[var(--border-pencil)] p-2 bg-[var(--bg-paper)] flex items-center justify-between gap-3"
+              >
+                <div>
+                  <p className="font-mono text-[10px] uppercase">
+                    {event.action} • {event.entity} • {event.status}
+                  </p>
+                  <p className="font-mono text-[10px] text-[var(--text-secondary)]">
+                    {event.record_id ? `record ${event.record_id} • ` : ""}
+                    {Object.keys(event.metadata || {}).length > 0
+                      ? JSON.stringify(event.metadata)
+                      : "no metadata"}
+                  </p>
+                </div>
+                <p className="font-mono text-[10px] text-[var(--text-secondary)]">
+                  {new Date(event.created_at).toLocaleString()}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
       </div>

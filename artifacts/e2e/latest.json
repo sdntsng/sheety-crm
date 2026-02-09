@@ -1,6 +1,6 @@
 {
-  "timestamp_utc": "2026-02-09T15:10:57.101139+00:00",
-  "passed": 53,
+  "timestamp_utc": "2026-02-09T15:15:01.924037+00:00",
+  "passed": 55,
   "failed": 0,
   "results": [
     {
@@ -302,6 +302,18 @@
       "ok": true,
       "status": 200,
       "detail": "HTTP 200"
+    },
+    {
+      "name": "list_audit_events",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "audit_events_populated",
+      "ok": true,
+      "status": null,
+      "detail": "count=11"
     },
     {
       "name": "csv_import_endpoint_check",
