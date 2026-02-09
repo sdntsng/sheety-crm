@@ -280,6 +280,18 @@ class CustomFieldUpdate(BaseModel):
     validation_rule: Optional[str] = None
 
 
+class AIParseRequest(BaseModel):
+    query: str
+
+
+class AIExecuteRequest(BaseModel):
+    operation: Dict[str, Any]
+
+
+class AIExplainRequest(BaseModel):
+    topic: str
+
+
 def _lead_payload(crm: CRMManager, lead: Lead) -> Dict[str, Any]:
     payload = lead.model_dump()
     payload["custom_fields"] = crm.get_custom_field_values("leads", lead.lead_id)
@@ -290,6 +302,85 @@ def _opportunity_payload(crm: CRMManager, opp: Opportunity) -> Dict[str, Any]:
     payload = opp.model_dump()
     payload["custom_fields"] = crm.get_custom_field_values("opportunities", opp.opp_id)
     return payload
+
+
+def _parse_ai_intent(query: str, crm: CRMManager) -> Dict[str, Any]:
+    normalized = query.strip()
+    lowered = normalized.lower()
+
+    if lowered.startswith("create lead") or lowered.startswith("add lead"):
+        # Example: "create lead for John Smith at Acme"
+        import re
+        match = re.search(r"(?:for\s+)?(.+?)\s+at\s+(.+)$", normalized, re.IGNORECASE)
+        if match:
+            contact = match.group(1).strip()
+            company = match.group(2).strip()
+        else:
+            contact = "Unknown Contact"
+            company = normalized.replace("create lead", "").replace("add lead", "").strip() or "Unknown Company"
+
+        return {
+            "intent": "action",
+            "operation": {
+                "type": "create_lead",
+                "company_name": company,
+                "contact_name": contact,
+                "status": "New",
+                "source": "Other",
+            },
+            "confirmation_needed": True,
+            "response": f"Prepared new lead: {contact} at {company}.",
+        }
+
+    if lowered.startswith("move") and " to " in lowered:
+        import re
+        match = re.search(r"move\s+(.+?)\s+to\s+(.+)$", normalized, re.IGNORECASE)
+        if match:
+            title = match.group(1).strip()
+            stage = match.group(2).strip()
+            opp = next((item for item in crm.get_opportunities() if item.title.lower() == title.lower()), None)
+            if opp:
+                return {
+                    "intent": "action",
+                    "operation": {
+                        "type": "move_opportunity_stage",
+                        "opp_id": opp.opp_id,
+                        "stage": stage,
+                    },
+                    "confirmation_needed": True,
+                    "response": f"Prepared move for '{opp.title}' to {stage}.",
+                }
+
+    if "pipeline" in lowered or "forecast" in lowered:
+        summary = crm.get_pipeline_summary()
+        return {
+            "intent": "query",
+            "operation": {
+                "type": "pipeline_summary",
+            },
+            "confirmation_needed": False,
+            "response": (
+                f"Pipeline value: ${summary['total_pipeline_value']:,.0f}. "
+                f"Expected value: ${summary['total_expected_value']:,.0f}. "
+                f"Opportunities: {summary['total_opportunities']}."
+            ),
+        }
+
+    if lowered.startswith("go to ") or lowered.startswith("open "):
+        destination = lowered.replace("go to ", "").replace("open ", "").strip()
+        return {
+            "intent": "navigation",
+            "operation": {"type": "navigation", "destination": destination},
+            "confirmation_needed": False,
+            "response": f"Navigate to {destination}.",
+        }
+
+    return {
+        "intent": "query",
+        "operation": {"type": "search", "query": normalized},
+        "confirmation_needed": False,
+        "response": "No direct action detected. Try asking for pipeline summary or lead creation.",
+    }
 
 
 # =============================================================================
@@ -1292,6 +1383,106 @@ def search_all(
         },
         "total": len(matching_leads) + len(matching_opps),
     }
+
+
+# =============================================================================
+# AI Assistant Endpoints
+# =============================================================================
+
+@app.post("/api/ai/parse")
+def parse_natural_language(
+    request: AIParseRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Parse natural language commands into structured operations."""
+    return _parse_ai_intent(request.query, crm)
+
+
+@app.post("/api/ai/execute")
+def execute_ai_operation(
+    request: AIExecuteRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Execute a previously parsed AI operation."""
+    op = request.operation
+    op_type = str(op.get("type", "")).strip()
+
+    if op_type == "create_lead":
+        lead = Lead(
+            company_name=str(op.get("company_name") or "Unknown Company"),
+            contact_name=str(op.get("contact_name") or "Unknown Contact"),
+            status=LeadStatus(op.get("status")) if op.get("status") in [s.value for s in LeadStatus] else LeadStatus.NEW,
+            source=LeadSource(op.get("source")) if op.get("source") in [s.value for s in LeadSource] else LeadSource.OTHER,
+        )
+        created = crm.add_lead(lead)
+        return {
+            "success": True,
+            "operation": op_type,
+            "result": _lead_payload(crm, created),
+        }
+
+    if op_type == "move_opportunity_stage":
+        opp_id = str(op.get("opp_id") or "")
+        stage = str(op.get("stage") or "")
+        if not opp_id or not stage:
+            raise HTTPException(status_code=400, detail="opp_id and stage are required")
+        try:
+            target_stage = PipelineStage(stage)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid stage: {stage}") from exc
+        updated = crm.move_opportunity_stage(opp_id, target_stage)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        return {"success": True, "operation": op_type, "result": {"opp_id": opp_id, "stage": stage}}
+
+    if op_type == "pipeline_summary":
+        return {"success": True, "operation": op_type, "result": crm.get_pipeline_summary()}
+
+    raise HTTPException(status_code=400, detail=f"Unsupported AI operation: {op_type}")
+
+
+@app.post("/api/ai/explain")
+def explain_ai_topic(
+    request: AIExplainRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Generate a lightweight explanation for a CRM topic."""
+    topic = request.topic.strip().lower()
+    summary = crm.get_pipeline_summary()
+    if topic in {"pipeline", "health"}:
+        return {
+            "topic": topic,
+            "explanation": (
+                f"Pipeline value is ${summary['total_pipeline_value']:,.0f} across "
+                f"{summary['total_opportunities']} opportunities. "
+                f"Expected value is ${summary['total_expected_value']:,.0f}."
+            ),
+        }
+    if topic in {"leads", "lead status"}:
+        return {
+            "topic": topic,
+            "explanation": f"Lead distribution: {summary['leads_by_status']}",
+        }
+    return {
+        "topic": topic,
+        "explanation": "No tailored explanation available yet for this topic.",
+    }
+
+
+@app.get("/api/ai/suggest")
+def get_ai_suggestions(crm: CRMManager = Depends(get_crm_session)):
+    """Return contextual AI command suggestions."""
+    summary = crm.get_pipeline_summary()
+    suggestions = [
+        "Show pipeline summary",
+        "Create lead for Jane Doe at Acme",
+        "Move <opportunity title> to Negotiation",
+    ]
+    if summary["total_opportunities"] > 0:
+        suggestions.append("Which deals are at risk?")
+    if summary["total_leads"] > 0:
+        suggestions.append("Show all leads from LinkedIn")
+    return {"suggestions": suggestions}
 
 
 # =============================================================================

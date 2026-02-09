@@ -683,6 +683,13 @@ export interface DuplicateLeadMatch {
   lead_b: Lead;
 }
 
+export interface AIParseResult {
+  intent: "query" | "action" | "insight" | "navigation";
+  operation: Record<string, unknown>;
+  confirmation_needed: boolean;
+  response: string;
+}
+
 export async function search(query: string): Promise<SearchResults> {
   const response = await fetchWithAuth(
     `${API_BASE}/api/search?q=${encodeURIComponent(query)}`,
@@ -696,6 +703,43 @@ export async function detectLeadDuplicates(
   const response = await fetchWithAuth(
     `${API_BASE}/api/leads/duplicates?min_confidence=${minConfidence}`,
   );
+  return handleResponse(response);
+}
+
+export async function parseAIQuery(query: string): Promise<AIParseResult> {
+  const response = await fetchWithAuth(`${API_BASE}/api/ai/parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  return handleResponse(response);
+}
+
+export async function executeAIOperation(
+  operation: Record<string, unknown>,
+): Promise<{ success: boolean; operation: string; result: unknown }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/ai/execute`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ operation }),
+  });
+  return handleResponse(response);
+}
+
+export async function explainAITopic(topic: string): Promise<{
+  topic: string;
+  explanation: string;
+}> {
+  const response = await fetchWithAuth(`${API_BASE}/api/ai/explain`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ topic }),
+  });
+  return handleResponse(response);
+}
+
+export async function getAISuggestions(): Promise<{ suggestions: string[] }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/ai/suggest`);
   return handleResponse(response);
 }
 

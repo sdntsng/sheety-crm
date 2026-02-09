@@ -3,7 +3,13 @@
 import { Command } from "cmdk";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { search, SearchResults } from "@/lib/api";
+import {
+  search,
+  parseAIQuery,
+  executeAIOperation,
+  SearchResults,
+  AIParseResult,
+} from "@/lib/api";
 import { useKeyboardShortcutsContext } from "@/providers/KeyboardShortcutsContext";
 import {
   LayoutDashboard,
@@ -29,9 +35,12 @@ export default function CommandPalette({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExecuting, setAiExecuting] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResults | null>(
     null,
   );
+  const [aiResult, setAiResult] = useState<AIParseResult | null>(null);
   const router = useRouter();
   const { registerShortcut, unregisterShortcut } =
     useKeyboardShortcutsContext();
@@ -66,6 +75,7 @@ export default function CommandPalette({
   useEffect(() => {
     if (!isOpen || query.length < 2) {
       setSearchResults(null);
+      setAiResult(null);
       return;
     }
 
@@ -84,6 +94,27 @@ export default function CommandPalette({
     return () => clearTimeout(timeoutId);
   }, [query, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || query.length < 2) {
+      setAiResult(null);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setAiLoading(true);
+      try {
+        const parsed = await parseAIQuery(query);
+        setAiResult(parsed);
+      } catch (err) {
+        console.error("AI parse failed:", err);
+      } finally {
+        setAiLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [query, isOpen]);
+
   const handleSelect = useCallback(
     (action: () => void) => {
       action();
@@ -95,6 +126,47 @@ export default function CommandPalette({
 
   const navigate = (path: string) => {
     handleSelect(() => router.push(path));
+  };
+
+  const runAiAction = async () => {
+    if (!aiResult) return;
+    const operation = aiResult.operation as Record<string, unknown>;
+
+    if (
+      aiResult.confirmation_needed &&
+      !window.confirm(`Execute action?\n\n${aiResult.response}`)
+    ) {
+      return;
+    }
+
+    if (aiResult.intent === "navigation") {
+      const destination = String(operation.destination || "").toLowerCase();
+      if (destination.includes("dashboard")) navigate("/dashboard");
+      else if (destination.includes("pipeline")) navigate("/pipeline");
+      else if (destination.includes("lead")) navigate("/leads");
+      else if (destination.includes("task")) navigate("/tasks");
+      else if (destination.includes("report")) navigate("/reports");
+      return;
+    }
+
+    if (aiResult.intent !== "action") return;
+
+    setAiExecuting(true);
+    try {
+      await executeAIOperation(operation);
+      setIsOpen(false);
+      setQuery("");
+      if (String(operation.type || "") === "create_lead") {
+        router.push("/leads");
+      }
+      if (String(operation.type || "") === "move_opportunity_stage") {
+        router.push("/pipeline");
+      }
+    } catch (err) {
+      console.error("AI action execution failed:", err);
+    } finally {
+      setAiExecuting(false);
+    }
   };
 
   return (
@@ -119,6 +191,39 @@ export default function CommandPalette({
 
         {!loading && query.length >= 2 && searchResults?.total === 0 && (
           <Command.Empty>No results found.</Command.Empty>
+        )}
+
+        {(aiResult || aiLoading) && query.length >= 2 && (
+          <Command.Group heading="AI Assistant">
+            {aiLoading && (
+              <Command.Item disabled value="ai-loading">
+                Parsing with AI...
+              </Command.Item>
+            )}
+            {aiResult && (
+              <Command.Item
+                value={`ai ${aiResult.intent} ${aiResult.response}`}
+                onSelect={() => {
+                  if (aiResult.intent === "action" || aiResult.intent === "navigation") {
+                    runAiAction();
+                  }
+                }}
+              >
+                <div className="flex flex-col">
+                  <span className="font-bold">
+                    {aiResult.intent === "action" || aiResult.intent === "navigation"
+                      ? aiExecuting
+                        ? "Executing..."
+                        : "Run AI Command"
+                      : "AI Insight"}
+                  </span>
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    {aiResult.response}
+                  </span>
+                </div>
+              </Command.Item>
+            )}
+          </Command.Group>
         )}
 
         {/* Default Actions (when no search query) */}
