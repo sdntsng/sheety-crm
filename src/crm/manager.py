@@ -2,6 +2,7 @@
 CRM Manager - Business logic layer for CRM operations.
 """
 import csv
+import difflib
 import io
 import json
 import re
@@ -1046,6 +1047,57 @@ class CRMManager:
             "deleted": deleted,
             "failed_ids": failed_ids,
         }
+
+    # -------------------------------------------------------------------------
+    # Duplicate Detection
+    # -------------------------------------------------------------------------
+
+    def find_duplicate_leads(self, min_confidence: float = 0.75) -> List[Dict[str, Any]]:
+        """Find potential duplicate leads using deterministic heuristics."""
+        leads = self.get_leads()
+        candidates: List[Dict[str, Any]] = []
+
+        for i in range(len(leads)):
+            for j in range(i + 1, len(leads)):
+                first = leads[i]
+                second = leads[j]
+                confidence = 0.0
+                reasons: List[str] = []
+
+                first_email = (first.contact_email or "").strip().lower()
+                second_email = (second.contact_email or "").strip().lower()
+                if first_email and second_email and first_email == second_email:
+                    confidence = max(confidence, 0.98)
+                    reasons.append("matching email")
+
+                first_company = re.sub(r"[^a-z0-9]+", "", first.company_name.lower())
+                second_company = re.sub(r"[^a-z0-9]+", "", second.company_name.lower())
+                if first_company and second_company:
+                    ratio = difflib.SequenceMatcher(None, first_company, second_company).ratio()
+                    if ratio >= min_confidence:
+                        confidence = max(confidence, ratio)
+                        reasons.append("similar company name")
+
+                first_contact = re.sub(r"[^a-z0-9]+", "", first.contact_name.lower())
+                second_contact = re.sub(r"[^a-z0-9]+", "", second.contact_name.lower())
+                if first_contact and second_contact:
+                    ratio = difflib.SequenceMatcher(None, first_contact, second_contact).ratio()
+                    if ratio >= min_confidence:
+                        confidence = max(confidence, ratio)
+                        reasons.append("similar contact name")
+
+                if confidence >= min_confidence:
+                    candidates.append(
+                        {
+                            "confidence": round(confidence, 3),
+                            "reasons": reasons,
+                            "lead_a": first.model_dump(),
+                            "lead_b": second.model_dump(),
+                        }
+                    )
+
+        candidates.sort(key=lambda item: item["confidence"], reverse=True)
+        return candidates
 
     # -------------------------------------------------------------------------
     # Pipeline & Dashboard

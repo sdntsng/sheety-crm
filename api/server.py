@@ -383,6 +383,16 @@ def list_leads(
     return {"leads": [_lead_payload(crm, lead) for lead in leads], "count": len(leads)}
 
 
+@app.get("/api/leads/duplicates")
+def detect_duplicate_leads(
+    min_confidence: float = Query(0.75, ge=0.5, le=1.0),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Detect potential duplicate leads."""
+    matches = crm.find_duplicate_leads(min_confidence=min_confidence)
+    return {"matches": matches, "count": len(matches)}
+
+
 @app.get("/api/leads/{lead_id}")
 def get_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     """Get a specific lead by ID."""
@@ -1142,6 +1152,73 @@ def get_pipeline(crm: CRMManager = Depends(get_crm_session)):
     return {
         "pipeline": pipeline,
         "stages": [s.value for s in PipelineStage],
+    }
+
+
+@app.get("/api/reports")
+def get_reports(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Get report metrics for a date range."""
+    opportunities = crm.get_opportunities()
+    activities = crm.get_activities()
+
+    if start_date or end_date:
+        def in_window(value: Optional[date]) -> bool:
+            if value is None:
+                return False
+            if start_date and value < start_date:
+                return False
+            if end_date and value > end_date:
+                return False
+            return True
+
+        opportunities = [
+            opp for opp in opportunities
+            if in_window(opp.close_date)
+            or in_window(opp.created_at.date())
+            or in_window(opp.updated_at.date())
+        ]
+        activities = [
+            activity for activity in activities
+            if in_window(activity.date.date())
+        ]
+
+    by_stage: Dict[str, Dict[str, float]] = {}
+    for stage in PipelineStage:
+        stage_opps = [opp for opp in opportunities if opp.stage == stage]
+        by_stage[stage.value] = {
+            "count": len(stage_opps),
+            "total_value": float(sum(opp.value for opp in stage_opps)),
+            "expected_value": float(sum(opp.expected_value for opp in stage_opps)),
+        }
+
+    closed_won = [opp for opp in opportunities if opp.stage == PipelineStage.CLOSED_WON]
+    closed_lost = [opp for opp in opportunities if opp.stage == PipelineStage.CLOSED_LOST]
+
+    activity_by_type: Dict[str, int] = {}
+    for activity in activities:
+        activity_by_type[activity.type.value] = activity_by_type.get(activity.type.value, 0) + 1
+
+    return {
+        "summary": {
+            "opportunity_count": len(opportunities),
+            "pipeline_value": float(sum(opp.value for opp in opportunities if opp.stage != PipelineStage.CLOSED_LOST)),
+            "expected_value": float(sum(opp.expected_value for opp in opportunities)),
+            "closed_won_count": len(closed_won),
+            "closed_won_value": float(sum(opp.value for opp in closed_won)),
+            "closed_lost_count": len(closed_lost),
+            "closed_lost_value": float(sum(opp.value for opp in closed_lost)),
+            "activity_count": len(activities),
+        },
+        "by_stage": by_stage,
+        "activity_by_type": activity_by_type,
+        "range": {
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
+        },
     }
 
 

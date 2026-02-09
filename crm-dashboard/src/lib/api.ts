@@ -128,6 +128,25 @@ export interface DashboardData {
   leads_by_status: Record<string, number>;
 }
 
+export interface ReportsData {
+  summary: {
+    opportunity_count: number;
+    pipeline_value: number;
+    expected_value: number;
+    closed_won_count: number;
+    closed_won_value: number;
+    closed_lost_count: number;
+    closed_lost_value: number;
+    activity_count: number;
+  };
+  by_stage: Record<
+    string,
+    { count: number; total_value: number; expected_value: number }
+  >;
+  activity_by_type: Record<string, number>;
+  range: { start_date?: string; end_date?: string };
+}
+
 // Enum for stages matches backend
 export enum PipelineStageEnum {
   PROSPECTING = "Prospecting",
@@ -266,6 +285,17 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
 export async function getDashboard(): Promise<DashboardData> {
   const response = await fetchWithAuth(`${API_BASE}/api/dashboard`);
+  return handleResponse(response);
+}
+
+export async function getReports(
+  startDate?: string,
+  endDate?: string,
+): Promise<ReportsData> {
+  const params = new URLSearchParams();
+  if (startDate) params.set("start_date", startDate);
+  if (endDate) params.set("end_date", endDate);
+  const response = await fetchWithAuth(`${API_BASE}/api/reports?${params}`);
   return handleResponse(response);
 }
 
@@ -646,9 +676,25 @@ export interface SearchResults {
   total: number;
 }
 
+export interface DuplicateLeadMatch {
+  confidence: number;
+  reasons: string[];
+  lead_a: Lead;
+  lead_b: Lead;
+}
+
 export async function search(query: string): Promise<SearchResults> {
   const response = await fetchWithAuth(
     `${API_BASE}/api/search?q=${encodeURIComponent(query)}`,
+  );
+  return handleResponse(response);
+}
+
+export async function detectLeadDuplicates(
+  minConfidence: number = 0.75,
+): Promise<{ matches: DuplicateLeadMatch[]; count: number }> {
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/leads/duplicates?min_confidence=${minConfidence}`,
   );
   return handleResponse(response);
 }

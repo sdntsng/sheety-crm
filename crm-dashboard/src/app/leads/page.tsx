@@ -17,9 +17,11 @@ import {
   Lead,
   getConfig,
   getSavedViews,
+  detectLeadDuplicates,
   createSavedView,
   deleteSavedView,
   exportEntityCSV,
+  DuplicateLeadMatch,
   Config,
   SavedView,
 } from "@/lib/api";
@@ -46,12 +48,14 @@ function LeadsPageContent() {
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [loading, setLoading] = useState(true);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [filterLogic, setFilterLogic] = useState<FilterLogic>("AND");
   const [filters, setFilters] = useState<FilterCondition[]>([]);
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
+  const [duplicateMatches, setDuplicateMatches] = useState<DuplicateLeadMatch[]>([]);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<string>("Contacted");
   const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
@@ -356,6 +360,18 @@ function LeadsPageContent() {
     }
   };
 
+  const runDuplicateScan = async () => {
+    setDuplicateLoading(true);
+    try {
+      const result = await detectLeadDuplicates(0.75);
+      setDuplicateMatches(result.matches);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Duplicate scan failed");
+    } finally {
+      setDuplicateLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
@@ -428,6 +444,13 @@ function LeadsPageContent() {
           </p>
         </div>
         <div className="flex gap-3">
+          <button
+            className="btn-secondary flex items-center gap-2"
+            onClick={runDuplicateScan}
+            disabled={duplicateLoading}
+          >
+            {duplicateLoading ? "Scanning..." : "Scan Duplicates"}
+          </button>
           <button
             className="btn-secondary flex items-center gap-2"
             onClick={exportVisibleLeads}
@@ -614,6 +637,44 @@ function LeadsPageContent() {
               >
                 {bulkLoading ? "Deleting..." : "Bulk Delete"}
               </button>
+            </div>
+          </div>
+        )}
+
+        {duplicateMatches.length > 0 && (
+          <div className="paper-card p-3 bg-[#fff8f5] border-[#e9b7a7]">
+            <p className="font-mono text-xs uppercase text-[var(--text-secondary)] mb-2">
+              Potential duplicates: {duplicateMatches.length}
+            </p>
+            <div className="space-y-2">
+              {duplicateMatches.slice(0, 5).map((match, index) => (
+                <div
+                  key={`${match.lead_a.lead_id}-${match.lead_b.lead_id}-${index}`}
+                  className="border border-[var(--border-pencil)] p-2 bg-white flex justify-between items-center gap-3"
+                >
+                  <div>
+                    <p className="font-sans text-sm font-semibold text-[var(--text-primary)]">
+                      {match.lead_a.company_name} ↔ {match.lead_b.company_name}
+                    </p>
+                    <p className="font-mono text-[10px] text-[var(--text-secondary)]">
+                      Confidence {(match.confidence * 100).toFixed(1)}% • {match.reasons.join(", ")}
+                    </p>
+                  </div>
+                  <button className="btn-secondary text-xs" onClick={() => {
+                    setStatusFilter("");
+                    setFilters([
+                      {
+                        id: crypto.randomUUID(),
+                        field: "company_name",
+                        operator: "contains",
+                        value: match.lead_a.company_name,
+                      },
+                    ]);
+                  }}>
+                    Review
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
