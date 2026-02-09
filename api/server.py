@@ -32,6 +32,8 @@ from src.crm.models import (
     Activity,
     Task,
     SavedView,
+    CustomFieldDefinition,
+    CustomFieldType,
     TaskStatus,
     TaskPriority,
     LeadStatus,
@@ -126,6 +128,7 @@ class LeadCreate(BaseModel):
     linkedin_url: Optional[str] = None
     logo_url: Optional[str] = None
     owner: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = None
     auto_enrich: bool = False
 
 
@@ -146,6 +149,7 @@ class LeadUpdate(BaseModel):
     enrichment_status: Optional[str] = None
     heat_level: Optional[str] = None
     owner: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = None
 
 
 class OpportunityCreate(BaseModel):
@@ -158,6 +162,7 @@ class OpportunityCreate(BaseModel):
     product: Optional[str] = None
     notes: Optional[str] = None
     owner: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = None
 
     @field_validator("value")
     @classmethod
@@ -176,6 +181,7 @@ class OpportunityUpdate(BaseModel):
     product: Optional[str] = None
     notes: Optional[str] = None
     owner: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = None
 
     @field_validator("value")
     @classmethod
@@ -252,6 +258,38 @@ class BulkOperationRequest(BaseModel):
     ids: List[str]
     status: Optional[str] = None
     stage: Optional[str] = None
+
+
+class CustomFieldCreate(BaseModel):
+    entity: str
+    key: str
+    label: str
+    field_type: str = "text"
+    required: bool = False
+    options: List[str] = Field(default_factory=list)
+    validation_rule: Optional[str] = None
+
+
+class CustomFieldUpdate(BaseModel):
+    entity: Optional[str] = None
+    key: Optional[str] = None
+    label: Optional[str] = None
+    field_type: Optional[str] = None
+    required: Optional[bool] = None
+    options: Optional[List[str]] = None
+    validation_rule: Optional[str] = None
+
+
+def _lead_payload(crm: CRMManager, lead: Lead) -> Dict[str, Any]:
+    payload = lead.model_dump()
+    payload["custom_fields"] = crm.get_custom_field_values("leads", lead.lead_id)
+    return payload
+
+
+def _opportunity_payload(crm: CRMManager, opp: Opportunity) -> Dict[str, Any]:
+    payload = opp.model_dump()
+    payload["custom_fields"] = crm.get_custom_field_values("opportunities", opp.opp_id)
+    return payload
 
 
 # =============================================================================
@@ -342,7 +380,7 @@ def list_leads(
     if source:
         leads = [l for l in leads if l.source.value == source]
 
-    return {"leads": [l.model_dump() for l in leads], "count": len(leads)}
+    return {"leads": [_lead_payload(crm, lead) for lead in leads], "count": len(leads)}
 
 
 @app.get("/api/leads/{lead_id}")
@@ -351,7 +389,7 @@ def get_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    return lead.model_dump()
+    return _lead_payload(crm, lead)
 
 
 @app.post("/api/leads", status_code=201)
@@ -376,7 +414,12 @@ def create_lead(
         logo_url=data.logo_url,
         owner=data.owner,
     )
+    if data.custom_fields:
+        crm.validate_custom_fields("leads", data.custom_fields)
+
     created = crm.add_lead(lead)
+    if data.custom_fields:
+        crm.set_custom_field_values("leads", created.lead_id, data.custom_fields)
     
     # Enrichment
     if data.auto_enrich:
@@ -384,14 +427,14 @@ def create_lead(
         try:
             enriched = crm.enrich_lead(created.lead_id)
             if enriched:
-                return enriched.model_dump()
+                return _lead_payload(crm, enriched)
         except Exception as e:
             print(f"[API] Auto-enrich failed: {e}")
 
     # Default behavior: enrich asynchronously when company name is present
     if created.company_name:
         background_tasks.add_task(crm.enrich_lead, created.lead_id)
-    return created.model_dump()
+    return _lead_payload(crm, created)
 
 
 @app.put("/api/leads/{lead_id}")
@@ -432,11 +475,14 @@ def update_lead(lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_cr
         lead.enrichment_status = data.enrichment_status
     if data.owner is not None:
         lead.owner = data.owner
+    if data.custom_fields is not None:
+        crm.validate_custom_fields("leads", data.custom_fields)
+        crm.set_custom_field_values("leads", lead_id, data.custom_fields)
 
     success = crm.update_lead(lead)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update lead")
-    return lead.model_dump()
+    return _lead_payload(crm, lead)
 
 
 @app.post("/api/leads/{lead_id}/enrich")
@@ -593,7 +639,7 @@ def list_opportunities(
     if lead_id:
         opps = [o for o in opps if o.lead_id == lead_id]
 
-    return {"opportunities": [o.model_dump() for o in opps], "count": len(opps)}
+    return {"opportunities": [_opportunity_payload(crm, opp) for opp in opps], "count": len(opps)}
 
 
 @app.get("/api/opportunities/{opp_id}")
@@ -602,7 +648,7 @@ def get_opportunity(opp_id: str, crm: CRMManager = Depends(get_crm_session)):
     opp = crm.get_opportunity(opp_id)
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
-    return opp.model_dump()
+    return _opportunity_payload(crm, opp)
 
 
 @app.get("/api/opportunities/{opp_id}/analysis")
@@ -634,8 +680,13 @@ def create_opportunity(data: OpportunityCreate, crm: CRMManager = Depends(get_cr
         notes=data.notes,
         owner=data.owner,
     )
+    if data.custom_fields:
+        crm.validate_custom_fields("opportunities", data.custom_fields)
+
     created = crm.add_opportunity(opp)
-    return created.model_dump()
+    if data.custom_fields:
+        crm.set_custom_field_values("opportunities", created.opp_id, data.custom_fields)
+    return _opportunity_payload(crm, created)
 
 
 @app.put("/api/opportunities/{opp_id}")
@@ -661,11 +712,14 @@ def update_opportunity(opp_id: str, data: OpportunityUpdate, crm: CRMManager = D
         opp.notes = data.notes
     if data.owner is not None:
         opp.owner = data.owner
+    if data.custom_fields is not None:
+        crm.validate_custom_fields("opportunities", data.custom_fields)
+        crm.set_custom_field_values("opportunities", opp_id, data.custom_fields)
 
     success = crm.update_opportunity(opp)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update opportunity")
-    return opp.model_dump()
+    return _opportunity_payload(crm, opp)
 
 
 @app.patch("/api/opportunities/{opp_id}/stage")
@@ -892,6 +946,94 @@ def delete_saved_view(view_id: str, crm: CRMManager = Depends(get_crm_session)):
 
 
 # =============================================================================
+# Custom Fields Endpoints
+# =============================================================================
+
+@app.get("/api/custom-fields")
+def list_custom_fields(
+    entity: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List custom field definitions."""
+    fields = crm.get_custom_field_definitions(entity=entity)
+    return {"fields": [item.model_dump() for item in fields], "count": len(fields)}
+
+
+@app.post("/api/custom-fields", status_code=201)
+def create_custom_field(
+    data: CustomFieldCreate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Create a custom field definition."""
+    normalized_type = data.field_type.strip().lower()
+    try:
+        field_type = CustomFieldType(normalized_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Unsupported field_type: {data.field_type}") from exc
+
+    definition = CustomFieldDefinition(
+        entity=data.entity,
+        key=data.key,
+        label=data.label,
+        field_type=field_type,
+        required=data.required,
+        options=data.options,
+        validation_rule=data.validation_rule,
+    )
+    created = crm.add_custom_field_definition(definition)
+    return created.model_dump()
+
+
+@app.put("/api/custom-fields/{field_id}")
+def update_custom_field(
+    field_id: str,
+    data: CustomFieldUpdate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Update a custom field definition."""
+    definition = crm.get_custom_field_definition(field_id)
+    if not definition:
+        raise HTTPException(status_code=404, detail="Custom field not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "entity" in updates:
+        definition.entity = updates["entity"]
+    if "key" in updates:
+        definition.key = updates["key"]
+    if "label" in updates:
+        definition.label = updates["label"]
+    if "field_type" in updates and updates["field_type"]:
+        try:
+            definition.field_type = CustomFieldType(str(updates["field_type"]).strip().lower())
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Unsupported field_type: {updates['field_type']}") from exc
+    if "required" in updates:
+        definition.required = bool(updates["required"])
+    if "options" in updates:
+        definition.options = updates["options"] or []
+    if "validation_rule" in updates:
+        definition.validation_rule = updates["validation_rule"]
+
+    success = crm.update_custom_field_definition(definition)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update custom field")
+
+    return definition.model_dump()
+
+
+@app.delete("/api/custom-fields/{field_id}")
+def delete_custom_field(
+    field_id: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Delete a custom field definition."""
+    success = crm.delete_custom_field_definition(field_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Custom field not found")
+    return {"deleted": True}
+
+
+# =============================================================================
 # Export Endpoints
 # =============================================================================
 
@@ -988,7 +1130,7 @@ def get_pipeline(crm: CRMManager = Depends(get_crm_session)):
             "stage": stage.value,
             "opportunities": [
                 {
-                    **o.model_dump(),
+                    **_opportunity_payload(crm, o),
                     "lead": leads.get(o.lead_id).model_dump() if o.lead_id in leads else None
                 }
                 for o in stage_opps

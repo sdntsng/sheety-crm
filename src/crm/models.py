@@ -80,6 +80,15 @@ class TaskPriority(str, Enum):
     HIGH = "High"
 
 
+class CustomFieldType(str, Enum):
+    """Custom field data types."""
+    TEXT = "text"
+    NUMBER = "number"
+    DATE = "date"
+    SELECT = "select"
+    MULTI_SELECT = "multi-select"
+
+
 class Lead(BaseModel):
     """A sales lead - typically a company/organization."""
     lead_id: str = Field(default_factory=generate_id)
@@ -539,4 +548,113 @@ class SavedView(BaseModel):
         return [
             "view_id", "name", "entity", "filters", "sort_by",
             "sort_order", "owner", "is_shared", "created_at", "updated_at"
+        ]
+
+
+class CustomFieldDefinition(BaseModel):
+    """Defines a reusable custom field for an entity."""
+    field_id: str = Field(default_factory=generate_id)
+    entity: str  # leads | opportunities
+    key: str
+    label: str
+    field_type: CustomFieldType
+    required: bool = False
+    options: list[str] = Field(default_factory=list)
+    validation_rule: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    def to_row(self) -> list:
+        return [
+            self.field_id,
+            self.entity,
+            self.key,
+            self.label,
+            self.field_type.value,
+            "true" if self.required else "false",
+            json.dumps(self.options),
+            self.validation_rule or "",
+            self.created_at.isoformat(),
+            self.updated_at.isoformat(),
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "CustomFieldDefinition":
+        raw_options = row[6] if len(row) > 6 and row[6] else "[]"
+        try:
+            options = json.loads(raw_options)
+            if not isinstance(options, list):
+                options = []
+            options = [str(item) for item in options]
+        except (json.JSONDecodeError, TypeError):
+            options = []
+
+        field_type = row[4] if len(row) > 4 and row[4] else CustomFieldType.TEXT.value
+        try:
+            parsed_type = CustomFieldType(field_type)
+        except ValueError:
+            parsed_type = CustomFieldType.TEXT
+
+        required_raw = row[5] if len(row) > 5 and row[5] else "false"
+        required = str(required_raw).lower() in {"1", "true", "yes"}
+
+        created_raw = row[8] if len(row) > 8 and row[8] else None
+        updated_raw = row[9] if len(row) > 9 and row[9] else None
+
+        return cls(
+            field_id=str(row[0]) if row and row[0] else generate_id(),
+            entity=str(row[1]) if len(row) > 1 and row[1] else "leads",
+            key=str(row[2]) if len(row) > 2 else "",
+            label=str(row[3]) if len(row) > 3 else "",
+            field_type=parsed_type,
+            required=required,
+            options=options,
+            validation_rule=row[7] if len(row) > 7 and row[7] else None,
+            created_at=datetime.fromisoformat(created_raw) if created_raw else datetime.now(),
+            updated_at=datetime.fromisoformat(updated_raw) if updated_raw else datetime.now(),
+        )
+
+    @classmethod
+    def headers(cls) -> list:
+        return [
+            "field_id", "entity", "key", "label", "field_type", "required",
+            "options", "validation_rule", "created_at", "updated_at"
+        ]
+
+
+class CustomFieldValue(BaseModel):
+    """A key/value custom field assignment for a record."""
+    value_id: str = Field(default_factory=generate_id)
+    entity: str
+    record_id: str
+    field_key: str
+    field_value: str
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    def to_row(self) -> list:
+        return [
+            self.value_id,
+            self.entity,
+            self.record_id,
+            self.field_key,
+            self.field_value,
+            self.updated_at.isoformat(),
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "CustomFieldValue":
+        updated_raw = row[5] if len(row) > 5 and row[5] else None
+        return cls(
+            value_id=str(row[0]) if row and row[0] else generate_id(),
+            entity=str(row[1]) if len(row) > 1 else "",
+            record_id=str(row[2]) if len(row) > 2 else "",
+            field_key=str(row[3]) if len(row) > 3 else "",
+            field_value=str(row[4]) if len(row) > 4 else "",
+            updated_at=datetime.fromisoformat(updated_raw) if updated_raw else datetime.now(),
+        )
+
+    @classmethod
+    def headers(cls) -> list:
+        return [
+            "value_id", "entity", "record_id", "field_key", "field_value", "updated_at"
         ]

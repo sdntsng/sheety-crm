@@ -40,6 +40,7 @@ export interface Lead {
   created_at: string;
   updated_at: string;
   owner?: string;
+  custom_fields?: Record<string, unknown>;
 }
 
 export interface Opportunity {
@@ -57,6 +58,7 @@ export interface Opportunity {
   updated_at: string;
   closed_at?: string;
   owner?: string;
+  custom_fields?: Record<string, unknown>;
   lead?: Lead;
 }
 
@@ -95,6 +97,19 @@ export interface SavedView {
   sort_order: "asc" | "desc";
   owner?: string;
   is_shared: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomFieldDefinition {
+  field_id: string;
+  entity: "leads" | "opportunities";
+  key: string;
+  label: string;
+  field_type: "text" | "number" | "date" | "select" | "multi-select";
+  required: boolean;
+  options: string[];
+  validation_rule?: string;
   created_at: string;
   updated_at: string;
 }
@@ -547,6 +562,47 @@ export async function updateSavedView(
 
 export async function deleteSavedView(viewId: string): Promise<void> {
   const response = await fetchWithAuth(`${API_BASE}/api/views/${viewId}`, {
+    method: "DELETE",
+  });
+  return handleResponse(response);
+}
+
+// Custom Fields
+export async function getCustomFields(entity?: "leads" | "opportunities"): Promise<{
+  fields: CustomFieldDefinition[];
+  count: number;
+}> {
+  const params = new URLSearchParams();
+  if (entity) params.set("entity", entity);
+  const response = await fetchWithAuth(`${API_BASE}/api/custom-fields?${params}`);
+  return handleResponse(response);
+}
+
+export async function createCustomField(
+  payload: Partial<CustomFieldDefinition>,
+): Promise<CustomFieldDefinition> {
+  const response = await fetchWithAuth(`${API_BASE}/api/custom-fields`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function updateCustomField(
+  fieldId: string,
+  payload: Partial<CustomFieldDefinition>,
+): Promise<CustomFieldDefinition> {
+  const response = await fetchWithAuth(`${API_BASE}/api/custom-fields/${fieldId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function deleteCustomField(fieldId: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE}/api/custom-fields/${fieldId}`, {
     method: "DELETE",
   });
   return handleResponse(response);

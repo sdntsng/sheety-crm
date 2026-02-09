@@ -3,6 +3,8 @@ CRM Manager - Business logic layer for CRM operations.
 """
 import csv
 import io
+import json
+import re
 from datetime import date, datetime
 from typing import List, Optional, Dict, Any
 from rich.console import Console
@@ -15,6 +17,9 @@ from .models import (
     Activity,
     Task,
     SavedView,
+    CustomFieldDefinition,
+    CustomFieldType,
+    CustomFieldValue,
     TaskPriority,
     TaskStatus,
     LeadStatus,
@@ -39,6 +44,8 @@ OPPS_WS = "Opportunities"
 ACTIVITIES_WS = "Activities"
 TASKS_WS = "Tasks"
 VIEWS_WS = "_System_Views"
+CUSTOM_FIELDS_WS = "_CustomFields"
+CUSTOM_VALUES_WS = "_CustomFieldValues"
 SUMMARY_WS = "Summary"
 
 
@@ -703,6 +710,235 @@ class CRMManager:
                 return True
 
         return False
+
+    # -------------------------------------------------------------------------
+    # Custom Fields Operations
+    # -------------------------------------------------------------------------
+
+    def add_custom_field_definition(self, definition: CustomFieldDefinition) -> CustomFieldDefinition:
+        """Create a custom field definition."""
+        self._ensure_headers(CUSTOM_FIELDS_WS, CustomFieldDefinition.headers())
+        definition.created_at = datetime.now()
+        definition.updated_at = datetime.now()
+        self.sm.append_row(self.sheet_name, definition.to_row(), CUSTOM_FIELDS_WS)
+        self._invalidate_cache(CUSTOM_FIELDS_WS)
+        return definition
+
+    def get_custom_field_definitions(self, entity: Optional[str] = None) -> List[CustomFieldDefinition]:
+        """List custom field definitions, optionally filtered by entity."""
+        data = self._get_cached_data(CUSTOM_FIELDS_WS)
+        if data is None:
+            self._ensure_headers(CUSTOM_FIELDS_WS, CustomFieldDefinition.headers())
+            data = self.sm.read_data(self.sheet_name, CUSTOM_FIELDS_WS)
+            if data:
+                self._set_cached_data(CUSTOM_FIELDS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        definitions = [
+            CustomFieldDefinition.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+
+        if entity:
+            definitions = [item for item in definitions if item.entity == entity]
+        return definitions
+
+    def get_custom_field_definition(self, field_id: str) -> Optional[CustomFieldDefinition]:
+        """Get a custom field definition by ID."""
+        definitions = self.get_custom_field_definitions()
+        return next((item for item in definitions if item.field_id == field_id), None)
+
+    def update_custom_field_definition(self, definition: CustomFieldDefinition) -> bool:
+        """Update a custom field definition."""
+        data = self._get_cached_data(CUSTOM_FIELDS_WS)
+        if not data:
+            self._ensure_headers(CUSTOM_FIELDS_WS, CustomFieldDefinition.headers())
+            data = self.sm.read_data(self.sheet_name, CUSTOM_FIELDS_WS)
+            if data:
+                self._set_cached_data(CUSTOM_FIELDS_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == definition.field_id:
+                definition.updated_at = datetime.now()
+                row_index = i + 1
+                new_row = definition.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, CUSTOM_FIELDS_WS)
+                data[i] = new_row
+                self._set_cached_data(CUSTOM_FIELDS_WS, data)
+                return True
+
+        return False
+
+    def delete_custom_field_definition(self, field_id: str) -> bool:
+        """Delete a custom field definition."""
+        data = self._get_cached_data(CUSTOM_FIELDS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, CUSTOM_FIELDS_WS)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == field_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, CUSTOM_FIELDS_WS)
+                data.pop(i)
+                self._set_cached_data(CUSTOM_FIELDS_WS, data)
+                return True
+        return False
+
+    def get_custom_field_values(self, entity: str, record_id: str) -> Dict[str, Any]:
+        """Get custom field values for a record."""
+        data = self._get_cached_data(CUSTOM_VALUES_WS)
+        if data is None:
+            self._ensure_headers(CUSTOM_VALUES_WS, CustomFieldValue.headers())
+            data = self.sm.read_data(self.sheet_name, CUSTOM_VALUES_WS)
+            if data:
+                self._set_cached_data(CUSTOM_VALUES_WS, data)
+
+        if not data or len(data) < 2:
+            return {}
+
+        values: Dict[str, tuple[str, datetime]] = {}
+        for row in data[1:]:
+            if not row or len(row) < 6:
+                continue
+            parsed = CustomFieldValue.from_row(row)
+            if parsed.entity != entity or parsed.record_id != record_id:
+                continue
+            current = values.get(parsed.field_key)
+            if not current or parsed.updated_at >= current[1]:
+                values[parsed.field_key] = (parsed.field_value, parsed.updated_at)
+
+        result: Dict[str, Any] = {}
+        for field_key, (raw_value, _) in values.items():
+            try:
+                result[field_key] = json.loads(raw_value)
+            except json.JSONDecodeError:
+                result[field_key] = raw_value
+        return result
+
+    def set_custom_field_values(self, entity: str, record_id: str, values: Dict[str, Any]):
+        """Persist custom field values for a record by appending value snapshots."""
+        if not values:
+            return
+
+        normalized_values = self.validate_custom_fields(entity, values)
+        self._ensure_headers(CUSTOM_VALUES_WS, CustomFieldValue.headers())
+
+        rows = []
+        now = datetime.now()
+        for field_key, value in normalized_values.items():
+            encoded = json.dumps(value)
+            model = CustomFieldValue(
+                entity=entity,
+                record_id=record_id,
+                field_key=field_key,
+                field_value=encoded,
+                updated_at=now,
+            )
+            rows.append(model.to_row())
+
+        self.sm.append_rows(self.sheet_name, rows, CUSTOM_VALUES_WS)
+        self._invalidate_cache(CUSTOM_VALUES_WS)
+
+    def validate_custom_fields(self, entity: str, values: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate and normalize custom field values for an entity."""
+        definitions = self.get_custom_field_definitions(entity=entity)
+        if not definitions:
+            return values or {}
+
+        values = values or {}
+        by_key = {item.key: item for item in definitions}
+        normalized: Dict[str, Any] = {}
+        errors: List[str] = []
+
+        for key, definition in by_key.items():
+            raw_value = values.get(key)
+            if definition.required and (raw_value is None or raw_value == ""):
+                errors.append(f"Missing required custom field '{key}'")
+                continue
+            if raw_value is None:
+                continue
+
+            try:
+                normalized[key] = self._normalize_custom_field_value(definition, raw_value)
+            except ValueError as exc:
+                errors.append(str(exc))
+
+        extra_keys = [key for key in values.keys() if key not in by_key]
+        if extra_keys:
+            errors.append(f"Unknown custom field keys: {', '.join(extra_keys)}")
+
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        return normalized
+
+    def _normalize_custom_field_value(self, definition: CustomFieldDefinition, value: Any) -> Any:
+        """Normalize and validate one custom field value."""
+        field_key = definition.key
+        field_type = definition.field_type
+        validation_rule = definition.validation_rule
+
+        if field_type == CustomFieldType.TEXT:
+            parsed = str(value)
+            if validation_rule and not re.fullmatch(validation_rule, parsed):
+                raise ValueError(f"Custom field '{field_key}' does not match validation rule")
+            return parsed
+
+        if field_type == CustomFieldType.NUMBER:
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Custom field '{field_key}' must be a number") from exc
+
+            if validation_rule:
+                min_match = re.search(r"min[:=](-?\d+(\.\d+)?)", validation_rule)
+                max_match = re.search(r"max[:=](-?\d+(\.\d+)?)", validation_rule)
+                if min_match and parsed < float(min_match.group(1)):
+                    raise ValueError(f"Custom field '{field_key}' must be >= {min_match.group(1)}")
+                if max_match and parsed > float(max_match.group(1)):
+                    raise ValueError(f"Custom field '{field_key}' must be <= {max_match.group(1)}")
+            return parsed
+
+        if field_type == CustomFieldType.DATE:
+            try:
+                return date.fromisoformat(str(value)[:10]).isoformat()
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Custom field '{field_key}' must be an ISO date") from exc
+
+        if field_type == CustomFieldType.SELECT:
+            parsed = str(value)
+            if definition.options and parsed not in definition.options:
+                raise ValueError(f"Custom field '{field_key}' must be one of: {', '.join(definition.options)}")
+            return parsed
+
+        if field_type == CustomFieldType.MULTI_SELECT:
+            if isinstance(value, list):
+                parsed_list = [str(item) for item in value]
+            else:
+                parsed_list = [item.strip() for item in str(value).split(",") if item.strip()]
+
+            if definition.options:
+                invalid = [item for item in parsed_list if item not in definition.options]
+                if invalid:
+                    raise ValueError(
+                        f"Custom field '{field_key}' has invalid values: {', '.join(invalid)}"
+                    )
+            return parsed_list
+
+        raise ValueError(f"Unsupported custom field type for '{field_key}'")
 
     # -------------------------------------------------------------------------
     # Export Operations

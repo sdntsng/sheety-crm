@@ -11,6 +11,8 @@ from .models import (
     Activity,
     Task,
     SavedView,
+    CustomFieldDefinition,
+    CustomFieldValue,
     PipelineStage,
     LeadStatus,
     LeadSource,
@@ -63,6 +65,14 @@ class CRMTemplates:
         
         self.ensure_worksheet(sh, "_System_Views")
         console.print("[green]✓ Set up Saved Views worksheet[/green]")
+        time.sleep(1.5)
+
+        self.ensure_worksheet(sh, "_CustomFields")
+        console.print("[green]✓ Set up Custom Fields worksheet[/green]")
+        time.sleep(1.5)
+
+        self.ensure_worksheet(sh, "_CustomFieldValues")
+        console.print("[green]✓ Set up Custom Field Values worksheet[/green]")
         
         self.ensure_worksheet(sh, "_Schema")
         console.print("[green]✓ Set up Schema reference[/green]")
@@ -90,6 +100,10 @@ class CRMTemplates:
                 self.setup_tasks_sheet(ws)
             elif name == "_System_Views":
                 self.setup_saved_views_sheet(ws)
+            elif name == "_CustomFields":
+                self.setup_custom_fields_sheet(ws)
+            elif name == "_CustomFieldValues":
+                self.setup_custom_field_values_sheet(ws)
             elif name == "_Schema":
                 self.setup_schema_sheet(ws)
             
@@ -193,6 +207,28 @@ class CRMTemplates:
             "backgroundColor": {"red": 0.25, "green": 0.25, "blue": 0.25}
         })
 
+        ws.freeze(rows=1)
+        ws.set_basic_filter()
+
+    def setup_custom_fields_sheet(self, ws: gspread.Worksheet):
+        """Set up custom field definitions worksheet."""
+        headers = CustomFieldDefinition.headers()
+        ws.append_row(headers)
+        ws.format("A1:J1", {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.22, "green": 0.30, "blue": 0.22}
+        })
+        ws.freeze(rows=1)
+        ws.set_basic_filter()
+
+    def setup_custom_field_values_sheet(self, ws: gspread.Worksheet):
+        """Set up custom field values worksheet."""
+        headers = CustomFieldValue.headers()
+        ws.append_row(headers)
+        ws.format("A1:F1", {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.22, "green": 0.22, "blue": 0.30}
+        })
         ws.freeze(rows=1)
         ws.set_basic_filter()
 
