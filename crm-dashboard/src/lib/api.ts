@@ -183,6 +183,9 @@ export interface DashboardData {
     { count: number; total_value: number; expected_value: number }
   >;
   leads_by_status: Record<string, number>;
+  funnel_chart: { stage: string; count: number; value: number }[];
+  trend_chart: { week_start: string; count: number }[];
+  mix_chart: { label: string; count: number }[];
 }
 
 export interface ReportsData {

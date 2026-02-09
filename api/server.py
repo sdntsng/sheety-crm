@@ -1869,7 +1869,53 @@ def bulk_operation(
 @app.get("/api/dashboard")
 def get_dashboard(crm: CRMManager = Depends(get_crm_session)):
     """Get dashboard summary data."""
-    return crm.get_pipeline_summary()
+    summary = crm.get_pipeline_summary()
+    opportunities = crm.get_opportunities()
+    leads = crm.get_leads()
+
+    funnel_chart = []
+    for stage in PipelineStage:
+        stage_items = [opp for opp in opportunities if opp.stage == stage]
+        funnel_chart.append({
+            "stage": stage.value,
+            "count": len(stage_items),
+            "value": float(sum(opp.value for opp in stage_items)),
+        })
+
+    # Trend by week (last 8 weeks) using opportunity created_at
+    today = date.today()
+    trend_map: Dict[str, int] = {}
+    for i in range(7, -1, -1):
+        period_end = date.fromordinal(today.toordinal() - (i * 7))
+        period_start = date.fromordinal(period_end.toordinal() - 6)
+        key = period_start.isoformat()
+        trend_map[key] = 0
+    for opp in opportunities:
+        created = opp.created_at.date()
+        for key in list(trend_map.keys()):
+            start = date.fromisoformat(key)
+            end = date.fromordinal(start.toordinal() + 6)
+            if start <= created <= end:
+                trend_map[key] += 1
+                break
+    trend_chart = [{"week_start": key, "count": count} for key, count in trend_map.items()]
+
+    # Mix by source + industry (top six)
+    mix_counter: Dict[str, int] = {}
+    for lead in leads:
+        source = lead.source.value if lead.source else "Other"
+        industry = lead.industry if lead.industry else "General"
+        key = f"{source} / {industry}"
+        mix_counter[key] = mix_counter.get(key, 0) + 1
+    sorted_mix = sorted(mix_counter.items(), key=lambda item: item[1], reverse=True)[:6]
+    mix_chart = [{"label": label, "count": count} for label, count in sorted_mix]
+
+    return {
+        **summary,
+        "funnel_chart": funnel_chart,
+        "trend_chart": trend_chart,
+        "mix_chart": mix_chart,
+    }
 
 
 @app.get("/api/pipeline")

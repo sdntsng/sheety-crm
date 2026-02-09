@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { useSettings } from "@/providers/SettingsProvider";
 import StatCard from "@/components/StatCard";
+import DashboardCharts from "@/components/DashboardCharts";
 import Link from "next/link";
 import SheetSelector from "@/components/SheetSelector";
 import { SkeletonBox, SkeletonStatCard } from "@/components/SkeletonLoader";
@@ -294,6 +295,12 @@ function DashboardPageContent() {
           variant="success"
         />
       </div>
+
+      <DashboardCharts
+        funnelData={data.funnel_chart || []}
+        trendData={data.trend_chart || []}
+        mixData={data.mix_chart || []}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Pipeline Stages - List on Paper */}
