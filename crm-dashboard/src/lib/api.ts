@@ -126,6 +126,19 @@ export interface EmailTemplate {
   updated_at: string;
 }
 
+export interface WorkflowRule {
+  rule_id: string;
+  name: string;
+  is_active: boolean;
+  trigger_type: "lead_created" | "stage_changed";
+  trigger_value?: string;
+  entity: "leads" | "opportunities";
+  conditions: Record<string, unknown>[];
+  actions: Record<string, unknown>[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface IntegrationConnection {
   integration_id: string;
   provider: string;
@@ -743,6 +756,48 @@ export async function renderEmailTemplate(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+// Workflow Rules
+export async function getWorkflowRules(filters?: {
+  trigger_type?: "lead_created" | "stage_changed";
+  active_only?: boolean;
+}): Promise<{ rules: WorkflowRule[]; count: number }> {
+  const params = new URLSearchParams();
+  if (filters?.trigger_type) params.set("trigger_type", filters.trigger_type);
+  if (filters?.active_only) params.set("active_only", "true");
+  const response = await fetchWithAuth(`${API_BASE}/api/workflow-rules?${params}`);
+  return handleResponse(response);
+}
+
+export async function createWorkflowRule(
+  payload: Partial<WorkflowRule>,
+): Promise<WorkflowRule> {
+  const response = await fetchWithAuth(`${API_BASE}/api/workflow-rules`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function updateWorkflowRule(
+  ruleId: string,
+  payload: Partial<WorkflowRule>,
+): Promise<WorkflowRule> {
+  const response = await fetchWithAuth(`${API_BASE}/api/workflow-rules/${ruleId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function deleteWorkflowRule(ruleId: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE}/api/workflow-rules/${ruleId}`, {
+    method: "DELETE",
   });
   return handleResponse(response);
 }

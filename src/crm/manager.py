@@ -22,6 +22,7 @@ from .models import (
     CustomFieldType,
     CustomFieldValue,
     EmailTemplate,
+    WorkflowRule,
     IntegrationConnection,
     IntegrationSyncRun,
     AuditLogEntry,
@@ -52,6 +53,7 @@ VIEWS_WS = "_System_Views"
 CUSTOM_FIELDS_WS = "_CustomFields"
 CUSTOM_VALUES_WS = "_CustomFieldValues"
 EMAIL_TEMPLATES_WS = "_EmailTemplates"
+WORKFLOW_RULES_WS = "_WorkflowRules"
 INTEGRATIONS_WS = "_Integrations"
 INTEGRATION_RUNS_WS = "_IntegrationSyncRuns"
 AUDIT_LOG_WS = "_AuditLog"
@@ -1081,6 +1083,234 @@ class CRMManager:
             "subject": rendered_subject,
             "body": rendered_body,
         }
+
+    # -------------------------------------------------------------------------
+    # Workflow Rules
+    # -------------------------------------------------------------------------
+
+    def add_workflow_rule(self, rule: WorkflowRule) -> WorkflowRule:
+        """Create a workflow rule."""
+        self._ensure_headers(WORKFLOW_RULES_WS, WorkflowRule.headers())
+        rule.created_at = datetime.now()
+        rule.updated_at = datetime.now()
+        self.sm.append_row(self.sheet_name, rule.to_row(), WORKFLOW_RULES_WS)
+        self._invalidate_cache(WORKFLOW_RULES_WS)
+        return rule
+
+    def get_workflow_rules(
+        self,
+        trigger_type: Optional[str] = None,
+        active_only: bool = False,
+    ) -> List[WorkflowRule]:
+        """List workflow rules."""
+        data = self._get_cached_data(WORKFLOW_RULES_WS)
+        if data is None:
+            self._ensure_headers(WORKFLOW_RULES_WS, WorkflowRule.headers())
+            data = self.sm.read_data(self.sheet_name, WORKFLOW_RULES_WS)
+            if data:
+                self._set_cached_data(WORKFLOW_RULES_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        rules = [
+            WorkflowRule.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+
+        if trigger_type:
+            trigger_key = trigger_type.strip().lower()
+            rules = [item for item in rules if item.trigger_type.strip().lower() == trigger_key]
+        if active_only:
+            rules = [item for item in rules if item.is_active]
+
+        return rules
+
+    def get_workflow_rule(self, rule_id: str) -> Optional[WorkflowRule]:
+        """Get one workflow rule by ID."""
+        rules = self.get_workflow_rules()
+        return next((item for item in rules if item.rule_id == rule_id), None)
+
+    def update_workflow_rule(self, rule: WorkflowRule) -> bool:
+        """Update a workflow rule."""
+        data = self._get_cached_data(WORKFLOW_RULES_WS)
+        if not data:
+            self._ensure_headers(WORKFLOW_RULES_WS, WorkflowRule.headers())
+            data = self.sm.read_data(self.sheet_name, WORKFLOW_RULES_WS)
+            if data:
+                self._set_cached_data(WORKFLOW_RULES_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == rule.rule_id:
+                rule.updated_at = datetime.now()
+                row_index = i + 1
+                new_row = rule.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, WORKFLOW_RULES_WS)
+                data[i] = new_row
+                self._set_cached_data(WORKFLOW_RULES_WS, data)
+                return True
+        return False
+
+    def delete_workflow_rule(self, rule_id: str) -> bool:
+        """Delete a workflow rule."""
+        data = self._get_cached_data(WORKFLOW_RULES_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, WORKFLOW_RULES_WS)
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == rule_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, WORKFLOW_RULES_WS)
+                self._invalidate_cache(WORKFLOW_RULES_WS)
+                return True
+        return False
+
+    def run_workflow_rules(
+        self,
+        trigger_type: str,
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Execute matching workflow rules for a trigger."""
+        matching_rules = self.get_workflow_rules(trigger_type=trigger_type, active_only=True)
+        executed: List[Dict[str, Any]] = []
+        skipped: List[Dict[str, Any]] = []
+
+        for rule in matching_rules:
+            if rule.trigger_type == "stage_changed" and rule.trigger_value:
+                new_stage = str(context.get("new_stage") or "")
+                if new_stage != rule.trigger_value:
+                    skipped.append({"rule_id": rule.rule_id, "reason": "trigger_value_mismatch"})
+                    continue
+
+            if not self._workflow_conditions_match(rule.conditions, context):
+                skipped.append({"rule_id": rule.rule_id, "reason": "conditions_not_met"})
+                continue
+
+            rule_actions = []
+            for action in rule.actions:
+                result = self._execute_workflow_action(action, context)
+                if result:
+                    rule_actions.append(result)
+
+            executed.append({
+                "rule_id": rule.rule_id,
+                "rule_name": rule.name,
+                "actions": rule_actions,
+            })
+
+        return {
+            "trigger_type": trigger_type,
+            "executed": executed,
+            "skipped": skipped,
+        }
+
+    def _workflow_conditions_match(self, conditions: List[Dict[str, Any]], context: Dict[str, Any]) -> bool:
+        """Evaluate simple equals/not_equals/contains conditions."""
+        if not conditions:
+            return True
+
+        for condition in conditions:
+            field = str(condition.get("field") or "").strip()
+            operator = str(condition.get("operator") or "equals").strip().lower()
+            expected = condition.get("value")
+            if not field:
+                continue
+
+            actual = context.get(field)
+            if operator == "equals" and actual != expected:
+                return False
+            if operator == "not_equals" and actual == expected:
+                return False
+            if operator == "contains":
+                if actual is None:
+                    return False
+                if str(expected).lower() not in str(actual).lower():
+                    return False
+        return True
+
+    def _execute_workflow_action(self, action: Dict[str, Any], context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Execute one workflow action."""
+        action_type = str(action.get("type") or "").strip().lower()
+
+        if action_type == "create_task":
+            title = str(action.get("title") or "Follow up")
+            due_days = int(action.get("due_days") or 0)
+            assignee = action.get("assignee")
+            lead_id = context.get("lead_id")
+            opp_id = context.get("opp_id")
+            if not lead_id and not opp_id:
+                return {"type": action_type, "status": "skipped", "reason": "missing_target"}
+
+            due_date = None
+            if due_days > 0:
+                due_date = date.fromordinal(date.today().toordinal() + due_days)
+
+            task = Task(
+                title=title,
+                due_date=due_date,
+                lead_id=str(lead_id) if lead_id else None,
+                opp_id=str(opp_id) if opp_id else None,
+                assignee=str(assignee) if assignee else None,
+                status=TaskStatus.OPEN,
+                priority=TaskPriority.MEDIUM,
+            )
+            created = self.add_task(task)
+            return {"type": action_type, "status": "ok", "task_id": created.task_id}
+
+        if action_type == "update_field":
+            target = str(action.get("target") or "").strip().lower()
+            field = str(action.get("field") or "").strip()
+            value = action.get("value")
+            if not target or not field:
+                return {"type": action_type, "status": "skipped", "reason": "missing_target_or_field"}
+
+            if target == "leads":
+                lead_id = context.get("lead_id")
+                if not lead_id:
+                    return {"type": action_type, "status": "skipped", "reason": "missing_lead_id"}
+                lead = self.get_lead(str(lead_id))
+                if not lead:
+                    return {"type": action_type, "status": "skipped", "reason": "lead_not_found"}
+                if not hasattr(lead, field):
+                    return {"type": action_type, "status": "skipped", "reason": "invalid_field"}
+                if field == "status" and isinstance(value, str) and value in [item.value for item in LeadStatus]:
+                    value = LeadStatus(value)
+                if field == "source" and isinstance(value, str) and value in [item.value for item in LeadSource]:
+                    value = LeadSource(value)
+                if field == "company_size" and isinstance(value, str) and value in [item.value for item in CompanySize]:
+                    value = CompanySize(value)
+                setattr(lead, field, value)
+                self.update_lead(lead)
+                return {"type": action_type, "status": "ok", "entity": "leads", "record_id": lead.lead_id}
+
+            if target == "opportunities":
+                opp_id = context.get("opp_id")
+                if not opp_id:
+                    return {"type": action_type, "status": "skipped", "reason": "missing_opp_id"}
+                opp = self.get_opportunity(str(opp_id))
+                if not opp:
+                    return {"type": action_type, "status": "skipped", "reason": "opportunity_not_found"}
+                if not hasattr(opp, field):
+                    return {"type": action_type, "status": "skipped", "reason": "invalid_field"}
+                if field == "stage" and isinstance(value, str) and value in [item.value for item in PipelineStage]:
+                    value = PipelineStage(value)
+                setattr(opp, field, value)
+                self.update_opportunity(opp)
+                return {"type": action_type, "status": "ok", "entity": "opportunities", "record_id": opp.opp_id}
+
+            return {"type": action_type, "status": "skipped", "reason": "unsupported_target"}
+
+        return {"type": action_type or "unknown", "status": "skipped", "reason": "unsupported_action"}
 
     # -------------------------------------------------------------------------
     # Integration Connections

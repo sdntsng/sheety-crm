@@ -40,6 +40,7 @@ from src.crm.models import (
     CustomFieldDefinition,
     CustomFieldType,
     EmailTemplate,
+    WorkflowRule,
     TaskStatus,
     TaskPriority,
     LeadStatus,
@@ -315,6 +316,31 @@ class RenderEmailTemplateRequest(BaseModel):
     lead_id: Optional[str] = None
     opp_id: Optional[str] = None
     my_name: Optional[str] = None
+
+
+class WorkflowRuleCreate(BaseModel):
+    name: str
+    is_active: bool = True
+    trigger_type: str
+    trigger_value: Optional[str] = None
+    entity: str = "leads"
+    conditions: List[Dict[str, Any]] = Field(default_factory=list)
+    actions: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class WorkflowRuleUpdate(BaseModel):
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+    trigger_type: Optional[str] = None
+    trigger_value: Optional[str] = None
+    entity: Optional[str] = None
+    conditions: Optional[List[Dict[str, Any]]] = None
+    actions: Optional[List[Dict[str, Any]]] = None
+
+
+class WorkflowEvaluateRequest(BaseModel):
+    trigger_type: str
+    context: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AIParseRequest(BaseModel):
@@ -769,6 +795,16 @@ def create_lead(
     created = crm.add_lead(lead)
     if data.custom_fields:
         crm.set_custom_field_values("leads", created.lead_id, data.custom_fields)
+    workflow_result = crm.run_workflow_rules(
+        "lead_created",
+        {
+            "lead_id": created.lead_id,
+            "company_name": created.company_name,
+            "status": created.status.value,
+            "source": created.source.value,
+            "owner": created.owner,
+        },
+    )
     _log_audit(
         crm,
         action="create",
@@ -783,14 +819,18 @@ def create_lead(
         try:
             enriched = crm.enrich_lead(created.lead_id)
             if enriched:
-                return _lead_payload(crm, enriched)
+                payload = _lead_payload(crm, enriched)
+                payload["workflow_effects"] = workflow_result
+                return payload
         except Exception as e:
             print(f"[API] Auto-enrich failed: {e}")
 
     # Default behavior: enrich asynchronously when company name is present
     if created.company_name:
         background_tasks.add_task(crm.enrich_lead, created.lead_id)
-    return _lead_payload(crm, created)
+    payload = _lead_payload(crm, created)
+    payload["workflow_effects"] = workflow_result
+    return payload
 
 
 @app.put("/api/leads/{lead_id}")
@@ -1062,6 +1102,7 @@ def update_opportunity(opp_id: str, data: OpportunityUpdate, crm: CRMManager = D
     opp = crm.get_opportunity(opp_id)
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
+    previous_stage = opp.stage.value
 
     if data.title:
         opp.title = data.title
@@ -1086,12 +1127,29 @@ def update_opportunity(opp_id: str, data: OpportunityUpdate, crm: CRMManager = D
     success = crm.update_opportunity(opp)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update opportunity")
-    return _opportunity_payload(crm, opp)
+    payload = _opportunity_payload(crm, opp)
+    if opp.stage.value != previous_stage:
+        payload["workflow_effects"] = crm.run_workflow_rules(
+            "stage_changed",
+            {
+                "opp_id": opp.opp_id,
+                "lead_id": opp.lead_id,
+                "previous_stage": previous_stage,
+                "new_stage": opp.stage.value,
+                "owner": opp.owner,
+            },
+        )
+    return payload
 
 
 @app.patch("/api/opportunities/{opp_id}/stage")
 def update_opportunity_stage(opp_id: str, data: StageUpdate, crm: CRMManager = Depends(get_crm_session)):
     """Update only the stage of an opportunity (for drag-and-drop)."""
+    current = crm.get_opportunity(opp_id)
+    if not current:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    previous_stage = current.stage.value
+
     # Validate enum lookup
     try:
         target_stage = PipelineStage(data.stage)
@@ -1101,8 +1159,21 @@ def update_opportunity_stage(opp_id: str, data: StageUpdate, crm: CRMManager = D
     success = crm.move_opportunity_stage(opp_id, target_stage)
     if not success:
         raise HTTPException(status_code=404, detail="Opportunity not found")
-        
-    return {"updated": True, "new_stage": data.stage}
+
+    workflow_effects = None
+    if data.stage != previous_stage:
+        workflow_effects = crm.run_workflow_rules(
+            "stage_changed",
+            {
+                "opp_id": current.opp_id,
+                "lead_id": current.lead_id,
+                "previous_stage": previous_stage,
+                "new_stage": data.stage,
+                "owner": current.owner,
+            },
+        )
+
+    return {"updated": True, "new_stage": data.stage, "workflow_effects": workflow_effects}
 
 
 @app.delete("/api/opportunities/{opp_id}")
@@ -1513,6 +1584,105 @@ def render_email_template(
         "subject": rendered["subject"],
         "body": rendered["body"],
     }
+
+
+# =============================================================================
+# Workflow Rules Endpoints
+# =============================================================================
+
+@app.get("/api/workflow-rules")
+def list_workflow_rules(
+    trigger_type: Optional[str] = Query(None),
+    active_only: bool = Query(False),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List workflow automation rules."""
+    rules = crm.get_workflow_rules(trigger_type=trigger_type, active_only=active_only)
+    return {"rules": [item.model_dump() for item in rules], "count": len(rules)}
+
+
+@app.post("/api/workflow-rules", status_code=201)
+def create_workflow_rule(
+    data: WorkflowRuleCreate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Create a workflow rule."""
+    rule = WorkflowRule(
+        name=data.name,
+        is_active=data.is_active,
+        trigger_type=data.trigger_type,
+        trigger_value=data.trigger_value,
+        entity=data.entity,
+        conditions=data.conditions,
+        actions=data.actions,
+    )
+    created = crm.add_workflow_rule(rule)
+    _log_audit(
+        crm,
+        action="create",
+        entity="workflow_rule",
+        record_id=created.rule_id,
+        metadata={"name": created.name, "trigger_type": created.trigger_type},
+    )
+    return created.model_dump()
+
+
+@app.put("/api/workflow-rules/{rule_id}")
+def update_workflow_rule(
+    rule_id: str,
+    data: WorkflowRuleUpdate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Update a workflow rule."""
+    rule = crm.get_workflow_rule(rule_id)
+    if not rule:
+        raise HTTPException(status_code=404, detail="Workflow rule not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "name" in updates:
+        rule.name = updates["name"]
+    if "is_active" in updates:
+        rule.is_active = bool(updates["is_active"])
+    if "trigger_type" in updates:
+        rule.trigger_type = updates["trigger_type"]
+    if "trigger_value" in updates:
+        rule.trigger_value = updates["trigger_value"]
+    if "entity" in updates:
+        rule.entity = updates["entity"]
+    if "conditions" in updates:
+        rule.conditions = updates["conditions"] or []
+    if "actions" in updates:
+        rule.actions = updates["actions"] or []
+
+    success = crm.update_workflow_rule(rule)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update workflow rule")
+
+    _log_audit(crm, action="update", entity="workflow_rule", record_id=rule_id)
+    return rule.model_dump()
+
+
+@app.delete("/api/workflow-rules/{rule_id}")
+def delete_workflow_rule(
+    rule_id: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Delete a workflow rule."""
+    success = crm.delete_workflow_rule(rule_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Workflow rule not found")
+    _log_audit(crm, action="delete", entity="workflow_rule", record_id=rule_id)
+    return {"deleted": True}
+
+
+@app.post("/api/workflow-rules/evaluate")
+def evaluate_workflow_rules(
+    payload: WorkflowEvaluateRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Manually evaluate workflow rules for a trigger context."""
+    result = crm.run_workflow_rules(payload.trigger_type, payload.context)
+    return result
 
 
 # =============================================================================

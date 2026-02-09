@@ -14,6 +14,7 @@ from .models import (
     CustomFieldDefinition,
     CustomFieldValue,
     EmailTemplate,
+    WorkflowRule,
     IntegrationConnection,
     IntegrationSyncRun,
     AuditLogEntry,
@@ -83,6 +84,10 @@ class CRMTemplates:
         console.print("[green]✓ Set up Email Templates worksheet[/green]")
         time.sleep(1.5)
 
+        self.ensure_worksheet(sh, "_WorkflowRules")
+        console.print("[green]✓ Set up Workflow Rules worksheet[/green]")
+        time.sleep(1.5)
+
         self.ensure_worksheet(sh, "_Integrations")
         console.print("[green]✓ Set up Integrations worksheet[/green]")
         time.sleep(1.5)
@@ -126,6 +131,8 @@ class CRMTemplates:
                 self.setup_custom_field_values_sheet(ws)
             elif name == "_EmailTemplates":
                 self.setup_email_templates_sheet(ws)
+            elif name == "_WorkflowRules":
+                self.setup_workflow_rules_sheet(ws)
             elif name == "_Integrations":
                 self.setup_integrations_sheet(ws)
             elif name == "_IntegrationSyncRuns":
@@ -267,6 +274,17 @@ class CRMTemplates:
         ws.format("A1:I1", {
             "textFormat": {"bold": True},
             "backgroundColor": {"red": 0.24, "green": 0.19, "blue": 0.28}
+        })
+        ws.freeze(rows=1)
+        ws.set_basic_filter()
+
+    def setup_workflow_rules_sheet(self, ws: gspread.Worksheet):
+        """Set up workflow rules worksheet."""
+        headers = WorkflowRule.headers()
+        ws.append_row(headers)
+        ws.format("A1:J1", {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.18, "green": 0.26, "blue": 0.18}
         })
         ws.freeze(rows=1)
         ws.set_basic_filter()

@@ -4,7 +4,7 @@ CRM Data Models using Pydantic for validation.
 import json
 from datetime import datetime, date
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, EmailStr, Field
 import uuid
 
@@ -712,6 +712,84 @@ class EmailTemplate(BaseModel):
             "body",
             "owner",
             "is_shared",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class WorkflowRule(BaseModel):
+    """Simple automation rule with trigger and actions."""
+    rule_id: str = Field(default_factory=generate_id)
+    name: str
+    is_active: bool = True
+    trigger_type: str  # lead_created | stage_changed
+    trigger_value: Optional[str] = None
+    entity: str = "leads"
+    conditions: List[Dict[str, Any]] = Field(default_factory=list)
+    actions: List[Dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    def to_row(self) -> list:
+        return [
+            self.rule_id,
+            self.name,
+            "true" if self.is_active else "false",
+            self.trigger_type,
+            self.trigger_value or "",
+            self.entity,
+            json.dumps(self.conditions),
+            json.dumps(self.actions),
+            self.created_at.isoformat(),
+            self.updated_at.isoformat(),
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "WorkflowRule":
+        raw_conditions = row[6] if len(row) > 6 and row[6] else "[]"
+        raw_actions = row[7] if len(row) > 7 and row[7] else "[]"
+        conditions: List[Dict[str, Any]] = []
+        actions: List[Dict[str, Any]] = []
+        try:
+            parsed = json.loads(raw_conditions)
+            if isinstance(parsed, list):
+                conditions = [item for item in parsed if isinstance(item, dict)]
+        except (json.JSONDecodeError, TypeError):
+            conditions = []
+        try:
+            parsed = json.loads(raw_actions)
+            if isinstance(parsed, list):
+                actions = [item for item in parsed if isinstance(item, dict)]
+        except (json.JSONDecodeError, TypeError):
+            actions = []
+
+        is_active_raw = row[2] if len(row) > 2 and row[2] else "true"
+        created_raw = row[8] if len(row) > 8 and row[8] else None
+        updated_raw = row[9] if len(row) > 9 and row[9] else None
+        return cls(
+            rule_id=str(row[0]) if row and row[0] else generate_id(),
+            name=str(row[1]) if len(row) > 1 and row[1] else "Untitled Rule",
+            is_active=str(is_active_raw).lower() in {"1", "true", "yes"},
+            trigger_type=str(row[3]) if len(row) > 3 and row[3] else "lead_created",
+            trigger_value=str(row[4]) if len(row) > 4 and row[4] else None,
+            entity=str(row[5]) if len(row) > 5 and row[5] else "leads",
+            conditions=conditions,
+            actions=actions,
+            created_at=datetime.fromisoformat(created_raw) if created_raw else datetime.now(),
+            updated_at=datetime.fromisoformat(updated_raw) if updated_raw else datetime.now(),
+        )
+
+    @classmethod
+    def headers(cls) -> list:
+        return [
+            "rule_id",
+            "name",
+            "is_active",
+            "trigger_type",
+            "trigger_value",
+            "entity",
+            "conditions",
+            "actions",
             "created_at",
             "updated_at",
         ]

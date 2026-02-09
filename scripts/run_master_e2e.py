@@ -245,6 +245,48 @@ def run() -> int:
             )
             call("delete_email_template", "DELETE", f"/api/email-templates/{template_id}")
 
+        # Workflow rules lifecycle + execution
+        workflow_create = call(
+            "create_workflow_rule",
+            "POST",
+            "/api/workflow-rules",
+            expected=(201,),
+            json={
+                "name": "E2E Lead Created Task",
+                "is_active": True,
+                "trigger_type": "lead_created",
+                "entity": "leads",
+                "conditions": [],
+                "actions": [
+                    {
+                        "type": "create_task",
+                        "title": "Workflow generated task",
+                        "due_days": 1,
+                    }
+                ],
+            },
+        )
+        if workflow_create.status_code == 201:
+            rule_id = workflow_create.json()["rule_id"]
+            created_ids["workflow_rule_id"] = rule_id
+            call("list_workflow_rules", "GET", "/api/workflow-rules?active_only=true")
+            call(
+                "evaluate_workflow_rules",
+                "POST",
+                "/api/workflow-rules/evaluate",
+                json={
+                    "trigger_type": "lead_created",
+                    "context": {"lead_id": base_lead_id, "company_name": "Acme Corp"},
+                },
+            )
+            call(
+                "update_workflow_rule",
+                "PUT",
+                f"/api/workflow-rules/{rule_id}",
+                json={"is_active": False},
+            )
+            call("delete_workflow_rule", "DELETE", f"/api/workflow-rules/{rule_id}")
+
         # Duplicates + reports + export
         call("detect_duplicate_leads", "GET", "/api/leads/duplicates?min_confidence=0.7")
         dup_lead_a = call(

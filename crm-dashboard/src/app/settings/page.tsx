@@ -13,12 +13,17 @@ import {
   getCustomFields,
   getEmailTemplates,
   getIntegrations,
+  getWorkflowRules,
   renderEmailTemplate,
   updateEmailTemplate,
+  updateWorkflowRule,
   AuditLogEvent,
   EmailTemplate,
   IntegrationSyncRun,
+  WorkflowRule,
   syncIntegration,
+  createWorkflowRule,
+  deleteWorkflowRule,
   Config,
   CustomFieldDefinition,
   IntegrationConnection,
@@ -63,6 +68,25 @@ export default function SettingsPage() {
     subject: string;
     body: string;
   } | null>(null);
+  const [workflowRules, setWorkflowRules] = useState<WorkflowRule[]>([]);
+  const [workflowForm, setWorkflowForm] = useState({
+    name: "",
+    trigger_type: "lead_created",
+    trigger_value: "",
+    condition_field: "",
+    condition_operator: "equals",
+    condition_value: "",
+    action_type: "create_task",
+    action_title: "Send welcome email",
+    action_due_days: "2",
+    action_assignee: "",
+    action_target: "leads",
+    action_field: "status",
+    action_value: "Contacted",
+    is_active: true,
+  });
+  const [workflowSaving, setWorkflowSaving] = useState(false);
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
   const [integrationSaving, setIntegrationSaving] = useState(false);
   const [integrationProvider, setIntegrationProvider] = useState("google_calendar");
@@ -76,10 +100,11 @@ export default function SettingsPage() {
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const [data, fields, templatesData, integrationsData, runsData, auditData] = await Promise.all([
+        const [data, fields, templatesData, workflowData, integrationsData, runsData, auditData] = await Promise.all([
           getConfig(),
           getCustomFields(),
           getEmailTemplates(),
+          getWorkflowRules(),
           getIntegrations(),
           getAllIntegrationRuns(30),
           getAuditEvents({ limit: 25 }),
@@ -87,6 +112,7 @@ export default function SettingsPage() {
         setConfig(data);
         setCustomFields(fields.fields);
         setEmailTemplates(templatesData.templates);
+        setWorkflowRules(workflowData.rules);
         setIntegrations(integrationsData.integrations);
         setIntegrationRuns(runsData.runs);
         setAuditEvents(auditData.events);
@@ -248,6 +274,94 @@ export default function SettingsPage() {
     if (!templatePreview) return;
     const payload = `Subject: ${templatePreview.subject}\n\n${templatePreview.body}`;
     await navigator.clipboard.writeText(payload);
+  };
+
+  const refreshWorkflowRules = async () => {
+    const data = await getWorkflowRules();
+    setWorkflowRules(data.rules);
+  };
+
+  const saveWorkflowRule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workflowForm.name.trim()) {
+      setWorkflowError("Rule name is required.");
+      return;
+    }
+
+    const conditions: Record<string, unknown>[] = [];
+    if (workflowForm.condition_field.trim()) {
+      conditions.push({
+        field: workflowForm.condition_field.trim(),
+        operator: workflowForm.condition_operator,
+        value: workflowForm.condition_value,
+      });
+    }
+
+    let actions: Record<string, unknown>[] = [];
+    if (workflowForm.action_type === "create_task") {
+      actions = [
+        {
+          type: "create_task",
+          title: workflowForm.action_title || "Follow up",
+          due_days: Number(workflowForm.action_due_days || "0"),
+          assignee: workflowForm.action_assignee || undefined,
+        },
+      ];
+    } else {
+      actions = [
+        {
+          type: "update_field",
+          target: workflowForm.action_target,
+          field: workflowForm.action_field,
+          value: workflowForm.action_value,
+        },
+      ];
+    }
+
+    setWorkflowSaving(true);
+    try {
+      await createWorkflowRule({
+        name: workflowForm.name.trim(),
+        is_active: workflowForm.is_active,
+        trigger_type: workflowForm.trigger_type as "lead_created" | "stage_changed",
+        trigger_value: workflowForm.trigger_value || undefined,
+        entity: workflowForm.action_target as "leads" | "opportunities",
+        conditions,
+        actions,
+      });
+      setWorkflowError(null);
+      setWorkflowForm((prev) => ({ ...prev, name: "", condition_field: "", condition_value: "" }));
+      await refreshWorkflowRules();
+    } catch (err) {
+      setWorkflowError(
+        err instanceof Error ? err.message : "Failed to create workflow rule.",
+      );
+    } finally {
+      setWorkflowSaving(false);
+    }
+  };
+
+  const toggleWorkflowRule = async (rule: WorkflowRule) => {
+    try {
+      await updateWorkflowRule(rule.rule_id, { is_active: !rule.is_active });
+      await refreshWorkflowRules();
+    } catch (err) {
+      setWorkflowError(
+        err instanceof Error ? err.message : "Failed to update workflow rule.",
+      );
+    }
+  };
+
+  const removeWorkflowRule = async (ruleId: string) => {
+    if (!window.confirm("Delete this workflow rule?")) return;
+    try {
+      await deleteWorkflowRule(ruleId);
+      await refreshWorkflowRules();
+    } catch (err) {
+      setWorkflowError(
+        err instanceof Error ? err.message : "Failed to delete workflow rule.",
+      );
+    }
   };
 
   const refreshIntegrations = async () => {
@@ -724,6 +838,176 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-sans font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+            <span className="text-[var(--accent-green)]">■</span> Workflow Rules
+          </h2>
+          <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)] space-y-5">
+            <p className="font-mono text-xs text-[var(--text-secondary)] uppercase tracking-wider">
+              Build simple if-this-then-that automations.
+            </p>
+
+            {workflowError && (
+              <div className="border border-red-500 bg-red-50 text-red-700 p-3 font-mono text-xs">
+                {workflowError}
+              </div>
+            )}
+
+            <form onSubmit={saveWorkflowRule} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-sans"
+                placeholder="Rule name"
+                value={workflowForm.name}
+                onChange={(e) => setWorkflowForm((prev) => ({ ...prev, name: e.target.value }))}
+              />
+              <label className="flex items-center gap-2 font-mono text-xs">
+                <input
+                  type="checkbox"
+                  checked={workflowForm.is_active}
+                  onChange={(e) => setWorkflowForm((prev) => ({ ...prev, is_active: e.target.checked }))}
+                />
+                Active
+              </label>
+
+              <select
+                className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                value={workflowForm.trigger_type}
+                onChange={(e) => setWorkflowForm((prev) => ({ ...prev, trigger_type: e.target.value }))}
+              >
+                <option value="lead_created">When lead is created</option>
+                <option value="stage_changed">When stage changes</option>
+              </select>
+              <input
+                className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                placeholder="Trigger value (example: Proposal)"
+                value={workflowForm.trigger_value}
+                onChange={(e) => setWorkflowForm((prev) => ({ ...prev, trigger_value: e.target.value }))}
+              />
+
+              <input
+                className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                placeholder="Condition field (optional)"
+                value={workflowForm.condition_field}
+                onChange={(e) => setWorkflowForm((prev) => ({ ...prev, condition_field: e.target.value }))}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                  value={workflowForm.condition_operator}
+                  onChange={(e) => setWorkflowForm((prev) => ({ ...prev, condition_operator: e.target.value }))}
+                >
+                  <option value="equals">equals</option>
+                  <option value="not_equals">not equals</option>
+                  <option value="contains">contains</option>
+                </select>
+                <input
+                  className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                  placeholder="Condition value"
+                  value={workflowForm.condition_value}
+                  onChange={(e) => setWorkflowForm((prev) => ({ ...prev, condition_value: e.target.value }))}
+                />
+              </div>
+
+              <select
+                className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                value={workflowForm.action_type}
+                onChange={(e) => setWorkflowForm((prev) => ({ ...prev, action_type: e.target.value }))}
+              >
+                <option value="create_task">Action: Create Task</option>
+                <option value="update_field">Action: Update Field</option>
+              </select>
+              {workflowForm.action_type === "create_task" ? (
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    className="col-span-2 px-3 py-2 border border-[var(--border-pencil)] bg-white font-sans"
+                    placeholder="Task title"
+                    value={workflowForm.action_title}
+                    onChange={(e) => setWorkflowForm((prev) => ({ ...prev, action_title: e.target.value }))}
+                  />
+                  <input
+                    className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                    placeholder="Due days"
+                    value={workflowForm.action_due_days}
+                    onChange={(e) => setWorkflowForm((prev) => ({ ...prev, action_due_days: e.target.value }))}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  <select
+                    className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                    value={workflowForm.action_target}
+                    onChange={(e) => setWorkflowForm((prev) => ({ ...prev, action_target: e.target.value }))}
+                  >
+                    <option value="leads">Leads</option>
+                    <option value="opportunities">Opportunities</option>
+                  </select>
+                  <input
+                    className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                    placeholder="Field"
+                    value={workflowForm.action_field}
+                    onChange={(e) => setWorkflowForm((prev) => ({ ...prev, action_field: e.target.value }))}
+                  />
+                  <input
+                    className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                    placeholder="Value"
+                    value={workflowForm.action_value}
+                    onChange={(e) => setWorkflowForm((prev) => ({ ...prev, action_value: e.target.value }))}
+                  />
+                </div>
+              )}
+
+              <input
+                className="md:col-span-2 px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                placeholder="Task assignee email (optional)"
+                value={workflowForm.action_assignee}
+                onChange={(e) => setWorkflowForm((prev) => ({ ...prev, action_assignee: e.target.value }))}
+              />
+              <div className="md:col-span-2 flex justify-end">
+                <button className="btn-primary" type="submit" disabled={workflowSaving}>
+                  {workflowSaving ? "Saving..." : "Add Workflow Rule"}
+                </button>
+              </div>
+            </form>
+
+            <div className="space-y-2">
+              {workflowRules.length === 0 && (
+                <p className="font-mono text-xs text-[var(--text-secondary)]">
+                  No workflow rules yet.
+                </p>
+              )}
+              {workflowRules.map((rule) => (
+                <div
+                  key={rule.rule_id}
+                  className="border border-[var(--border-pencil)] p-3 bg-[var(--bg-paper)] flex items-center justify-between gap-3"
+                >
+                  <div>
+                    <p className="font-sans font-bold text-sm">{rule.name}</p>
+                    <p className="font-mono text-[10px] text-[var(--text-secondary)] uppercase">
+                      {rule.trigger_type}
+                      {rule.trigger_value ? `:${rule.trigger_value}` : ""}
+                      {" • "}
+                      {rule.actions.length > 0
+                        ? String(rule.actions[0].type || "action")
+                        : "no action"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="btn-secondary text-xs" onClick={() => toggleWorkflowRule(rule)}>
+                      {rule.is_active ? "Disable" : "Enable"}
+                    </button>
+                    <button
+                      className="font-mono text-xs text-red-600 hover:underline"
+                      onClick={() => removeWorkflowRule(rule.rule_id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
