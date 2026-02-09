@@ -946,6 +946,17 @@ export async function getCoachTips(params?: {
   return handleResponse(response);
 }
 
+export async function getCoachPerformance(): Promise<{
+  total_opportunities: number;
+  won: number;
+  lost: number;
+  win_rate: number;
+  insights: string[];
+}> {
+  const response = await fetchWithAuth(`${API_BASE}/api/coach/performance`);
+  return handleResponse(response);
+}
+
 export async function askCoach(payload: {
   question: string;
   lead_id?: string;
@@ -959,6 +970,17 @@ export async function askCoach(payload: {
   return handleResponse(response);
 }
 
+export async function getCoachDealReview(oppId: string): Promise<{
+  opp_id: string;
+  stage: string;
+  value: number;
+  activity_count: number;
+  recommendation: string;
+}> {
+  const response = await fetchWithAuth(`${API_BASE}/api/coach/deal/${oppId}/review`);
+  return handleResponse(response);
+}
+
 export async function getForecast(params?: {
   period?: string;
   start_date?: string;
@@ -969,6 +991,46 @@ export async function getForecast(params?: {
   if (params?.start_date) query.set("start_date", params.start_date);
   if (params?.end_date) query.set("end_date", params.end_date);
   const response = await fetchWithAuth(`${API_BASE}/api/forecast?${query}`);
+  return handleResponse(response);
+}
+
+export async function getForecastScenarios(): Promise<{
+  scenarios: { name: string; remove_opp_ids: string[] }[];
+}> {
+  const response = await fetchWithAuth(`${API_BASE}/api/forecast/scenarios`);
+  return handleResponse(response);
+}
+
+export async function runForecastScenario(payload: {
+  remove_opp_ids?: string[];
+  force_close_opp_ids?: string[];
+}): Promise<{ baseline: Record<string, unknown>; scenario: Record<string, unknown> }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/forecast/scenario`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function getForecastCoverage(target: number): Promise<{
+  target: number;
+  pipeline_value: number;
+  coverage_ratio: number;
+  gap: number;
+}> {
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/forecast/coverage?target=${encodeURIComponent(String(target))}`,
+  );
+  return handleResponse(response);
+}
+
+export async function getForecastTrends(periods: number = 4): Promise<{
+  trends: { period_index: number; forecast: number }[];
+}> {
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/forecast/trends?periods=${encodeURIComponent(String(periods))}`,
+  );
   return handleResponse(response);
 }
 
