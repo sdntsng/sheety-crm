@@ -1,6 +1,6 @@
 {
-  "timestamp_utc": "2026-02-09T16:53:37.456177+00:00",
-  "passed": 57,
+  "timestamp_utc": "2026-02-09T17:13:58.732559+00:00",
+  "passed": 62,
   "failed": 0,
   "results": [
     {
@@ -125,6 +125,36 @@
     },
     {
       "name": "delete_custom_field",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "create_email_template",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "list_email_templates",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "render_email_template",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "update_email_template",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "delete_email_template",
       "ok": true,
       "status": 200,
       "detail": "HTTP 200"
@@ -325,7 +355,7 @@
       "name": "audit_events_populated",
       "ok": true,
       "status": null,
-      "detail": "count=11"
+      "detail": "count=14"
     },
     {
       "name": "csv_import_endpoint_check",

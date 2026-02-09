@@ -1,7 +1,7 @@
 # Master E2E Validation
 
-- Timestamp (UTC): `2026-02-09T16:53:37.456177+00:00`
-- Passed: `57`
+- Timestamp (UTC): `2026-02-09T17:13:58.732559+00:00`
+- Passed: `62`
 - Failed: `0`
 
 | Scenario | Status | Details |
@@ -27,6 +27,11 @@
 | bulk_update_leads_status | PASS | HTTP 200 |
 | bulk_delete_leads | PASS | HTTP 200 |
 | delete_custom_field | PASS | HTTP 200 |
+| create_email_template | PASS | HTTP 201 |
+| list_email_templates | PASS | HTTP 200 |
+| render_email_template | PASS | HTTP 200 |
+| update_email_template | PASS | HTTP 200 |
+| delete_email_template | PASS | HTTP 200 |
 | detect_duplicate_leads | PASS | HTTP 200 |
 | create_duplicate_lead_a | PASS | HTTP 201 |
 | create_duplicate_lead_b | PASS | HTTP 201 |
@@ -59,7 +64,7 @@
 | list_integration_runs_provider | PASS | HTTP 200 |
 | list_integration_runs_all | PASS | HTTP 200 |
 | list_audit_events | PASS | HTTP 200 |
-| audit_events_populated | PASS | count=11 |
+| audit_events_populated | PASS | count=14 |
 | csv_import_endpoint_check | PASS | HTTP 503 |
 | csv_import_graceful_degradation | PASS | disabled without python-multipart |
 | cli_commands_registered | PASS | return_code=0 |
