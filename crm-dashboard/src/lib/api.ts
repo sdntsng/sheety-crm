@@ -560,6 +560,23 @@ export async function exportEntityCSV(
   return verified.blob();
 }
 
+export async function bulkOperate(
+  entity: "leads" | "opportunities",
+  payload: {
+    operation: "update_status" | "update_stage" | "delete";
+    ids: string[];
+    status?: string;
+    stage?: string;
+  },
+): Promise<{ requested: number; updated?: number; deleted?: number; failed_ids: string[] }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/bulk/${entity}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
 // ============================================================================
 // Search
 // ============================================================================

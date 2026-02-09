@@ -13,8 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   getLeads,
   createLead,
-  updateLead,
-  deleteLead,
+  bulkOperate,
   Lead,
   getConfig,
   getSavedViews,
@@ -309,9 +308,11 @@ function LeadsPageContent() {
     if (selectedLeadIds.size === 0) return;
     setBulkLoading(true);
     try {
-      await Promise.all(
-        [...selectedLeadIds].map((leadId) => updateLead(leadId, { status: bulkStatus })),
-      );
+      await bulkOperate("leads", {
+        operation: "update_status",
+        ids: [...selectedLeadIds],
+        status: bulkStatus,
+      });
       setSelectedLeadIds(new Set());
       await fetchLeads();
     } catch (err) {
@@ -326,7 +327,10 @@ function LeadsPageContent() {
     if (!window.confirm(`Delete ${selectedLeadIds.size} selected leads?`)) return;
     setBulkLoading(true);
     try {
-      await Promise.all([...selectedLeadIds].map((leadId) => deleteLead(leadId)));
+      await bulkOperate("leads", {
+        operation: "delete",
+        ids: [...selectedLeadIds],
+      });
       setSelectedLeadIds(new Set());
       await fetchLeads();
     } catch (err) {

@@ -733,6 +733,85 @@ class CRMManager:
         return output.getvalue()
 
     # -------------------------------------------------------------------------
+    # Bulk Operations
+    # -------------------------------------------------------------------------
+
+    def bulk_update_lead_status(self, lead_ids: List[str], status: str) -> Dict[str, Any]:
+        """Bulk update lead status."""
+        valid_statuses = {item.value for item in LeadStatus}
+        if status not in valid_statuses:
+            raise ValueError(f"Invalid lead status: {status}")
+
+        updated = 0
+        failed_ids: List[str] = []
+        for lead_id in lead_ids:
+            lead = self.get_lead(lead_id)
+            if not lead:
+                failed_ids.append(lead_id)
+                continue
+            lead.status = LeadStatus(status)
+            if self.update_lead(lead):
+                updated += 1
+            else:
+                failed_ids.append(lead_id)
+
+        return {
+            "requested": len(lead_ids),
+            "updated": updated,
+            "failed_ids": failed_ids,
+        }
+
+    def bulk_delete_leads(self, lead_ids: List[str]) -> Dict[str, Any]:
+        """Bulk delete leads by IDs."""
+        deleted = 0
+        failed_ids: List[str] = []
+        for lead_id in lead_ids:
+            if self.delete_lead(lead_id):
+                deleted += 1
+            else:
+                failed_ids.append(lead_id)
+        return {
+            "requested": len(lead_ids),
+            "deleted": deleted,
+            "failed_ids": failed_ids,
+        }
+
+    def bulk_update_opportunity_stage(self, opp_ids: List[str], stage: str) -> Dict[str, Any]:
+        """Bulk update opportunity stages."""
+        valid_stages = {item.value for item in PipelineStage}
+        if stage not in valid_stages:
+            raise ValueError(f"Invalid pipeline stage: {stage}")
+
+        updated = 0
+        failed_ids: List[str] = []
+        for opp_id in opp_ids:
+            if self.move_opportunity_stage(opp_id, PipelineStage(stage)):
+                updated += 1
+            else:
+                failed_ids.append(opp_id)
+
+        return {
+            "requested": len(opp_ids),
+            "updated": updated,
+            "failed_ids": failed_ids,
+        }
+
+    def bulk_delete_opportunities(self, opp_ids: List[str]) -> Dict[str, Any]:
+        """Bulk delete opportunities by IDs."""
+        deleted = 0
+        failed_ids: List[str] = []
+        for opp_id in opp_ids:
+            if self.delete_opportunity(opp_id):
+                deleted += 1
+            else:
+                failed_ids.append(opp_id)
+        return {
+            "requested": len(opp_ids),
+            "deleted": deleted,
+            "failed_ids": failed_ids,
+        }
+
+    # -------------------------------------------------------------------------
     # Pipeline & Dashboard
     # -------------------------------------------------------------------------
 

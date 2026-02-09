@@ -247,6 +247,13 @@ class SavedViewUpdate(BaseModel):
     is_shared: Optional[bool] = None
 
 
+class BulkOperationRequest(BaseModel):
+    operation: str  # update_status | update_stage | delete
+    ids: List[str]
+    status: Optional[str] = None
+    stage: Optional[str] = None
+
+
 # =============================================================================
 # Root & Health
 # =============================================================================
@@ -912,6 +919,48 @@ def export_entity_csv(
         iter([csv_payload.encode("utf-8")]),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# =============================================================================
+# Bulk Operations
+# =============================================================================
+
+@app.post("/api/bulk/{entity}")
+def bulk_operation(
+    entity: str,
+    payload: BulkOperationRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Run bulk operations on supported entities."""
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="No IDs provided for bulk operation")
+
+    entity_name = entity.strip().lower()
+    op = payload.operation.strip().lower()
+
+    try:
+        if entity_name == "leads":
+            if op == "update_status":
+                if not payload.status:
+                    raise HTTPException(status_code=400, detail="status is required for update_status")
+                return crm.bulk_update_lead_status(payload.ids, payload.status)
+            if op == "delete":
+                return crm.bulk_delete_leads(payload.ids)
+
+        if entity_name in {"opportunities", "opps"}:
+            if op == "update_stage":
+                if not payload.stage:
+                    raise HTTPException(status_code=400, detail="stage is required for update_stage")
+                return crm.bulk_update_opportunity_stage(payload.ids, payload.stage)
+            if op == "delete":
+                return crm.bulk_delete_opportunities(payload.ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    raise HTTPException(
+        status_code=400,
+        detail=f"Unsupported bulk operation '{payload.operation}' for entity '{entity}'",
     )
 
 
