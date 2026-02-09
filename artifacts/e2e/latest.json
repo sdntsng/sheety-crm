@@ -1,6 +1,6 @@
 {
-  "timestamp_utc": "2026-02-09T17:13:58.732559+00:00",
-  "passed": 62,
+  "timestamp_utc": "2026-02-09T17:18:48.256143+00:00",
+  "passed": 67,
   "failed": 0,
   "results": [
     {
@@ -155,6 +155,36 @@
     },
     {
       "name": "delete_email_template",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "create_workflow_rule",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "list_workflow_rules",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "evaluate_workflow_rules",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "update_workflow_rule",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "delete_workflow_rule",
       "ok": true,
       "status": 200,
       "detail": "HTTP 200"
@@ -355,7 +385,7 @@
       "name": "audit_events_populated",
       "ok": true,
       "status": null,
-      "detail": "count=14"
+      "detail": "count=17"
     },
     {
       "name": "csv_import_endpoint_check",
