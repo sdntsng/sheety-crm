@@ -265,6 +265,13 @@ class BulkOperationRequest(BaseModel):
     stage: Optional[str] = None
 
 
+class DuplicateMergeRequest(BaseModel):
+    lead_a_id: str
+    lead_b_id: str
+    primary_id: Optional[str] = None
+    selected_fields: Dict[str, Any] = Field(default_factory=dict)
+
+
 class CustomFieldCreate(BaseModel):
     entity: str
     key: str
@@ -615,6 +622,36 @@ def detect_duplicate_leads(
     """Detect potential duplicate leads."""
     matches = crm.find_duplicate_leads(min_confidence=min_confidence)
     return {"matches": matches, "count": len(matches)}
+
+
+@app.get("/api/leads/duplicates/suggest")
+def suggest_duplicate_merge(
+    lead_a_id: str = Query(...),
+    lead_b_id: str = Query(...),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Suggest a merge strategy for a duplicate lead pair."""
+    try:
+        return crm.suggest_duplicate_merge(lead_a_id, lead_b_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/leads/duplicates/merge")
+def merge_duplicate_leads(
+    payload: DuplicateMergeRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Merge duplicate leads and rewire related records."""
+    try:
+        return crm.merge_duplicate_leads(
+            payload.lead_a_id,
+            payload.lead_b_id,
+            primary_id=payload.primary_id,
+            selected_fields=payload.selected_fields,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/leads/{lead_id}")

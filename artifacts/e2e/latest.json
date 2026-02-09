@@ -1,6 +1,6 @@
 {
-  "timestamp_utc": "2026-02-09T14:42:43.704531+00:00",
-  "passed": 45,
+  "timestamp_utc": "2026-02-09T15:08:24.933446+00:00",
+  "passed": 49,
   "failed": 0,
   "results": [
     {
@@ -119,6 +119,30 @@
     },
     {
       "name": "detect_duplicate_leads",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "create_duplicate_lead_a",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "create_duplicate_lead_b",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "suggest_duplicate_merge",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "merge_duplicate_leads",
       "ok": true,
       "status": 200,
       "detail": "HTTP 200"

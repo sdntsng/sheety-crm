@@ -723,6 +723,25 @@ export interface DuplicateLeadMatch {
   lead_b: Lead;
 }
 
+export interface DuplicateMergeSuggestion {
+  lead_a_id: string;
+  lead_b_id: string;
+  primary_lead_id: string;
+  secondary_lead_id: string;
+  confidence: number;
+  field_resolution: Record<
+    string,
+    {
+      lead_a: unknown;
+      lead_b: unknown;
+      suggested: unknown;
+      conflict: boolean;
+    }
+  >;
+  conflicts: string[];
+  merged_preview: Record<string, unknown>;
+}
+
 export interface AIParseResult {
   intent: "query" | "action" | "insight" | "navigation";
   operation: Record<string, unknown>;
@@ -743,6 +762,38 @@ export async function detectLeadDuplicates(
   const response = await fetchWithAuth(
     `${API_BASE}/api/leads/duplicates?min_confidence=${minConfidence}`,
   );
+  return handleResponse(response);
+}
+
+export async function suggestDuplicateMerge(
+  leadAId: string,
+  leadBId: string,
+): Promise<DuplicateMergeSuggestion> {
+  const params = new URLSearchParams({
+    lead_a_id: leadAId,
+    lead_b_id: leadBId,
+  });
+  const response = await fetchWithAuth(`${API_BASE}/api/leads/duplicates/suggest?${params}`);
+  return handleResponse(response);
+}
+
+export async function mergeDuplicateLeads(payload: {
+  lead_a_id: string;
+  lead_b_id: string;
+  primary_id?: string;
+  selected_fields?: Record<string, unknown>;
+}): Promise<{
+  merged: boolean;
+  primary_lead_id: string;
+  secondary_lead_id: string;
+  moved: { opportunities: number; tasks: number; activities: number };
+  conflicts_resolved: string[];
+}> {
+  const response = await fetchWithAuth(`${API_BASE}/api/leads/duplicates/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
   return handleResponse(response);
 }
 

@@ -18,6 +18,8 @@ import {
   getConfig,
   getSavedViews,
   detectLeadDuplicates,
+  suggestDuplicateMerge,
+  mergeDuplicateLeads,
   createSavedView,
   deleteSavedView,
   exportEntityCSV,
@@ -372,6 +374,34 @@ function LeadsPageContent() {
     }
   };
 
+  const runSmartMerge = async (match: DuplicateLeadMatch) => {
+    setDuplicateLoading(true);
+    try {
+      const suggestion = await suggestDuplicateMerge(
+        match.lead_a.lead_id,
+        match.lead_b.lead_id,
+      );
+      const confirmed = window.confirm(
+        `Merge duplicates?\n\nPrimary: ${suggestion.primary_lead_id}\nSecondary: ${suggestion.secondary_lead_id}\nConflicts: ${suggestion.conflicts.length}`,
+      );
+      if (!confirmed) return;
+
+      await mergeDuplicateLeads({
+        lead_a_id: match.lead_a.lead_id,
+        lead_b_id: match.lead_b.lead_id,
+        primary_id: suggestion.primary_lead_id,
+        selected_fields: suggestion.merged_preview,
+      });
+      await fetchLeads();
+      const refreshed = await detectLeadDuplicates(0.75);
+      setDuplicateMatches(refreshed.matches);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Smart merge failed");
+    } finally {
+      setDuplicateLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
@@ -660,19 +690,31 @@ function LeadsPageContent() {
                       Confidence {(match.confidence * 100).toFixed(1)}% • {match.reasons.join(", ")}
                     </p>
                   </div>
-                  <button className="btn-secondary text-xs" onClick={() => {
-                    setStatusFilter("");
-                    setFilters([
-                      {
-                        id: crypto.randomUUID(),
-                        field: "company_name",
-                        operator: "contains",
-                        value: match.lead_a.company_name,
-                      },
-                    ]);
-                  }}>
-                    Review
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="btn-secondary text-xs"
+                      onClick={() => {
+                        setStatusFilter("");
+                        setFilters([
+                          {
+                            id: crypto.randomUUID(),
+                            field: "company_name",
+                            operator: "contains",
+                            value: match.lead_a.company_name,
+                          },
+                        ]);
+                      }}
+                    >
+                      Review
+                    </button>
+                    <button
+                      className="btn-secondary text-xs"
+                      onClick={() => runSmartMerge(match)}
+                      disabled={duplicateLoading}
+                    >
+                      Auto Merge
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

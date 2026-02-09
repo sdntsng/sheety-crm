@@ -1,7 +1,7 @@
 # Master E2E Validation
 
-- Timestamp (UTC): `2026-02-09T14:42:43.704531+00:00`
-- Passed: `45`
+- Timestamp (UTC): `2026-02-09T15:08:24.933446+00:00`
+- Passed: `49`
 - Failed: `0`
 
 | Scenario | Status | Details |
@@ -26,6 +26,10 @@
 | bulk_delete_leads | PASS | HTTP 200 |
 | delete_custom_field | PASS | HTTP 200 |
 | detect_duplicate_leads | PASS | HTTP 200 |
+| create_duplicate_lead_a | PASS | HTTP 201 |
+| create_duplicate_lead_b | PASS | HTTP 201 |
+| suggest_duplicate_merge | PASS | HTTP 200 |
+| merge_duplicate_leads | PASS | HTTP 200 |
 | reports | PASS | HTTP 200 |
 | export_leads_csv | PASS | HTTP 200 |
 | export_leads_csv_content_type | PASS | text/csv; charset=utf-8 |

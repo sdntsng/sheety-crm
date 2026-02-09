@@ -1195,6 +1195,251 @@ class CRMManager:
         candidates.sort(key=lambda item: item["confidence"], reverse=True)
         return candidates
 
+    def suggest_duplicate_merge(self, lead_a_id: str, lead_b_id: str) -> Dict[str, Any]:
+        """Return a deterministic merge suggestion for a duplicate pair."""
+        lead_a = self.get_lead(lead_a_id)
+        lead_b = self.get_lead(lead_b_id)
+        if not lead_a or not lead_b:
+            raise ValueError("Both lead_a_id and lead_b_id must exist")
+
+        field_names = [
+            "company_name",
+            "contact_name",
+            "contact_email",
+            "contact_phone",
+            "status",
+            "source",
+            "industry",
+            "company_size",
+            "notes",
+            "website",
+            "linkedin_url",
+            "logo_url",
+            "owner",
+            "score",
+            "heat_level",
+        ]
+
+        def serialize(value: Any) -> Any:
+            if value is None:
+                return None
+            if hasattr(value, "value"):
+                return value.value
+            return value
+
+        def filled_count(lead: Lead) -> int:
+            count = 0
+            for key in field_names:
+                value = serialize(getattr(lead, key, None))
+                if value not in {None, ""}:
+                    count += 1
+            count += len(self.get_opportunities_for_lead(lead.lead_id)) * 2
+            count += len(self.get_tasks(lead_id=lead.lead_id))
+            return count
+
+        score_a = filled_count(lead_a)
+        score_b = filled_count(lead_b)
+        primary = lead_a if score_a >= score_b else lead_b
+        secondary = lead_b if primary.lead_id == lead_a.lead_id else lead_a
+
+        field_resolution: Dict[str, Dict[str, Any]] = {}
+        conflicts: List[str] = []
+        merged_preview: Dict[str, Any] = {}
+
+        for field in field_names:
+            a_val = serialize(getattr(lead_a, field, None))
+            b_val = serialize(getattr(lead_b, field, None))
+            suggested = serialize(getattr(primary, field, None))
+            if suggested in {None, ""}:
+                suggested = serialize(getattr(secondary, field, None))
+
+            has_conflict = (
+                a_val not in {None, ""}
+                and b_val not in {None, ""}
+                and a_val != b_val
+            )
+            if has_conflict:
+                conflicts.append(field)
+
+            field_resolution[field] = {
+                "lead_a": a_val,
+                "lead_b": b_val,
+                "suggested": suggested,
+                "conflict": has_conflict,
+            }
+            merged_preview[field] = suggested
+
+        return {
+            "lead_a_id": lead_a.lead_id,
+            "lead_b_id": lead_b.lead_id,
+            "primary_lead_id": primary.lead_id,
+            "secondary_lead_id": secondary.lead_id,
+            "confidence": self._duplicate_pair_confidence(lead_a, lead_b),
+            "field_resolution": field_resolution,
+            "conflicts": conflicts,
+            "merged_preview": merged_preview,
+        }
+
+    def merge_duplicate_leads(
+        self,
+        lead_a_id: str,
+        lead_b_id: str,
+        primary_id: Optional[str] = None,
+        selected_fields: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Merge duplicate leads and rewire related records."""
+        suggestion = self.suggest_duplicate_merge(lead_a_id, lead_b_id)
+        lead_a = self.get_lead(lead_a_id)
+        lead_b = self.get_lead(lead_b_id)
+        if not lead_a or not lead_b:
+            raise ValueError("Both leads must exist before merge")
+
+        if primary_id and primary_id not in {lead_a_id, lead_b_id}:
+            raise ValueError("primary_id must match one of the duplicate leads")
+
+        resolved_primary_id = primary_id or suggestion["primary_lead_id"]
+        primary = lead_a if lead_a.lead_id == resolved_primary_id else lead_b
+        secondary = lead_b if primary.lead_id == lead_a.lead_id else lead_a
+
+        merged_payload = dict(suggestion["merged_preview"])
+        if selected_fields:
+            merged_payload.update(selected_fields)
+
+        self._apply_merged_lead_fields(primary, merged_payload)
+        primary.updated_at = datetime.now()
+
+        if not self.update_lead(primary):
+            raise ValueError("Failed to update primary lead during merge")
+
+        moved_opps = self._reassign_opportunities_to_lead(secondary.lead_id, primary.lead_id)
+        moved_tasks = self._reassign_tasks_to_lead(secondary.lead_id, primary.lead_id)
+        moved_activities = self._reassign_activities_to_lead(secondary.lead_id, primary.lead_id)
+
+        primary_custom = self.get_custom_field_values("leads", primary.lead_id)
+        secondary_custom = self.get_custom_field_values("leads", secondary.lead_id)
+        merged_custom = dict(primary_custom)
+        for key, value in secondary_custom.items():
+            if key not in merged_custom or merged_custom[key] in {"", None, []}:
+                merged_custom[key] = value
+        if merged_custom:
+            self.set_custom_field_values("leads", primary.lead_id, merged_custom)
+
+        secondary_deleted = self.delete_lead(secondary.lead_id)
+        if not secondary_deleted:
+            raise ValueError("Failed to delete secondary lead after merge")
+
+        return {
+            "merged": True,
+            "primary_lead_id": primary.lead_id,
+            "secondary_lead_id": secondary.lead_id,
+            "moved": {
+                "opportunities": moved_opps,
+                "tasks": moved_tasks,
+                "activities": moved_activities,
+            },
+            "primary": primary.model_dump(),
+            "conflicts_resolved": suggestion["conflicts"],
+        }
+
+    def _duplicate_pair_confidence(self, first: Lead, second: Lead) -> float:
+        """Compute pair confidence used by duplicate merge suggestions."""
+        confidence = 0.0
+        first_email = (first.contact_email or "").strip().lower()
+        second_email = (second.contact_email or "").strip().lower()
+        if first_email and second_email and first_email == second_email:
+            confidence = max(confidence, 0.98)
+
+        first_company = re.sub(r"[^a-z0-9]+", "", first.company_name.lower())
+        second_company = re.sub(r"[^a-z0-9]+", "", second.company_name.lower())
+        if first_company and second_company:
+            confidence = max(
+                confidence,
+                difflib.SequenceMatcher(None, first_company, second_company).ratio(),
+            )
+
+        first_contact = re.sub(r"[^a-z0-9]+", "", first.contact_name.lower())
+        second_contact = re.sub(r"[^a-z0-9]+", "", second.contact_name.lower())
+        if first_contact and second_contact:
+            confidence = max(
+                confidence,
+                difflib.SequenceMatcher(None, first_contact, second_contact).ratio(),
+            )
+        return round(confidence, 3)
+
+    def _apply_merged_lead_fields(self, lead: Lead, payload: Dict[str, Any]):
+        """Apply merged payload fields to a lead instance."""
+        if "company_name" in payload and payload["company_name"]:
+            lead.company_name = str(payload["company_name"])
+        if "contact_name" in payload and payload["contact_name"]:
+            lead.contact_name = str(payload["contact_name"])
+        if "contact_email" in payload:
+            lead.contact_email = str(payload["contact_email"]) if payload["contact_email"] else None
+        if "contact_phone" in payload:
+            lead.contact_phone = str(payload["contact_phone"]) if payload["contact_phone"] else None
+        if "status" in payload and payload["status"] in [item.value for item in LeadStatus]:
+            lead.status = LeadStatus(payload["status"])
+        if "source" in payload and payload["source"] in [item.value for item in LeadSource]:
+            lead.source = LeadSource(payload["source"])
+        if "industry" in payload:
+            lead.industry = str(payload["industry"]) if payload["industry"] else None
+        if "company_size" in payload and payload["company_size"] in [item.value for item in CompanySize]:
+            lead.company_size = CompanySize(payload["company_size"])
+        if "notes" in payload:
+            lead.notes = str(payload["notes"]) if payload["notes"] else None
+        if "website" in payload:
+            lead.website = str(payload["website"]) if payload["website"] else None
+        if "linkedin_url" in payload:
+            lead.linkedin_url = str(payload["linkedin_url"]) if payload["linkedin_url"] else None
+        if "logo_url" in payload:
+            lead.logo_url = str(payload["logo_url"]) if payload["logo_url"] else None
+        if "owner" in payload:
+            lead.owner = str(payload["owner"]) if payload["owner"] else None
+        if "score" in payload:
+            try:
+                lead.score = int(payload["score"]) if payload["score"] is not None else None
+            except (TypeError, ValueError):
+                pass
+        if "heat_level" in payload:
+            lead.heat_level = str(payload["heat_level"]) if payload["heat_level"] else None
+
+    def _reassign_opportunities_to_lead(self, source_lead_id: str, target_lead_id: str) -> int:
+        moved = 0
+        for opp in self.get_opportunities_for_lead(source_lead_id):
+            opp.lead_id = target_lead_id
+            if self.update_opportunity(opp):
+                moved += 1
+        return moved
+
+    def _reassign_tasks_to_lead(self, source_lead_id: str, target_lead_id: str) -> int:
+        moved = 0
+        for task in self.get_tasks(lead_id=source_lead_id):
+            task.lead_id = target_lead_id
+            if self.update_task(task):
+                moved += 1
+        return moved
+
+    def _reassign_activities_to_lead(self, source_lead_id: str, target_lead_id: str) -> int:
+        moved = 0
+        data = self._get_cached_data(ACTIVITIES_WS)
+        if data is None:
+            data = self.sm.read_data(self.sheet_name, ACTIVITIES_WS)
+        if not data:
+            return moved
+
+        for i, row in enumerate(data):
+            if i == 0 or not row:
+                continue
+            if len(row) > 1 and row[1] == source_lead_id:
+                row_index = i + 1
+                updated_row = list(row)
+                updated_row[1] = target_lead_id
+                self.sm.update_row(self.sheet_name, row_index, updated_row, ACTIVITIES_WS)
+                moved += 1
+
+        if moved:
+            self._invalidate_cache(ACTIVITIES_WS)
+        return moved
+
     # -------------------------------------------------------------------------
     # Pipeline & Dashboard
     # -------------------------------------------------------------------------

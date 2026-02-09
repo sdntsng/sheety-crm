@@ -210,6 +210,53 @@ def run() -> int:
 
         # Duplicates + reports + export
         call("detect_duplicate_leads", "GET", "/api/leads/duplicates?min_confidence=0.7")
+        dup_lead_a = call(
+            "create_duplicate_lead_a",
+            "POST",
+            "/api/leads",
+            expected=(201,),
+            json={
+                "company_name": "DupCo Labs",
+                "contact_name": "Alex Merge",
+                "contact_email": "alex.merge@dupco.com",
+                "status": "New",
+                "source": "Other",
+            },
+        )
+        dup_lead_b = call(
+            "create_duplicate_lead_b",
+            "POST",
+            "/api/leads",
+            expected=(201,),
+            json={
+                "company_name": "DupCo Labz",
+                "contact_name": "Alex Merge",
+                "contact_email": "alex.merge@dupco.com",
+                "status": "Contacted",
+                "source": "Website",
+            },
+        )
+        if dup_lead_a.status_code == 201 and dup_lead_b.status_code == 201:
+            dup_a_id = dup_lead_a.json()["lead_id"]
+            dup_b_id = dup_lead_b.json()["lead_id"]
+            merge_suggest = call(
+                "suggest_duplicate_merge",
+                "GET",
+                f"/api/leads/duplicates/suggest?lead_a_id={dup_a_id}&lead_b_id={dup_b_id}",
+            )
+            if merge_suggest.status_code == 200:
+                suggestion = merge_suggest.json()
+                call(
+                    "merge_duplicate_leads",
+                    "POST",
+                    "/api/leads/duplicates/merge",
+                    json={
+                        "lead_a_id": dup_a_id,
+                        "lead_b_id": dup_b_id,
+                        "primary_id": suggestion.get("primary_lead_id"),
+                        "selected_fields": suggestion.get("merged_preview", {}),
+                    },
+                )
         call("reports", "GET", "/api/reports")
         export_resp = call("export_leads_csv", "GET", "/api/export/leads")
         if export_resp.status_code == 200:
