@@ -1,6 +1,6 @@
 {
-  "timestamp_utc": "2026-02-09T15:08:24.933446+00:00",
-  "passed": 49,
+  "timestamp_utc": "2026-02-09T15:10:57.101139+00:00",
+  "passed": 53,
   "failed": 0,
   "results": [
     {
@@ -274,7 +274,31 @@
       "detail": "HTTP 200"
     },
     {
+      "name": "sync_integration_google_calendar_dedup",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "integration_sync_deduplicated",
+      "ok": true,
+      "status": null,
+      "detail": "True"
+    },
+    {
       "name": "list_integrations_after_connect",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_integration_runs_provider",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_integration_runs_all",
       "ok": true,
       "status": 200,
       "detail": "HTTP 200"

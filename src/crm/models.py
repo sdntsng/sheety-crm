@@ -705,3 +705,59 @@ class IntegrationConnection(BaseModel):
         return [
             "integration_id", "provider", "status", "config", "last_sync_at", "updated_at"
         ]
+
+
+class IntegrationSyncRun(BaseModel):
+    """One execution run of an integration sync."""
+    run_id: str = Field(default_factory=generate_id)
+    provider: str
+    idempotency_key: Optional[str] = None
+    status: str = "running"  # running | succeeded | failed
+    retry_count: int = 0
+    synced_records: int = 0
+    error: Optional[str] = None
+    started_at: datetime = Field(default_factory=datetime.now)
+    finished_at: Optional[datetime] = None
+
+    def to_row(self) -> list:
+        return [
+            self.run_id,
+            self.provider,
+            self.idempotency_key or "",
+            self.status,
+            str(self.retry_count),
+            str(self.synced_records),
+            self.error or "",
+            self.started_at.isoformat(),
+            self.finished_at.isoformat() if self.finished_at else "",
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "IntegrationSyncRun":
+        started_raw = row[7] if len(row) > 7 and row[7] else None
+        finished_raw = row[8] if len(row) > 8 and row[8] else None
+        return cls(
+            run_id=str(row[0]) if row and row[0] else generate_id(),
+            provider=str(row[1]) if len(row) > 1 else "",
+            idempotency_key=str(row[2]) if len(row) > 2 and row[2] else None,
+            status=str(row[3]) if len(row) > 3 and row[3] else "running",
+            retry_count=int(float(row[4])) if len(row) > 4 and row[4] else 0,
+            synced_records=int(float(row[5])) if len(row) > 5 and row[5] else 0,
+            error=str(row[6]) if len(row) > 6 and row[6] else None,
+            started_at=datetime.fromisoformat(started_raw) if started_raw else datetime.now(),
+            finished_at=datetime.fromisoformat(finished_raw) if finished_raw else None,
+        )
+
+    @classmethod
+    def headers(cls) -> list:
+        return [
+            "run_id",
+            "provider",
+            "idempotency_key",
+            "status",
+            "retry_count",
+            "synced_records",
+            "error",
+            "started_at",
+            "finished_at",
+        ]

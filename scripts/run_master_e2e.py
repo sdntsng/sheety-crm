@@ -333,8 +333,24 @@ def run() -> int:
             "/api/integrations/google_calendar/connect",
             json={"config": {"calendar_id": "primary"}},
         )
-        call("sync_integration_google_calendar", "POST", "/api/integrations/google_calendar/sync")
+        call(
+            "sync_integration_google_calendar",
+            "POST",
+            "/api/integrations/google_calendar/sync",
+            json={"idempotency_key": "e2e-calendar-1", "max_retries": 1},
+        )
+        dedup_sync = call(
+            "sync_integration_google_calendar_dedup",
+            "POST",
+            "/api/integrations/google_calendar/sync",
+            json={"idempotency_key": "e2e-calendar-1", "max_retries": 1},
+        )
+        if dedup_sync.status_code == 200:
+            dedup_payload = dedup_sync.json()
+            record("integration_sync_deduplicated", bool(dedup_payload.get("deduplicated")), str(dedup_payload.get("deduplicated")))
         call("list_integrations_after_connect", "GET", "/api/integrations")
+        call("list_integration_runs_provider", "GET", "/api/integrations/google_calendar/runs?limit=10")
+        call("list_integration_runs_all", "GET", "/api/integrations/runs?limit=20")
 
         # CSV import availability check (depends on multipart install)
         import_status = call("csv_import_endpoint_check", "POST", "/api/import/csv/upload", expected=(422, 503))

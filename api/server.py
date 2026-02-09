@@ -2,7 +2,7 @@
 FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
-from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks, File, UploadFile
+from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks, File, UploadFile, Body
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
@@ -331,6 +331,11 @@ class ForecastScenarioRequest(BaseModel):
 
 class IntegrationConnectRequest(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
+
+
+class IntegrationSyncRequest(BaseModel):
+    idempotency_key: Optional[str] = None
+    max_retries: int = 1
 
 
 def _lead_payload(crm: CRMManager, lead: Lead) -> Dict[str, Any]:
@@ -1329,14 +1334,41 @@ def connect_integration(
 @app.post("/api/integrations/{provider}/sync")
 def sync_integration(
     provider: str,
+    payload: Optional[IntegrationSyncRequest] = Body(default=None),
     crm: CRMManager = Depends(get_crm_session),
 ):
     """Run a provider sync and return summary."""
+    request_payload = payload or IntegrationSyncRequest()
     try:
-        result = crm.run_integration_sync(provider)
+        result = crm.run_integration_sync(
+            provider,
+            idempotency_key=request_payload.idempotency_key,
+            max_retries=max(0, min(request_payload.max_retries, 3)),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return result
+
+
+@app.get("/api/integrations/{provider}/runs")
+def list_integration_runs(
+    provider: str,
+    limit: int = Query(20, ge=1, le=200),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List sync runs for one provider."""
+    runs = crm.get_integration_runs(provider=provider, limit=limit)
+    return {"runs": [item.model_dump() for item in runs], "count": len(runs)}
+
+
+@app.get("/api/integrations/runs")
+def list_all_integration_runs(
+    limit: int = Query(50, ge=1, le=500),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List sync runs across all providers."""
+    runs = crm.get_integration_runs(limit=limit)
+    return {"runs": [item.model_dump() for item in runs], "count": len(runs)}
 
 
 # =============================================================================

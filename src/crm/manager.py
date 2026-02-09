@@ -22,6 +22,7 @@ from .models import (
     CustomFieldType,
     CustomFieldValue,
     IntegrationConnection,
+    IntegrationSyncRun,
     TaskPriority,
     TaskStatus,
     LeadStatus,
@@ -49,6 +50,7 @@ VIEWS_WS = "_System_Views"
 CUSTOM_FIELDS_WS = "_CustomFields"
 CUSTOM_VALUES_WS = "_CustomFieldValues"
 INTEGRATIONS_WS = "_Integrations"
+INTEGRATION_RUNS_WS = "_IntegrationSyncRuns"
 SUMMARY_WS = "Summary"
 
 
@@ -958,6 +960,70 @@ class CRMManager:
             if row and row[0]
         ]
 
+    def get_integration_runs(
+        self,
+        provider: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[IntegrationSyncRun]:
+        """List integration sync runs, newest first."""
+        data = self._get_cached_data(INTEGRATION_RUNS_WS)
+        if data is None:
+            self._ensure_headers(INTEGRATION_RUNS_WS, IntegrationSyncRun.headers())
+            data = self.sm.read_data(self.sheet_name, INTEGRATION_RUNS_WS)
+            if data:
+                self._set_cached_data(INTEGRATION_RUNS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        runs = [
+            IntegrationSyncRun.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+        if provider:
+            provider_key = provider.strip().lower()
+            runs = [item for item in runs if item.provider == provider_key]
+
+        runs.sort(key=lambda item: item.started_at, reverse=True)
+        return runs[:limit]
+
+    def _create_integration_run(
+        self,
+        provider: str,
+        idempotency_key: Optional[str],
+        retry_count: int,
+    ) -> IntegrationSyncRun:
+        self._ensure_headers(INTEGRATION_RUNS_WS, IntegrationSyncRun.headers())
+        run = IntegrationSyncRun(
+            provider=provider,
+            idempotency_key=idempotency_key,
+            status="running",
+            retry_count=retry_count,
+            synced_records=0,
+            error=None,
+            started_at=datetime.now(),
+            finished_at=None,
+        )
+        self.sm.append_row(self.sheet_name, run.to_row(), INTEGRATION_RUNS_WS)
+        self._invalidate_cache(INTEGRATION_RUNS_WS)
+        return run
+
+    def _update_integration_run(self, run: IntegrationSyncRun):
+        data = self._get_cached_data(INTEGRATION_RUNS_WS)
+        if data is None:
+            data = self.sm.read_data(self.sheet_name, INTEGRATION_RUNS_WS)
+        if not data:
+            return
+
+        for i, row in enumerate(data):
+            if i == 0 or not row:
+                continue
+            if row[0] == run.run_id:
+                self.sm.update_row(self.sheet_name, i + 1, run.to_row(), INTEGRATION_RUNS_WS)
+                self._invalidate_cache(INTEGRATION_RUNS_WS)
+                return
+
     def upsert_integration(
         self,
         provider: str,
@@ -1003,7 +1069,12 @@ class CRMManager:
         self._invalidate_cache(INTEGRATIONS_WS)
         return created
 
-    def run_integration_sync(self, provider: str) -> Dict[str, Any]:
+    def run_integration_sync(
+        self,
+        provider: str,
+        idempotency_key: Optional[str] = None,
+        max_retries: int = 1,
+    ) -> Dict[str, Any]:
         """Run a lightweight sync action for a provider."""
         provider_key = provider.strip().lower()
         integrations = self.get_integrations()
@@ -1011,31 +1082,73 @@ class CRMManager:
         if not integration:
             raise ValueError(f"Integration '{provider}' is not connected")
 
-        synced_records = 0
-        if provider_key == "google_calendar":
-            synced_records = len([task for task in self.get_tasks() if task.status != TaskStatus.COMPLETED])
-        elif provider_key == "gmail":
-            synced_records = len(self.get_leads())
-        elif provider_key == "slack":
-            synced_records = len(self.get_opportunities())
-        else:
-            synced_records = len(self.get_activities())
+        if idempotency_key:
+            existing = next(
+                (
+                    run
+                    for run in self.get_integration_runs(provider=provider_key, limit=200)
+                    if run.idempotency_key == idempotency_key and run.status == "succeeded"
+                ),
+                None,
+            )
+            if existing:
+                return {
+                    "provider": provider_key,
+                    "synced_records": existing.synced_records,
+                    "last_sync_at": existing.finished_at.isoformat() if existing.finished_at else "",
+                    "deduplicated": True,
+                    "run": existing.model_dump(),
+                }
 
-        integration.last_sync_at = datetime.now()
-        integration.status = "synced"
-        integration.updated_at = datetime.now()
-        self.upsert_integration(
-            provider_key,
-            integration.config,
-            status=integration.status,
-            last_sync_at=integration.last_sync_at,
-        )
+        last_error: Optional[str] = None
+        for retry_count in range(max_retries + 1):
+            run = self._create_integration_run(provider_key, idempotency_key, retry_count)
+            try:
+                force_error = bool(integration.config.get("force_error"))
+                if force_error:
+                    raise ValueError("forced sync failure from integration config")
 
-        return {
-            "provider": provider_key,
-            "synced_records": synced_records,
-            "last_sync_at": integration.last_sync_at.isoformat(),
-        }
+                synced_records = 0
+                if provider_key == "google_calendar":
+                    synced_records = len([task for task in self.get_tasks() if task.status != TaskStatus.COMPLETED])
+                elif provider_key == "gmail":
+                    synced_records = len(self.get_leads())
+                elif provider_key == "slack":
+                    synced_records = len(self.get_opportunities())
+                else:
+                    synced_records = len(self.get_activities())
+
+                integration.last_sync_at = datetime.now()
+                integration.status = "synced"
+                integration.updated_at = datetime.now()
+                self.upsert_integration(
+                    provider_key,
+                    integration.config,
+                    status=integration.status,
+                    last_sync_at=integration.last_sync_at,
+                )
+
+                run.status = "succeeded"
+                run.synced_records = synced_records
+                run.error = None
+                run.finished_at = datetime.now()
+                self._update_integration_run(run)
+
+                return {
+                    "provider": provider_key,
+                    "synced_records": synced_records,
+                    "last_sync_at": integration.last_sync_at.isoformat(),
+                    "deduplicated": False,
+                    "run": run.model_dump(),
+                }
+            except Exception as exc:
+                last_error = str(exc)
+                run.status = "failed"
+                run.error = last_error
+                run.finished_at = datetime.now()
+                self._update_integration_run(run)
+
+        raise ValueError(last_error or f"Sync failed for integration '{provider}'")
 
     # -------------------------------------------------------------------------
     # Export Operations

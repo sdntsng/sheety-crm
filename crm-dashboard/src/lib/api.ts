@@ -123,6 +123,18 @@ export interface IntegrationConnection {
   updated_at: string;
 }
 
+export interface IntegrationSyncRun {
+  run_id: string;
+  provider: string;
+  idempotency_key?: string;
+  status: "running" | "succeeded" | "failed";
+  retry_count: number;
+  synced_records: number;
+  error?: string;
+  started_at: string;
+  finished_at?: string;
+}
+
 export interface DashboardData {
   total_leads: number;
   total_opportunities: number;
@@ -667,14 +679,39 @@ export async function connectIntegration(
   return handleResponse(response);
 }
 
-export async function syncIntegration(provider: string): Promise<{
+export async function syncIntegration(
+  provider: string,
+  payload?: { idempotency_key?: string; max_retries?: number },
+): Promise<{
   provider: string;
   synced_records: number;
   last_sync_at: string;
+  deduplicated: boolean;
+  run: IntegrationSyncRun;
 }> {
   const response = await fetchWithAuth(`${API_BASE}/api/integrations/${provider}/sync`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {}),
   });
+  return handleResponse(response);
+}
+
+export async function getIntegrationRuns(provider: string, limit: number = 20): Promise<{
+  runs: IntegrationSyncRun[];
+  count: number;
+}> {
+  const response = await fetchWithAuth(
+    `${API_BASE}/api/integrations/${provider}/runs?limit=${limit}`,
+  );
+  return handleResponse(response);
+}
+
+export async function getAllIntegrationRuns(limit: number = 50): Promise<{
+  runs: IntegrationSyncRun[];
+  count: number;
+}> {
+  const response = await fetchWithAuth(`${API_BASE}/api/integrations/runs?limit=${limit}`);
   return handleResponse(response);
 }
 

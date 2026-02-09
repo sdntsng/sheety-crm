@@ -14,6 +14,7 @@ from .models import (
     CustomFieldDefinition,
     CustomFieldValue,
     IntegrationConnection,
+    IntegrationSyncRun,
     PipelineStage,
     LeadStatus,
     LeadSource,
@@ -78,6 +79,10 @@ class CRMTemplates:
 
         self.ensure_worksheet(sh, "_Integrations")
         console.print("[green]✓ Set up Integrations worksheet[/green]")
+        time.sleep(1.5)
+
+        self.ensure_worksheet(sh, "_IntegrationSyncRuns")
+        console.print("[green]✓ Set up Integration Sync Runs worksheet[/green]")
         
         self.ensure_worksheet(sh, "_Schema")
         console.print("[green]✓ Set up Schema reference[/green]")
@@ -111,6 +116,8 @@ class CRMTemplates:
                 self.setup_custom_field_values_sheet(ws)
             elif name == "_Integrations":
                 self.setup_integrations_sheet(ws)
+            elif name == "_IntegrationSyncRuns":
+                self.setup_integration_sync_runs_sheet(ws)
             elif name == "_Schema":
                 self.setup_schema_sheet(ws)
             
@@ -246,6 +253,17 @@ class CRMTemplates:
         ws.format("A1:F1", {
             "textFormat": {"bold": True},
             "backgroundColor": {"red": 0.30, "green": 0.24, "blue": 0.16}
+        })
+        ws.freeze(rows=1)
+        ws.set_basic_filter()
+
+    def setup_integration_sync_runs_sheet(self, ws: gspread.Worksheet):
+        """Set up integration sync run history worksheet."""
+        headers = IntegrationSyncRun.headers()
+        ws.append_row(headers)
+        ws.format("A1:I1", {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.18, "green": 0.28, "blue": 0.32}
         })
         ws.freeze(rows=1)
         ws.set_basic_filter()

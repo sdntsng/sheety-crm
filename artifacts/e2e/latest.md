@@ -1,7 +1,7 @@
 # Master E2E Validation
 
-- Timestamp (UTC): `2026-02-09T15:08:24.933446+00:00`
-- Passed: `49`
+- Timestamp (UTC): `2026-02-09T15:10:57.101139+00:00`
+- Passed: `53`
 - Failed: `0`
 
 | Scenario | Status | Details |
@@ -51,7 +51,11 @@
 | list_integrations_initial | PASS | HTTP 200 |
 | connect_integration_google_calendar | PASS | HTTP 200 |
 | sync_integration_google_calendar | PASS | HTTP 200 |
+| sync_integration_google_calendar_dedup | PASS | HTTP 200 |
+| integration_sync_deduplicated | PASS | True |
 | list_integrations_after_connect | PASS | HTTP 200 |
+| list_integration_runs_provider | PASS | HTTP 200 |
+| list_integration_runs_all | PASS | HTTP 200 |
 | csv_import_endpoint_check | PASS | HTTP 503 |
 | csv_import_graceful_degradation | PASS | disabled without python-multipart |
 | cli_commands_registered | PASS | return_code=0 |

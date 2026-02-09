@@ -5,9 +5,11 @@ import {
   connectIntegration,
   createCustomField,
   deleteCustomField,
+  getAllIntegrationRuns,
   getConfig,
   getCustomFields,
   getIntegrations,
+  IntegrationSyncRun,
   syncIntegration,
   Config,
   CustomFieldDefinition,
@@ -36,20 +38,24 @@ export default function SettingsPage() {
   const [integrationSaving, setIntegrationSaving] = useState(false);
   const [integrationProvider, setIntegrationProvider] = useState("google_calendar");
   const [integrationConfig, setIntegrationConfig] = useState("");
+  const [integrationSyncKey, setIntegrationSyncKey] = useState("");
+  const [integrationRuns, setIntegrationRuns] = useState<IntegrationSyncRun[]>([]);
   const [integrationError, setIntegrationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const [data, fields, integrationsData] = await Promise.all([
+        const [data, fields, integrationsData, runsData] = await Promise.all([
           getConfig(),
           getCustomFields(),
           getIntegrations(),
+          getAllIntegrationRuns(30),
         ]);
         setConfig(data);
         setCustomFields(fields.fields);
         setIntegrations(integrationsData.integrations);
+        setIntegrationRuns(runsData.runs);
       } catch (err) {
         console.error("Failed to fetch config for settings:", err);
       } finally {
@@ -120,8 +126,12 @@ export default function SettingsPage() {
   };
 
   const refreshIntegrations = async () => {
-    const data = await getIntegrations();
-    setIntegrations(data.integrations);
+    const [connections, runs] = await Promise.all([
+      getIntegrations(),
+      getAllIntegrationRuns(30),
+    ]);
+    setIntegrations(connections.integrations);
+    setIntegrationRuns(runs.runs);
   };
 
   const connectProvider = async (e: React.FormEvent) => {
@@ -149,9 +159,13 @@ export default function SettingsPage() {
   const runProviderSync = async (provider: string) => {
     setIntegrationSaving(true);
     try {
-      await syncIntegration(provider);
+      await syncIntegration(provider, {
+        idempotency_key: integrationSyncKey || undefined,
+        max_retries: 1,
+      });
       await refreshIntegrations();
       setIntegrationError(null);
+      setIntegrationSyncKey("");
     } catch (err) {
       setIntegrationError(
         err instanceof Error ? err.message : "Failed to sync integration.",
@@ -471,6 +485,12 @@ export default function SettingsPage() {
                 value={integrationConfig}
                 onChange={(e) => setIntegrationConfig(e.target.value)}
               />
+              <input
+                className="w-full px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                placeholder="Optional idempotency key for next sync run"
+                value={integrationSyncKey}
+                onChange={(e) => setIntegrationSyncKey(e.target.value)}
+              />
             </form>
 
             <div className="space-y-2">
@@ -500,6 +520,37 @@ export default function SettingsPage() {
                   >
                     Sync
                   </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-[var(--border-pencil)]">
+              <p className="font-mono text-xs uppercase text-[var(--text-secondary)]">
+                Recent Sync Runs
+              </p>
+              {integrationRuns.length === 0 && (
+                <p className="font-mono text-xs text-[var(--text-secondary)]">
+                  No sync runs recorded yet.
+                </p>
+              )}
+              {integrationRuns.slice(0, 10).map((run) => (
+                <div
+                  key={run.run_id}
+                  className="border border-[var(--border-pencil)] p-2 bg-white flex items-center justify-between gap-3"
+                >
+                  <div>
+                    <p className="font-mono text-[10px] uppercase">
+                      {run.provider} • {run.status}
+                    </p>
+                    <p className="font-mono text-[10px] text-[var(--text-secondary)]">
+                      retries {run.retry_count} • records {run.synced_records}
+                      {run.idempotency_key ? ` • key ${run.idempotency_key}` : ""}
+                      {run.error ? ` • error ${run.error}` : ""}
+                    </p>
+                  </div>
+                  <p className="font-mono text-[10px] text-[var(--text-secondary)]">
+                    {new Date(run.started_at).toLocaleString()}
+                  </p>
                 </div>
               ))}
             </div>
