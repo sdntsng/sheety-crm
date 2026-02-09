@@ -114,6 +114,18 @@ export interface CustomFieldDefinition {
   updated_at: string;
 }
 
+export interface EmailTemplate {
+  template_id: string;
+  name: string;
+  entity: "leads" | "opportunities";
+  subject: string;
+  body: string;
+  owner?: string;
+  is_shared: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface IntegrationConnection {
   integration_id: string;
   provider: string;
@@ -677,6 +689,60 @@ export async function updateCustomField(
 export async function deleteCustomField(fieldId: string): Promise<void> {
   const response = await fetchWithAuth(`${API_BASE}/api/custom-fields/${fieldId}`, {
     method: "DELETE",
+  });
+  return handleResponse(response);
+}
+
+// Email Templates
+export async function getEmailTemplates(filters?: {
+  entity?: "leads" | "opportunities";
+  owner?: string;
+}): Promise<{ templates: EmailTemplate[]; count: number }> {
+  const params = new URLSearchParams();
+  if (filters?.entity) params.set("entity", filters.entity);
+  if (filters?.owner) params.set("owner", filters.owner);
+  const response = await fetchWithAuth(`${API_BASE}/api/email-templates?${params}`);
+  return handleResponse(response);
+}
+
+export async function createEmailTemplate(
+  payload: Partial<EmailTemplate>,
+): Promise<EmailTemplate> {
+  const response = await fetchWithAuth(`${API_BASE}/api/email-templates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function updateEmailTemplate(
+  templateId: string,
+  payload: Partial<EmailTemplate>,
+): Promise<EmailTemplate> {
+  const response = await fetchWithAuth(`${API_BASE}/api/email-templates/${templateId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function deleteEmailTemplate(templateId: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE}/api/email-templates/${templateId}`, {
+    method: "DELETE",
+  });
+  return handleResponse(response);
+}
+
+export async function renderEmailTemplate(
+  templateId: string,
+  payload: { lead_id?: string; opp_id?: string; my_name?: string },
+): Promise<{ template_id: string; subject: string; body: string }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/email-templates/${templateId}/render`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
   return handleResponse(response);
 }

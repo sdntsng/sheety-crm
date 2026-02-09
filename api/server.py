@@ -39,6 +39,7 @@ from src.crm.models import (
     SavedView,
     CustomFieldDefinition,
     CustomFieldType,
+    EmailTemplate,
     TaskStatus,
     TaskPriority,
     LeadStatus,
@@ -290,6 +291,30 @@ class CustomFieldUpdate(BaseModel):
     required: Optional[bool] = None
     options: Optional[List[str]] = None
     validation_rule: Optional[str] = None
+
+
+class EmailTemplateCreate(BaseModel):
+    name: str
+    entity: str = "leads"
+    subject: str
+    body: str
+    owner: Optional[str] = None
+    is_shared: bool = True
+
+
+class EmailTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    entity: Optional[str] = None
+    subject: Optional[str] = None
+    body: Optional[str] = None
+    owner: Optional[str] = None
+    is_shared: Optional[bool] = None
+
+
+class RenderEmailTemplateRequest(BaseModel):
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+    my_name: Optional[str] = None
 
 
 class AIParseRequest(BaseModel):
@@ -1373,6 +1398,121 @@ def delete_custom_field(
     if not success:
         raise HTTPException(status_code=404, detail="Custom field not found")
     return {"deleted": True}
+
+
+# =============================================================================
+# Email Templates Endpoints
+# =============================================================================
+
+@app.get("/api/email-templates")
+def list_email_templates(
+    entity: Optional[str] = Query(None),
+    owner: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List email templates."""
+    templates = crm.get_email_templates(entity=entity, owner=owner)
+    return {"templates": [item.model_dump() for item in templates], "count": len(templates)}
+
+
+@app.post("/api/email-templates", status_code=201)
+def create_email_template(
+    data: EmailTemplateCreate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Create a reusable email template."""
+    template = EmailTemplate(
+        name=data.name,
+        entity=data.entity,
+        subject=data.subject,
+        body=data.body,
+        owner=data.owner,
+        is_shared=data.is_shared,
+    )
+    created = crm.add_email_template(template)
+    _log_audit(
+        crm,
+        action="create",
+        entity="email_template",
+        record_id=created.template_id,
+        metadata={"name": created.name},
+    )
+    return created.model_dump()
+
+
+@app.put("/api/email-templates/{template_id}")
+def update_email_template(
+    template_id: str,
+    data: EmailTemplateUpdate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Update an email template."""
+    template = crm.get_email_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Email template not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "name" in updates:
+        template.name = updates["name"]
+    if "entity" in updates:
+        template.entity = updates["entity"]
+    if "subject" in updates:
+        template.subject = updates["subject"]
+    if "body" in updates:
+        template.body = updates["body"]
+    if "owner" in updates:
+        template.owner = updates["owner"]
+    if "is_shared" in updates:
+        template.is_shared = bool(updates["is_shared"])
+
+    success = crm.update_email_template(template)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update email template")
+
+    _log_audit(
+        crm,
+        action="update",
+        entity="email_template",
+        record_id=template_id,
+    )
+    return template.model_dump()
+
+
+@app.delete("/api/email-templates/{template_id}")
+def delete_email_template(
+    template_id: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Delete an email template."""
+    success = crm.delete_email_template(template_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Email template not found")
+    _log_audit(crm, action="delete", entity="email_template", record_id=template_id)
+    return {"deleted": True}
+
+
+@app.post("/api/email-templates/{template_id}/render")
+def render_email_template(
+    template_id: str,
+    payload: RenderEmailTemplateRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Render template with merge variables."""
+    try:
+        rendered = crm.render_email_template(
+            template_id,
+            lead_id=payload.lead_id,
+            opp_id=payload.opp_id,
+            my_name=payload.my_name,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return {
+        "template_id": template_id,
+        "subject": rendered["subject"],
+        "body": rendered["body"],
+    }
 
 
 # =============================================================================

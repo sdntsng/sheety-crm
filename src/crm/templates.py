@@ -13,6 +13,7 @@ from .models import (
     SavedView,
     CustomFieldDefinition,
     CustomFieldValue,
+    EmailTemplate,
     IntegrationConnection,
     IntegrationSyncRun,
     AuditLogEntry,
@@ -78,6 +79,10 @@ class CRMTemplates:
         console.print("[green]✓ Set up Custom Field Values worksheet[/green]")
         time.sleep(1.5)
 
+        self.ensure_worksheet(sh, "_EmailTemplates")
+        console.print("[green]✓ Set up Email Templates worksheet[/green]")
+        time.sleep(1.5)
+
         self.ensure_worksheet(sh, "_Integrations")
         console.print("[green]✓ Set up Integrations worksheet[/green]")
         time.sleep(1.5)
@@ -119,6 +124,8 @@ class CRMTemplates:
                 self.setup_custom_fields_sheet(ws)
             elif name == "_CustomFieldValues":
                 self.setup_custom_field_values_sheet(ws)
+            elif name == "_EmailTemplates":
+                self.setup_email_templates_sheet(ws)
             elif name == "_Integrations":
                 self.setup_integrations_sheet(ws)
             elif name == "_IntegrationSyncRuns":
@@ -249,6 +256,17 @@ class CRMTemplates:
         ws.format("A1:F1", {
             "textFormat": {"bold": True},
             "backgroundColor": {"red": 0.22, "green": 0.22, "blue": 0.30}
+        })
+        ws.freeze(rows=1)
+        ws.set_basic_filter()
+
+    def setup_email_templates_sheet(self, ws: gspread.Worksheet):
+        """Set up email templates worksheet."""
+        headers = EmailTemplate.headers()
+        ws.append_row(headers)
+        ws.format("A1:I1", {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.24, "green": 0.19, "blue": 0.28}
         })
         ws.freeze(rows=1)
         ws.set_basic_filter()

@@ -210,6 +210,41 @@ def run() -> int:
                 )
             call("delete_custom_field", "DELETE", f"/api/custom-fields/{field_id}")
 
+        # Email templates lifecycle
+        template_create = call(
+            "create_email_template",
+            "POST",
+            "/api/email-templates",
+            expected=(201,),
+            json={
+                "name": "E2E Follow Up",
+                "entity": "leads",
+                "subject": "Checking in, {{First Name}}",
+                "body": "Hi {{First Name}},\nThanks for your time at {{Company}}.\n- {{My Name}}",
+                "is_shared": True,
+            },
+        )
+        if template_create.status_code == 201:
+            template_id = template_create.json()["template_id"]
+            created_ids["template_id"] = template_id
+            call("list_email_templates", "GET", "/api/email-templates?entity=leads")
+            call(
+                "render_email_template",
+                "POST",
+                f"/api/email-templates/{template_id}/render",
+                json={
+                    "lead_id": base_lead_id,
+                    "my_name": "E2E Bot",
+                },
+            )
+            call(
+                "update_email_template",
+                "PUT",
+                f"/api/email-templates/{template_id}",
+                json={"name": "E2E Follow Up v2", "is_shared": False},
+            )
+            call("delete_email_template", "DELETE", f"/api/email-templates/{template_id}")
+
         # Duplicates + reports + export
         call("detect_duplicate_leads", "GET", "/api/leads/duplicates?min_confidence=0.7")
         dup_lead_a = call(

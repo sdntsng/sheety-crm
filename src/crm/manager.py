@@ -21,6 +21,7 @@ from .models import (
     CustomFieldDefinition,
     CustomFieldType,
     CustomFieldValue,
+    EmailTemplate,
     IntegrationConnection,
     IntegrationSyncRun,
     AuditLogEntry,
@@ -50,6 +51,7 @@ TASKS_WS = "Tasks"
 VIEWS_WS = "_System_Views"
 CUSTOM_FIELDS_WS = "_CustomFields"
 CUSTOM_VALUES_WS = "_CustomFieldValues"
+EMAIL_TEMPLATES_WS = "_EmailTemplates"
 INTEGRATIONS_WS = "_Integrations"
 INTEGRATION_RUNS_WS = "_IntegrationSyncRuns"
 AUDIT_LOG_WS = "_AuditLog"
@@ -939,6 +941,146 @@ class CRMManager:
             return parsed_list
 
         raise ValueError(f"Unsupported custom field type for '{field_key}'")
+
+    # -------------------------------------------------------------------------
+    # Email Templates
+    # -------------------------------------------------------------------------
+
+    def add_email_template(self, template: EmailTemplate) -> EmailTemplate:
+        """Create an email template."""
+        self._ensure_headers(EMAIL_TEMPLATES_WS, EmailTemplate.headers())
+        template.created_at = datetime.now()
+        template.updated_at = datetime.now()
+        self.sm.append_row(self.sheet_name, template.to_row(), EMAIL_TEMPLATES_WS)
+        self._invalidate_cache(EMAIL_TEMPLATES_WS)
+        return template
+
+    def get_email_templates(
+        self,
+        entity: Optional[str] = None,
+        owner: Optional[str] = None,
+    ) -> List[EmailTemplate]:
+        """List email templates with optional entity/owner filters."""
+        data = self._get_cached_data(EMAIL_TEMPLATES_WS)
+        if data is None:
+            self._ensure_headers(EMAIL_TEMPLATES_WS, EmailTemplate.headers())
+            data = self.sm.read_data(self.sheet_name, EMAIL_TEMPLATES_WS)
+            if data:
+                self._set_cached_data(EMAIL_TEMPLATES_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        templates = [
+            EmailTemplate.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+
+        if entity:
+            entity_key = entity.strip().lower()
+            templates = [item for item in templates if item.entity.strip().lower() == entity_key]
+
+        if owner:
+            owner_key = owner.strip().lower()
+            templates = [
+                item
+                for item in templates
+                if item.owner and item.owner.strip().lower() == owner_key
+            ]
+
+        return templates
+
+    def get_email_template(self, template_id: str) -> Optional[EmailTemplate]:
+        """Get one email template by ID."""
+        templates = self.get_email_templates()
+        return next((item for item in templates if item.template_id == template_id), None)
+
+    def update_email_template(self, template: EmailTemplate) -> bool:
+        """Update an email template."""
+        data = self._get_cached_data(EMAIL_TEMPLATES_WS)
+        if not data:
+            self._ensure_headers(EMAIL_TEMPLATES_WS, EmailTemplate.headers())
+            data = self.sm.read_data(self.sheet_name, EMAIL_TEMPLATES_WS)
+            if data:
+                self._set_cached_data(EMAIL_TEMPLATES_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == template.template_id:
+                template.updated_at = datetime.now()
+                row_index = i + 1
+                new_row = template.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, EMAIL_TEMPLATES_WS)
+                data[i] = new_row
+                self._set_cached_data(EMAIL_TEMPLATES_WS, data)
+                return True
+
+        return False
+
+    def delete_email_template(self, template_id: str) -> bool:
+        """Delete an email template."""
+        data = self._get_cached_data(EMAIL_TEMPLATES_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, EMAIL_TEMPLATES_WS)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == template_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, EMAIL_TEMPLATES_WS)
+                self._invalidate_cache(EMAIL_TEMPLATES_WS)
+                return True
+        return False
+
+    def render_email_template(
+        self,
+        template_id: str,
+        lead_id: Optional[str] = None,
+        opp_id: Optional[str] = None,
+        my_name: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """Render template variables against lead/opportunity context."""
+        template = self.get_email_template(template_id)
+        if not template:
+            raise ValueError("Email template not found")
+
+        lead = self.get_lead(lead_id) if lead_id else None
+        opp = self.get_opportunity(opp_id) if opp_id else None
+        if not lead and opp:
+            lead = self.get_lead(opp.lead_id)
+
+        context = {
+            "{{First Name}}": "",
+            "{{Company}}": "",
+            "{{My Name}}": my_name or "Sales Team",
+            "{{Opportunity}}": "",
+        }
+        if lead:
+            name_parts = (lead.contact_name or "").split()
+            context["{{First Name}}"] = name_parts[0] if name_parts else (lead.contact_name or "")
+            context["{{Company}}"] = lead.company_name or ""
+        if opp:
+            context["{{Opportunity}}"] = opp.title or ""
+
+        rendered_subject = template.subject
+        rendered_body = template.body
+        for token, value in context.items():
+            rendered_subject = rendered_subject.replace(token, value)
+            rendered_body = rendered_body.replace(token, value)
+
+        return {
+            "subject": rendered_subject,
+            "body": rendered_body,
+        }
 
     # -------------------------------------------------------------------------
     # Integration Connections

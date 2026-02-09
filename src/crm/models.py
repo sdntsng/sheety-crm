@@ -660,6 +660,63 @@ class CustomFieldValue(BaseModel):
         ]
 
 
+class EmailTemplate(BaseModel):
+    """Reusable email template with merge variables."""
+    template_id: str = Field(default_factory=generate_id)
+    name: str
+    entity: str = "leads"  # leads | opportunities
+    subject: str
+    body: str
+    owner: Optional[str] = None
+    is_shared: bool = True
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    def to_row(self) -> list:
+        return [
+            self.template_id,
+            self.name,
+            self.entity,
+            self.subject,
+            self.body,
+            self.owner or "",
+            "true" if self.is_shared else "false",
+            self.created_at.isoformat(),
+            self.updated_at.isoformat(),
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "EmailTemplate":
+        is_shared_raw = row[6] if len(row) > 6 and row[6] else "true"
+        created_raw = row[7] if len(row) > 7 and row[7] else None
+        updated_raw = row[8] if len(row) > 8 and row[8] else None
+        return cls(
+            template_id=str(row[0]) if row and row[0] else generate_id(),
+            name=str(row[1]) if len(row) > 1 and row[1] else "Untitled Template",
+            entity=str(row[2]) if len(row) > 2 and row[2] else "leads",
+            subject=str(row[3]) if len(row) > 3 else "",
+            body=str(row[4]) if len(row) > 4 else "",
+            owner=str(row[5]) if len(row) > 5 and row[5] else None,
+            is_shared=str(is_shared_raw).lower() in {"1", "true", "yes"},
+            created_at=datetime.fromisoformat(created_raw) if created_raw else datetime.now(),
+            updated_at=datetime.fromisoformat(updated_raw) if updated_raw else datetime.now(),
+        )
+
+    @classmethod
+    def headers(cls) -> list:
+        return [
+            "template_id",
+            "name",
+            "entity",
+            "subject",
+            "body",
+            "owner",
+            "is_shared",
+            "created_at",
+            "updated_at",
+        ]
+
+
 class IntegrationConnection(BaseModel):
     """Connection/configuration for an external integration provider."""
     integration_id: str = Field(default_factory=generate_id)
