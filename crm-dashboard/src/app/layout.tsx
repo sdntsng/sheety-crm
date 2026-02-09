@@ -6,6 +6,7 @@ import SessionProvider from "@/providers/SessionProvider";
 import PostHogProvider from "@/providers/PostHogProvider";
 import PostHogPageView from "@/components/PostHogPageView";
 import Footer from "@/components/Footer";
+import MobileBottomNav from "@/components/MobileBottomNav";
 import { SettingsProvider } from "@/providers/SettingsProvider";
 import { Suspense } from "react";
 
@@ -72,6 +73,7 @@ export default function RootLayout({
                                 <main className="flex-1 relative">
                                     {children}
                                 </main>
+                                <MobileBottomNav />
                                 <Footer />
                             </div>
                         </SettingsProvider>

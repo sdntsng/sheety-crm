@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState, useRef, useEffect } from "react";
 
 // Icons
 const DashboardIcon = () => (
@@ -48,6 +47,22 @@ const LeadsIcon = () => (
   </svg>
 );
 
+const TasksIcon = () => (
+  <svg
+    className="w-6 h-6"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    viewBox="0 0 24 24"
+  >
+    <path
+      d="M9 6h11M9 12h11M9 18h11M5 6h.01M5 12h.01M5 18h.01"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const SettingsIcon = () => (
   <svg
     className="w-6 h-6"
@@ -82,6 +97,7 @@ export default function MobileBottomNav() {
     { href: "/dashboard", label: "Dashboard", icon: DashboardIcon },
     { href: "/pipeline", label: "Pipeline", icon: PipelineIcon },
     { href: "/leads", label: "Leads", icon: LeadsIcon },
+    { href: "/tasks", label: "Tasks", icon: TasksIcon },
     { href: "/settings", label: "Settings", icon: SettingsIcon },
   ];
 

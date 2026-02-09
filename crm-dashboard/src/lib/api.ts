@@ -71,6 +71,34 @@ export interface Activity {
   created_by?: string;
 }
 
+export interface Task {
+  task_id: string;
+  title: string;
+  due_date?: string;
+  status: "Open" | "In Progress" | "Completed";
+  priority: "Low" | "Medium" | "High";
+  lead_id?: string;
+  opp_id?: string;
+  assignee?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+export interface SavedView {
+  view_id: string;
+  name: string;
+  entity: string;
+  filters: Record<string, unknown>[];
+  sort_by?: string;
+  sort_order: "asc" | "desc";
+  owner?: string;
+  is_shared: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DashboardData {
   total_leads: number;
   total_opportunities: number;
@@ -148,9 +176,34 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
+async function handleNonJsonResponse(response: Response): Promise<Response> {
+  if (response.status === 401) {
+    console.error("[API] 401 Unauthorized - signing out");
+    if (typeof window !== "undefined") {
+      await signOut({ callbackUrl: "/login" });
+    }
+    throw new AuthError("Session expired. Please sign in again.");
+  }
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(
+      response.headers.get("Retry-After") || "60",
+      10,
+    );
+    throw new RateLimitError(retryAfter);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Request failed");
+  }
+
+  return response;
+}
+
 // Helper for authenticated requests with session error detection
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  let headers: Record<string, string> = {
+  const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
 
@@ -407,6 +460,104 @@ export async function createActivity(
     body: JSON.stringify(data),
   });
   return handleResponse(response);
+}
+
+// Tasks
+export async function getTasks(filters?: {
+  status?: string;
+  due_before?: string;
+  assignee?: string;
+  lead_id?: string;
+  opp_id?: string;
+}): Promise<{ tasks: Task[]; count: number }> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.due_before) params.set("due_before", filters.due_before);
+  if (filters?.assignee) params.set("assignee", filters.assignee);
+  if (filters?.lead_id) params.set("lead_id", filters.lead_id);
+  if (filters?.opp_id) params.set("opp_id", filters.opp_id);
+
+  const response = await fetchWithAuth(`${API_BASE}/api/tasks?${params}`);
+  return handleResponse(response);
+}
+
+export async function createTask(data: Partial<Task>): Promise<Task> {
+  const response = await fetchWithAuth(`${API_BASE}/api/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function updateTask(
+  taskId: string,
+  data: Partial<Task>,
+): Promise<Task> {
+  const response = await fetchWithAuth(`${API_BASE}/api/tasks/${taskId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE}/api/tasks/${taskId}`, {
+    method: "DELETE",
+  });
+  return handleResponse(response);
+}
+
+// Saved Views
+export async function getSavedViews(filters?: {
+  entity?: string;
+  owner?: string;
+}): Promise<{ views: SavedView[]; count: number }> {
+  const params = new URLSearchParams();
+  if (filters?.entity) params.set("entity", filters.entity);
+  if (filters?.owner) params.set("owner", filters.owner);
+
+  const response = await fetchWithAuth(`${API_BASE}/api/views?${params}`);
+  return handleResponse(response);
+}
+
+export async function createSavedView(
+  data: Partial<SavedView>,
+): Promise<SavedView> {
+  const response = await fetchWithAuth(`${API_BASE}/api/views`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function updateSavedView(
+  viewId: string,
+  data: Partial<SavedView>,
+): Promise<SavedView> {
+  const response = await fetchWithAuth(`${API_BASE}/api/views/${viewId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function deleteSavedView(viewId: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE}/api/views/${viewId}`, {
+    method: "DELETE",
+  });
+  return handleResponse(response);
+}
+
+export async function exportEntityCSV(
+  entity: "leads" | "opportunities" | "activities" | "tasks",
+): Promise<Blob> {
+  const response = await fetchWithAuth(`${API_BASE}/api/export/${entity}`);
+  const verified = await handleNonJsonResponse(response);
+  return verified.blob();
 }
 
 // ============================================================================

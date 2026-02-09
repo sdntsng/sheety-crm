@@ -33,10 +33,17 @@ const LeadsIcon = () => (
     </svg>
 );
 
+const TasksIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path d="M9 6h11M9 12h11M9 18h11M5 6h.01M5 12h.01M5 18h.01" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
     { href: '/pipeline', label: 'Pipeline', icon: PipelineIcon },
     { href: '/leads', label: 'Leads', icon: LeadsIcon },
+    { href: '/tasks', label: 'Tasks', icon: TasksIcon },
 ];
 
 
@@ -44,32 +51,21 @@ const navItems = [
 export default function Header() {
     const pathname = usePathname();
     const { data: session, status } = useSession();
-    const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
-    const [showSheetMenu, setShowSheetMenu] = useState(false);
     const [imgError, setImgError] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const sheetMenuRef = useRef<HTMLDivElement>(null);
 
     const isAuthenticated = status === 'authenticated';
-
-    useEffect(() => {
-        if (isAuthenticated) {
-            const saved = localStorage.getItem('selected_sheet_name');
-            setSelectedSheet(saved);
-        } else {
-            setSelectedSheet(null);
-        }
-    }, [pathname, isAuthenticated]);
+    const selectedSheet = typeof window !== 'undefined' && isAuthenticated
+        ? localStorage.getItem('selected_sheet_name')
+        : null;
 
     // Close menus on outside click
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
                 setShowUserMenu(false);
-            }
-            if (sheetMenuRef.current && !sheetMenuRef.current.contains(e.target as Node)) {
-                setShowSheetMenu(false);
             }
         };
         document.addEventListener('mousedown', handleClick);
@@ -184,7 +180,6 @@ export default function Header() {
                                     href={`https://docs.google.com/spreadsheets/d/${localStorage.getItem('selected_sheet_id')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    onClick={() => setShowSheetMenu(false)}
                                     className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--bg-paper)] transition-colors"
                                 >
                                     <svg className="w-4 h-4 text-[var(--accent-blue)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -196,7 +191,6 @@ export default function Header() {
                                 </a>
                                 <Link
                                     href="/setup"
-                                    onClick={() => setShowSheetMenu(false)}
                                     className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--bg-paper)] transition-colors"
                                 >
                                     <svg className="w-4 h-4 text-[var(--color-ink-muted)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
