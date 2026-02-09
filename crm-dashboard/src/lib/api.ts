@@ -383,10 +383,12 @@ export async function addSchemaToSheet(
 export async function getLeads(
   status?: string,
   source?: string,
+  owner?: string,
 ): Promise<{ leads: Lead[]; count: number }> {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (source) params.set("source", source);
+  if (owner) params.set("owner", owner);
   const response = await fetchWithAuth(`${API_BASE}/api/leads?${params}`);
   return handleResponse(response);
 }
@@ -428,10 +430,12 @@ export async function deleteLead(leadId: string): Promise<void> {
 export async function getOpportunities(
   stage?: string,
   leadId?: string,
+  owner?: string,
 ): Promise<{ opportunities: Opportunity[]; count: number }> {
   const params = new URLSearchParams();
   if (stage) params.set("stage", stage);
   if (leadId) params.set("lead_id", leadId);
+  if (owner) params.set("owner", owner);
   const response = await fetchWithAuth(
     `${API_BASE}/api/opportunities?${params}`,
   );

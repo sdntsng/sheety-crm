@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { getDashboard, getTasks, DashboardData, Task } from "@/lib/api";
+import {
+  getDashboard,
+  getLeads,
+  getOpportunities,
+  getTasks,
+  DashboardData,
+  Task,
+} from "@/lib/api";
 import { useSettings } from "@/providers/SettingsProvider";
 import StatCard from "@/components/StatCard";
 import Link from "next/link";
@@ -85,6 +92,8 @@ function DashboardPageContent() {
   const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
   const [checkingStorage, setCheckingStorage] = useState(true);
   const [myTasks, setMyTasks] = useState<Task[]>([]);
+  const [myLeadCount, setMyLeadCount] = useState(0);
+  const [myDealCount, setMyDealCount] = useState(0);
 
   useEffect(() => {
     // Check for sheet selection in local storage
@@ -106,15 +115,19 @@ function DashboardPageContent() {
     async function fetchData() {
       setLoading(true); // Ensure loading is true when we start fetching
       try {
-        const [dashboard, tasks] = await Promise.all([
+        const [dashboard, tasks, myLeads, myDeals] = await Promise.all([
           getDashboard(),
           getTasks(
             session?.user?.email
               ? { assignee: session.user.email, status: "Open" }
               : { status: "Open" },
           ),
+          session?.user?.email ? getLeads(undefined, undefined, session.user.email) : Promise.resolve({ leads: [], count: 0 }),
+          session?.user?.email ? getOpportunities(undefined, undefined, session.user.email) : Promise.resolve({ opportunities: [], count: 0 }),
         ]);
         setData(dashboard);
+        setMyLeadCount(myLeads.count);
+        setMyDealCount(myDeals.count);
         setMyTasks(
           tasks.tasks
             .filter((task) => task.status !== "Completed")
@@ -376,6 +389,21 @@ function DashboardPageContent() {
                     </p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <div className="border border-[var(--border-pencil)] bg-white px-3 py-2">
+                <p className="font-mono text-[10px] uppercase text-[var(--text-secondary)]">
+                  My Leads
+                </p>
+                <p className="font-sans text-lg font-bold">{myLeadCount}</p>
+              </div>
+              <div className="border border-[var(--border-pencil)] bg-white px-3 py-2">
+                <p className="font-mono text-[10px] uppercase text-[var(--text-secondary)]">
+                  My Deals
+                </p>
+                <p className="font-sans text-lg font-bold">{myDealCount}</p>
               </div>
             </div>
 

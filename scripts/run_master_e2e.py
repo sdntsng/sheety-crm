@@ -107,6 +107,8 @@ def run() -> int:
         call("health", "GET", "/health")
         leads_resp = call("list_leads", "GET", "/api/leads")
         opps_resp = call("list_opportunities", "GET", "/api/opportunities")
+        call("list_leads_by_owner", "GET", "/api/leads?owner=Me")
+        call("list_opportunities_by_owner", "GET", "/api/opportunities?owner=Me")
         call("dashboard", "GET", "/api/dashboard")
         call("pipeline", "GET", "/api/pipeline")
 

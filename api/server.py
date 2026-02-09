@@ -626,6 +626,7 @@ def ensure_schema_sheet(sheet_id: str, sm: SheetManager = Depends(get_sheet_mana
 def list_leads(
     status: Optional[str] = Query(None, description="Filter by status"),
     source: Optional[str] = Query(None, description="Filter by source"),
+    owner: Optional[str] = Query(None, description="Filter by owner"),
     crm: CRMManager = Depends(get_crm_session),
 ):
     """Get all leads, optionally filtered."""
@@ -636,6 +637,9 @@ def list_leads(
         leads = [l for l in leads if l.status.value == status]
     if source:
         leads = [l for l in leads if l.source.value == source]
+    if owner:
+        owner_key = owner.lower().strip()
+        leads = [l for l in leads if l.owner and l.owner.lower().strip() == owner_key]
 
     return {"leads": [_lead_payload(crm, lead) for lead in leads], "count": len(leads)}
 
@@ -963,6 +967,7 @@ def analyze_opportunity_risk(
 def list_opportunities(
     stage: Optional[str] = Query(None, description="Filter by pipeline stage"),
     lead_id: Optional[str] = Query(None, description="Filter by lead"),
+    owner: Optional[str] = Query(None, description="Filter by owner"),
     crm: CRMManager = Depends(get_crm_session),
 ):
     """Get all opportunities, optionally filtered."""
@@ -972,6 +977,9 @@ def list_opportunities(
         opps = [o for o in opps if o.stage.value == stage]
     if lead_id:
         opps = [o for o in opps if o.lead_id == lead_id]
+    if owner:
+        owner_key = owner.lower().strip()
+        opps = [o for o in opps if o.owner and o.owner.lower().strip() == owner_key]
 
     return {"opportunities": [_opportunity_payload(crm, opp) for opp in opps], "count": len(opps)}
 

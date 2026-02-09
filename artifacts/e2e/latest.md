@@ -1,7 +1,7 @@
 # Master E2E Validation
 
-- Timestamp (UTC): `2026-02-09T15:15:01.924037+00:00`
-- Passed: `55`
+- Timestamp (UTC): `2026-02-09T15:16:50.340964+00:00`
+- Passed: `57`
 - Failed: `0`
 
 | Scenario | Status | Details |
@@ -9,6 +9,8 @@
 | health | PASS | HTTP 200 |
 | list_leads | PASS | HTTP 200 |
 | list_opportunities | PASS | HTTP 200 |
+| list_leads_by_owner | PASS | HTTP 200 |
+| list_opportunities_by_owner | PASS | HTTP 200 |
 | dashboard | PASS | HTTP 200 |
 | pipeline | PASS | HTTP 200 |
 | create_task | PASS | HTTP 201 |
