@@ -8,6 +8,7 @@ import PostHogPageView from "@/components/PostHogPageView";
 import Footer from "@/components/Footer";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import { SettingsProvider } from "@/providers/SettingsProvider";
+import { KeyboardShortcutsProvider } from "@/providers/KeyboardShortcutsContext";
 import { Suspense } from "react";
 
 const sans = Outfit({
@@ -68,14 +69,16 @@ export default function RootLayout({
                     </Suspense>
                     <SessionProvider>
                         <SettingsProvider>
-                            <div className="min-h-screen flex flex-col bg-paper text-ink">
-                                <Header />
-                                <main className="flex-1 relative">
-                                    {children}
-                                </main>
-                                <MobileBottomNav />
-                                <Footer />
-                            </div>
+                            <KeyboardShortcutsProvider>
+                                <div className="min-h-screen flex flex-col bg-paper text-ink">
+                                    <Header />
+                                    <main className="flex-1 relative">
+                                        {children}
+                                    </main>
+                                    <MobileBottomNav />
+                                    <Footer />
+                                </div>
+                            </KeyboardShortcutsProvider>
                         </SettingsProvider>
                     </SessionProvider>
                 </PostHogProvider>

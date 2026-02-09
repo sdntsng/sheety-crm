@@ -272,12 +272,21 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
+  const isMockMode = process.env.NEXT_PUBLIC_MOCK_AUTH === "true";
 
   if (typeof window !== "undefined") {
     const session = await getSession();
+    const sheetId = localStorage.getItem("selected_sheet_id");
+    if (sheetId) {
+      headers["x-sheet-id"] = sheetId;
+    }
 
     // Check if session exists at all
     if (!session || !session.user) {
+      if (isMockMode) {
+        headers["Authorization"] = "Bearer mock_token_xyz";
+        return fetch(url, { ...options, headers });
+      }
       console.error("[API] No active session - redirecting to login");
       await signOut({ callbackUrl: "/login" });
       throw new AuthError("Authentication required. Please sign in.");
@@ -295,13 +304,11 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     if (session?.accessToken) {
       // @ts-expect-error - session may have an accessToken property at runtime that's not in the type
       headers["Authorization"] = `Bearer ${session.accessToken}`;
-
-      // Inject Selected Sheet ID from localStorage
-      const sheetId = localStorage.getItem("selected_sheet_id");
-      if (sheetId) {
-        headers["x-sheet-id"] = sheetId;
-      }
     } else {
+      if (isMockMode) {
+        headers["Authorization"] = "Bearer mock_token_xyz";
+        return fetch(url, { ...options, headers });
+      }
       // No access token available despite session??
       console.warn("[API] Session exists but no access token found");
       throw new AuthError("Invalid session configuration.");
