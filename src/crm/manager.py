@@ -292,9 +292,7 @@ class CRMManager:
             if row and row[0] == lead_id:
                 row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, LEADS_WS)
-                # Optimistic cache update
-                data.pop(i)
-                self._set_cached_data(LEADS_WS, data)
+                self._invalidate_cache(LEADS_WS)
                 return True
         return False
 
@@ -459,9 +457,7 @@ class CRMManager:
             if row and row[0] == opp_id:
                 row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, OPPS_WS)
-                # Optimistic cache update
-                data.pop(i)
-                self._set_cached_data(OPPS_WS, data)
+                self._invalidate_cache(OPPS_WS)
                 return True
         return False
 
@@ -610,8 +606,7 @@ class CRMManager:
             if row and row[0] == task_id:
                 row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, TASKS_WS)
-                data.pop(i)
-                self._set_cached_data(TASKS_WS, data)
+                self._invalidate_cache(TASKS_WS)
                 return True
         return False
 
@@ -708,8 +703,7 @@ class CRMManager:
             if row and row[0] == view_id:
                 row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, VIEWS_WS)
-                data.pop(i)
-                self._set_cached_data(VIEWS_WS, data)
+                self._invalidate_cache(VIEWS_WS)
                 return True
 
         return False
@@ -795,8 +789,7 @@ class CRMManager:
             if row and row[0] == field_id:
                 row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, CUSTOM_FIELDS_WS)
-                data.pop(i)
-                self._set_cached_data(CUSTOM_FIELDS_WS, data)
+                self._invalidate_cache(CUSTOM_FIELDS_WS)
                 return True
         return False
 
@@ -1228,8 +1221,8 @@ class CRMManager:
 
         # Top leads by score
         top_leads = sorted(
-            [l for l in leads if l.score > 0],
-            key=lambda l: l.score,
+            [l for l in leads if (l.score or 0) > 0],
+            key=lambda l: l.score or 0,
             reverse=True
         )[:5]
 
