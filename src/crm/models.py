@@ -1,9 +1,10 @@
 """
 CRM Data Models using Pydantic for validation.
 """
+import json
 from datetime import datetime, date
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 from pydantic import BaseModel, EmailStr, Field
 import uuid
 
@@ -63,6 +64,20 @@ class ActivityType(str, Enum):
     MEETING = "Meeting"
     NOTE = "Note"
     TASK = "Task"
+
+
+class TaskStatus(str, Enum):
+    """Task lifecycle status."""
+    OPEN = "Open"
+    IN_PROGRESS = "In Progress"
+    COMPLETED = "Completed"
+
+
+class TaskPriority(str, Enum):
+    """Task priority levels."""
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
 
 
 class Lead(BaseModel):
@@ -368,4 +383,160 @@ class Activity(BaseModel):
         return [
             "activity_id", "lead_id", "opp_id", "type", "subject",
             "description", "date", "created_by"
+        ]
+
+
+class Task(BaseModel):
+    """A follow-up task linked to a lead and optionally an opportunity."""
+    task_id: str = Field(default_factory=generate_id)
+    title: str
+    due_date: Optional[date] = None
+    status: TaskStatus = TaskStatus.OPEN
+    priority: TaskPriority = TaskPriority.MEDIUM
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+    assignee: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    completed_at: Optional[datetime] = None
+
+    def to_row(self) -> list:
+        """Convert to sheet row format."""
+        return [
+            self.task_id,
+            self.title,
+            self.due_date.isoformat() if self.due_date else "",
+            self.status.value,
+            self.priority.value,
+            self.lead_id or "",
+            self.opp_id or "",
+            self.assignee or "",
+            self.notes or "",
+            self.created_at.isoformat(),
+            self.updated_at.isoformat(),
+            self.completed_at.isoformat() if self.completed_at else "",
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "Task":
+        """Create Task from sheet row."""
+        def safe_date(value: Any) -> Optional[date]:
+            if not value:
+                return None
+            try:
+                return date.fromisoformat(str(value)[:10])
+            except (TypeError, ValueError):
+                return None
+
+        def safe_datetime(value: Any) -> Optional[datetime]:
+            if not value:
+                return None
+            try:
+                return datetime.fromisoformat(str(value))
+            except (TypeError, ValueError):
+                return None
+
+        status_value = row[3] if len(row) > 3 and row[3] else TaskStatus.OPEN.value
+        priority_value = row[4] if len(row) > 4 and row[4] else TaskPriority.MEDIUM.value
+
+        try:
+            status = TaskStatus(status_value)
+        except ValueError:
+            status = TaskStatus.OPEN
+
+        try:
+            priority = TaskPriority(priority_value)
+        except ValueError:
+            priority = TaskPriority.MEDIUM
+
+        return cls(
+            task_id=str(row[0]) if row and row[0] else generate_id(),
+            title=str(row[1]) if len(row) > 1 else "",
+            due_date=safe_date(row[2] if len(row) > 2 else None),
+            status=status,
+            priority=priority,
+            lead_id=row[5] if len(row) > 5 and row[5] else None,
+            opp_id=row[6] if len(row) > 6 and row[6] else None,
+            assignee=row[7] if len(row) > 7 and row[7] else None,
+            notes=row[8] if len(row) > 8 and row[8] else None,
+            created_at=safe_datetime(row[9] if len(row) > 9 else None) or datetime.now(),
+            updated_at=safe_datetime(row[10] if len(row) > 10 else None) or datetime.now(),
+            completed_at=safe_datetime(row[11] if len(row) > 11 else None),
+        )
+
+    @classmethod
+    def headers(cls) -> list:
+        """Return column headers for the Tasks sheet."""
+        return [
+            "task_id", "title", "due_date", "status", "priority",
+            "lead_id", "opp_id", "assignee", "notes", "created_at",
+            "updated_at", "completed_at"
+        ]
+
+
+class SavedView(BaseModel):
+    """A reusable filter/sort configuration for an entity list."""
+    view_id: str = Field(default_factory=generate_id)
+    name: str
+    entity: str  # leads | opportunities | pipeline | tasks
+    filters: list[dict[str, Any]] = Field(default_factory=list)
+    sort_by: Optional[str] = None
+    sort_order: str = "asc"
+    owner: Optional[str] = None
+    is_shared: bool = False
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    def to_row(self) -> list:
+        """Convert to sheet row format."""
+        return [
+            self.view_id,
+            self.name,
+            self.entity,
+            json.dumps(self.filters),
+            self.sort_by or "",
+            self.sort_order,
+            self.owner or "",
+            "true" if self.is_shared else "false",
+            self.created_at.isoformat(),
+            self.updated_at.isoformat(),
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "SavedView":
+        """Create SavedView from sheet row."""
+        filters_raw = row[3] if len(row) > 3 and row[3] else "[]"
+        try:
+            filters = json.loads(filters_raw)
+            if not isinstance(filters, list):
+                filters = []
+        except (json.JSONDecodeError, TypeError):
+            filters = []
+
+        is_shared_raw = row[7] if len(row) > 7 and row[7] else "false"
+        is_shared = str(is_shared_raw).lower() in {"1", "true", "yes"}
+
+        created_raw = row[8] if len(row) > 8 and row[8] else None
+        updated_raw = row[9] if len(row) > 9 and row[9] else None
+
+        return cls(
+            view_id=str(row[0]) if row and row[0] else generate_id(),
+            name=str(row[1]) if len(row) > 1 else "Untitled View",
+            entity=str(row[2]) if len(row) > 2 and row[2] else "leads",
+            filters=filters,
+            sort_by=row[4] if len(row) > 4 and row[4] else None,
+            sort_order=str(row[5]) if len(row) > 5 and row[5] else "asc",
+            owner=row[6] if len(row) > 6 and row[6] else None,
+            is_shared=is_shared,
+            created_at=datetime.fromisoformat(created_raw) if created_raw else datetime.now(),
+            updated_at=datetime.fromisoformat(updated_raw) if updated_raw else datetime.now(),
+        )
+
+    @classmethod
+    def headers(cls) -> list:
+        """Return column headers for saved views."""
+        return [
+            "view_id", "name", "entity", "filters", "sort_by",
+            "sort_order", "owner", "is_shared", "created_at", "updated_at"
         ]

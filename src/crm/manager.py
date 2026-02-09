@@ -1,15 +1,27 @@
 """
 CRM Manager - Business logic layer for CRM operations.
 """
-from datetime import datetime
+import csv
+import io
+from datetime import date, datetime
 from typing import List, Optional, Dict, Any
 from rich.console import Console
 from rich.table import Table
 
 from ..sheets import SheetManager
 from .models import (
-    Lead, Opportunity, Activity,
-    LeadStatus, PipelineStage, ActivityType, LeadSource, CompanySize
+    Lead,
+    Opportunity,
+    Activity,
+    Task,
+    SavedView,
+    TaskPriority,
+    TaskStatus,
+    LeadStatus,
+    PipelineStage,
+    ActivityType,
+    LeadSource,
+    CompanySize,
 )
 from .ai import AIManager
 from .templates import CRMTemplates
@@ -25,6 +37,8 @@ SHEET_NAME = "Sales Pipeline 2026"
 LEADS_WS = "Leads"
 OPPS_WS = "Opportunities"
 ACTIVITIES_WS = "Activities"
+TASKS_WS = "Tasks"
+VIEWS_WS = "_System_Views"
 SUMMARY_WS = "Summary"
 
 
@@ -65,6 +79,24 @@ class CRMManager:
         """Invalidate cache for a worksheet."""
         if worksheet in self._last_fetch:
             del self._last_fetch[worksheet]
+
+    def _ensure_headers(self, worksheet: str, headers: List[str]):
+        """Ensure a worksheet has the expected header row."""
+        try:
+            data = self.sm.read_data(self.sheet_name, worksheet)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(worksheet)
+            data = self.sm.read_data(self.sheet_name, worksheet)
+
+        if not data:
+            self.sm.append_row(self.sheet_name, headers, worksheet)
+            self._invalidate_cache(worksheet)
+            return
+
+        current_header = data[0] if data else []
+        if current_header != headers:
+            self.sm.update_row(self.sheet_name, 1, headers, worksheet)
+            self._invalidate_cache(worksheet)
 
     # -------------------------------------------------------------------------
     # Lead Operations
@@ -454,6 +486,251 @@ class CRMManager:
         if opp_id:
             activities = [a for a in activities if a.opp_id == opp_id]
         return activities
+
+    # -------------------------------------------------------------------------
+    # Task Operations
+    # -------------------------------------------------------------------------
+
+    def add_task(self, task: Task) -> Task:
+        """Add a new task."""
+        self._ensure_headers(TASKS_WS, Task.headers())
+        task.created_at = datetime.now()
+        task.updated_at = datetime.now()
+        if task.status == TaskStatus.COMPLETED and not task.completed_at:
+            task.completed_at = datetime.now()
+
+        try:
+            self.sm.append_row(self.sheet_name, task.to_row(), TASKS_WS)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(TASKS_WS)
+            self.sm.append_row(self.sheet_name, task.to_row(), TASKS_WS)
+
+        self._invalidate_cache(TASKS_WS)
+        return task
+
+    def get_tasks(
+        self,
+        status: Optional[str] = None,
+        due_before: Optional[date] = None,
+        assignee: Optional[str] = None,
+        lead_id: Optional[str] = None,
+        opp_id: Optional[str] = None,
+    ) -> List[Task]:
+        """Retrieve tasks with optional filters."""
+        data = self._get_cached_data(TASKS_WS)
+        if data is None:
+            self._ensure_headers(TASKS_WS, Task.headers())
+            try:
+                data = self.sm.read_data(self.sheet_name, TASKS_WS)
+            except gspread.exceptions.WorksheetNotFound:
+                return []
+
+            if data:
+                self._set_cached_data(TASKS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        tasks = [Task.from_row(row) for row in data[1:] if row and row[0]]
+
+        if status:
+            tasks = [t for t in tasks if t.status.value == status]
+        if due_before:
+            tasks = [t for t in tasks if t.due_date and t.due_date <= due_before]
+        if assignee:
+            assignee_lower = assignee.lower()
+            tasks = [
+                t for t in tasks
+                if t.assignee and t.assignee.lower() == assignee_lower
+            ]
+        if lead_id:
+            tasks = [t for t in tasks if t.lead_id == lead_id]
+        if opp_id:
+            tasks = [t for t in tasks if t.opp_id == opp_id]
+
+        return tasks
+
+    def get_task(self, task_id: str) -> Optional[Task]:
+        """Get a specific task by ID."""
+        tasks = self.get_tasks()
+        return next((t for t in tasks if t.task_id == task_id), None)
+
+    def update_task(self, task: Task) -> bool:
+        """Update an existing task."""
+        data = self._get_cached_data(TASKS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, TASKS_WS)
+            if data:
+                self._set_cached_data(TASKS_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == task.task_id:
+                task.updated_at = datetime.now()
+                if task.status == TaskStatus.COMPLETED and not task.completed_at:
+                    task.completed_at = datetime.now()
+                if task.status != TaskStatus.COMPLETED:
+                    task.completed_at = None
+
+                row_index = i + 1
+                new_row = task.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, TASKS_WS)
+                data[i] = new_row
+                self._set_cached_data(TASKS_WS, data)
+                return True
+
+        return False
+
+    def delete_task(self, task_id: str) -> bool:
+        """Delete a task by ID."""
+        data = self._get_cached_data(TASKS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, TASKS_WS)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == task_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, TASKS_WS)
+                data.pop(i)
+                self._set_cached_data(TASKS_WS, data)
+                return True
+        return False
+
+    # -------------------------------------------------------------------------
+    # Saved Views Operations
+    # -------------------------------------------------------------------------
+
+    def add_saved_view(self, view: SavedView) -> SavedView:
+        """Add a new saved view."""
+        self._ensure_headers(VIEWS_WS, SavedView.headers())
+        view.created_at = datetime.now()
+        view.updated_at = datetime.now()
+        try:
+            self.sm.append_row(self.sheet_name, view.to_row(), VIEWS_WS)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(VIEWS_WS)
+            self.sm.append_row(self.sheet_name, view.to_row(), VIEWS_WS)
+
+        self._invalidate_cache(VIEWS_WS)
+        return view
+
+    def get_saved_views(
+        self,
+        entity: Optional[str] = None,
+        owner: Optional[str] = None,
+    ) -> List[SavedView]:
+        """Retrieve saved views with optional filters."""
+        data = self._get_cached_data(VIEWS_WS)
+        if data is None:
+            self._ensure_headers(VIEWS_WS, SavedView.headers())
+            try:
+                data = self.sm.read_data(self.sheet_name, VIEWS_WS)
+            except gspread.exceptions.WorksheetNotFound:
+                return []
+
+            if data:
+                self._set_cached_data(VIEWS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        views = [SavedView.from_row(row) for row in data[1:] if row and row[0]]
+
+        if entity:
+            views = [v for v in views if v.entity == entity]
+        if owner:
+            owner_lower = owner.lower()
+            views = [v for v in views if v.owner and v.owner.lower() == owner_lower]
+
+        return views
+
+    def get_saved_view(self, view_id: str) -> Optional[SavedView]:
+        """Get a saved view by ID."""
+        views = self.get_saved_views()
+        return next((v for v in views if v.view_id == view_id), None)
+
+    def update_saved_view(self, view: SavedView) -> bool:
+        """Update an existing saved view."""
+        data = self._get_cached_data(VIEWS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, VIEWS_WS)
+            if data:
+                self._set_cached_data(VIEWS_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == view.view_id:
+                view.updated_at = datetime.now()
+                row_index = i + 1
+                new_row = view.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, VIEWS_WS)
+                data[i] = new_row
+                self._set_cached_data(VIEWS_WS, data)
+                return True
+
+        return False
+
+    def delete_saved_view(self, view_id: str) -> bool:
+        """Delete a saved view by ID."""
+        data = self._get_cached_data(VIEWS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, VIEWS_WS)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == view_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, VIEWS_WS)
+                data.pop(i)
+                self._set_cached_data(VIEWS_WS, data)
+                return True
+
+        return False
+
+    # -------------------------------------------------------------------------
+    # Export Operations
+    # -------------------------------------------------------------------------
+
+    def export_entity_csv(self, entity: str) -> str:
+        """Export an entity dataset as CSV content."""
+        entity_normalized = entity.strip().lower()
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        if entity_normalized == "leads":
+            rows = [lead.to_row() for lead in self.get_leads()]
+            writer.writerow(Lead.headers())
+        elif entity_normalized in {"opportunities", "opps"}:
+            rows = [opp.to_row() for opp in self.get_opportunities()]
+            writer.writerow(Opportunity.headers())
+        elif entity_normalized in {"activities", "activity"}:
+            rows = [activity.to_row() for activity in self.get_activities()]
+            writer.writerow(Activity.headers())
+        elif entity_normalized in {"tasks", "task"}:
+            rows = [task.to_row() for task in self.get_tasks()]
+            writer.writerow(Task.headers())
+        else:
+            raise ValueError(f"Unsupported export entity: {entity}")
+
+        writer.writerows(rows)
+        return output.getvalue()
 
     # -------------------------------------------------------------------------
     # Pipeline & Dashboard

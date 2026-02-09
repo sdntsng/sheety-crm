@@ -5,7 +5,19 @@ import gspread
 import time
 from rich.console import Console
 
-from .models import Lead, Opportunity, Activity, PipelineStage, LeadStatus, LeadSource, CompanySize
+from .models import (
+    Lead,
+    Opportunity,
+    Activity,
+    Task,
+    SavedView,
+    PipelineStage,
+    LeadStatus,
+    LeadSource,
+    CompanySize,
+    TaskPriority,
+    TaskStatus,
+)
 
 console = Console()
 
@@ -43,6 +55,14 @@ class CRMTemplates:
         
         self.ensure_worksheet(sh, "Summary")
         console.print("[green]✓ Set up Summary dashboard[/green]")
+        time.sleep(1.5)
+
+        self.ensure_worksheet(sh, "Tasks")
+        console.print("[green]✓ Set up Tasks worksheet[/green]")
+        time.sleep(1.5)
+        
+        self.ensure_worksheet(sh, "_System_Views")
+        console.print("[green]✓ Set up Saved Views worksheet[/green]")
         
         self.ensure_worksheet(sh, "_Schema")
         console.print("[green]✓ Set up Schema reference[/green]")
@@ -66,6 +86,10 @@ class CRMTemplates:
                 self.setup_activities_sheet(ws)
             elif name == "Summary":
                 self.setup_summary_sheet(ws)
+            elif name == "Tasks":
+                self.setup_tasks_sheet(ws)
+            elif name == "_System_Views":
+                self.setup_saved_views_sheet(ws)
             elif name == "_Schema":
                 self.setup_schema_sheet(ws)
             
@@ -135,6 +159,38 @@ class CRMTemplates:
         ws.format("A1:H1", {
             "textFormat": {"bold": True},
             "backgroundColor": {"red": 0.3, "green": 0.2, "blue": 0.2}
+        })
+
+        ws.freeze(rows=1)
+        ws.set_basic_filter()
+
+    def setup_tasks_sheet(self, ws: gspread.Worksheet):
+        """Set up the Tasks worksheet."""
+        headers = Task.headers()
+        ws.append_row(headers)
+
+        ws.format("A1:L1", {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.2, "green": 0.25, "blue": 0.45}
+        })
+
+        ws.freeze(rows=1)
+        ws.set_basic_filter()
+
+        status_values = [s.value for s in TaskStatus]
+        self._add_dropdown_validation(ws, "D2:D1000", status_values)
+
+        priority_values = [p.value for p in TaskPriority]
+        self._add_dropdown_validation(ws, "E2:E1000", priority_values)
+
+    def setup_saved_views_sheet(self, ws: gspread.Worksheet):
+        """Set up the internal saved views worksheet."""
+        headers = SavedView.headers()
+        ws.append_row(headers)
+
+        ws.format("A1:J1", {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.25, "green": 0.25, "blue": 0.25}
         })
 
         ws.freeze(rows=1)

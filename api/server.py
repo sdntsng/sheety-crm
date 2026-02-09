@@ -3,8 +3,9 @@ FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
 from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks, File, UploadFile
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import date
 import csv
@@ -26,8 +27,18 @@ from src.crm.manager import CRMManager
 from api.deps import get_crm_session
 from fastapi import Depends
 from src.crm.models import (
-    Lead, Opportunity, Activity,
-    LeadStatus, LeadSource, PipelineStage, ActivityType, CompanySize
+    Lead,
+    Opportunity,
+    Activity,
+    Task,
+    SavedView,
+    TaskStatus,
+    TaskPriority,
+    LeadStatus,
+    LeadSource,
+    PipelineStage,
+    ActivityType,
+    CompanySize,
 )
 from src.crm.ai import AIManager
 
@@ -192,6 +203,48 @@ class StageUpdate(BaseModel):
 class EmailDraftRequest(BaseModel):
     purpose: Optional[str] = "Introduction"
     tone: Optional[str] = "Professional"
+
+
+class TaskCreate(BaseModel):
+    title: str
+    due_date: Optional[date] = None
+    status: str = "Open"
+    priority: str = "Medium"
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+    assignee: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    due_date: Optional[date] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+    assignee: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class SavedViewCreate(BaseModel):
+    name: str
+    entity: str
+    filters: List[Dict[str, Any]] = Field(default_factory=list)
+    sort_by: Optional[str] = None
+    sort_order: str = "asc"
+    owner: Optional[str] = None
+    is_shared: bool = False
+
+
+class SavedViewUpdate(BaseModel):
+    name: Optional[str] = None
+    entity: Optional[str] = None
+    filters: Optional[List[Dict[str, Any]]] = None
+    sort_by: Optional[str] = None
+    sort_order: Optional[str] = None
+    owner: Optional[str] = None
+    is_shared: Optional[bool] = None
 
 
 # =============================================================================
@@ -667,6 +720,199 @@ def create_activity(data: ActivityCreate, crm: CRMManager = Depends(get_crm_sess
     )
     created = crm.log_activity(activity)
     return created.model_dump()
+
+
+# =============================================================================
+# Tasks Endpoints
+# =============================================================================
+
+@app.get("/api/tasks")
+def list_tasks(
+    status: Optional[str] = Query(None),
+    due_before: Optional[date] = Query(None),
+    assignee: Optional[str] = Query(None),
+    lead_id: Optional[str] = Query(None),
+    opp_id: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Get tasks, optionally filtered."""
+    tasks = crm.get_tasks(
+        status=status,
+        due_before=due_before,
+        assignee=assignee,
+        lead_id=lead_id,
+        opp_id=opp_id,
+    )
+    return {"tasks": [t.model_dump() for t in tasks], "count": len(tasks)}
+
+
+@app.post("/api/tasks", status_code=201)
+def create_task(data: TaskCreate, crm: CRMManager = Depends(get_crm_session)):
+    """Create a task."""
+    if not data.lead_id and not data.opp_id:
+        raise HTTPException(status_code=400, detail="Task must be linked to a lead or opportunity")
+
+    if data.lead_id and not crm.get_lead(data.lead_id):
+        raise HTTPException(status_code=400, detail="Lead not found")
+    if data.opp_id and not crm.get_opportunity(data.opp_id):
+        raise HTTPException(status_code=400, detail="Opportunity not found")
+
+    task = Task(
+        title=data.title,
+        due_date=data.due_date,
+        status=TaskStatus(data.status) if data.status in [s.value for s in TaskStatus] else TaskStatus.OPEN,
+        priority=TaskPriority(data.priority) if data.priority in [p.value for p in TaskPriority] else TaskPriority.MEDIUM,
+        lead_id=data.lead_id,
+        opp_id=data.opp_id,
+        assignee=data.assignee,
+        notes=data.notes,
+    )
+    created = crm.add_task(task)
+    return created.model_dump()
+
+
+@app.put("/api/tasks/{task_id}")
+def update_task(task_id: str, data: TaskUpdate, crm: CRMManager = Depends(get_crm_session)):
+    """Update a task."""
+    task = crm.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "title" in updates:
+        task.title = updates["title"]
+    if "due_date" in updates:
+        task.due_date = updates["due_date"]
+    if "status" in updates:
+        status = updates["status"]
+        task.status = TaskStatus(status) if status in [s.value for s in TaskStatus] else task.status
+    if "priority" in updates:
+        priority = updates["priority"]
+        task.priority = TaskPriority(priority) if priority in [p.value for p in TaskPriority] else task.priority
+    if "lead_id" in updates:
+        task.lead_id = updates["lead_id"]
+    if "opp_id" in updates:
+        task.opp_id = updates["opp_id"]
+    if "assignee" in updates:
+        task.assignee = updates["assignee"]
+    if "notes" in updates:
+        task.notes = updates["notes"]
+
+    success = crm.update_task(task)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update task")
+
+    return task.model_dump()
+
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Delete a task."""
+    success = crm.delete_task(task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"deleted": True}
+
+
+# =============================================================================
+# Saved Views Endpoints
+# =============================================================================
+
+@app.get("/api/views")
+def list_saved_views(
+    entity: Optional[str] = Query(None),
+    owner: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List saved views."""
+    views = crm.get_saved_views(entity=entity, owner=owner)
+    return {"views": [v.model_dump() for v in views], "count": len(views)}
+
+
+@app.post("/api/views", status_code=201)
+def create_saved_view(data: SavedViewCreate, crm: CRMManager = Depends(get_crm_session)):
+    """Create a saved view."""
+    view = SavedView(
+        name=data.name,
+        entity=data.entity,
+        filters=data.filters,
+        sort_by=data.sort_by,
+        sort_order=data.sort_order,
+        owner=data.owner,
+        is_shared=data.is_shared,
+    )
+    created = crm.add_saved_view(view)
+    return created.model_dump()
+
+
+@app.put("/api/views/{view_id}")
+def update_saved_view(view_id: str, data: SavedViewUpdate, crm: CRMManager = Depends(get_crm_session)):
+    """Update a saved view."""
+    view = crm.get_saved_view(view_id)
+    if not view:
+        raise HTTPException(status_code=404, detail="Saved view not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "name" in updates:
+        view.name = updates["name"]
+    if "entity" in updates:
+        view.entity = updates["entity"]
+    if "filters" in updates:
+        view.filters = updates["filters"]
+    if "sort_by" in updates:
+        view.sort_by = updates["sort_by"]
+    if "sort_order" in updates:
+        view.sort_order = updates["sort_order"]
+    if "owner" in updates:
+        view.owner = updates["owner"]
+    if "is_shared" in updates:
+        view.is_shared = updates["is_shared"]
+
+    success = crm.update_saved_view(view)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update saved view")
+
+    return view.model_dump()
+
+
+@app.delete("/api/views/{view_id}")
+def delete_saved_view(view_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Delete a saved view."""
+    success = crm.delete_saved_view(view_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Saved view not found")
+    return {"deleted": True}
+
+
+# =============================================================================
+# Export Endpoints
+# =============================================================================
+
+@app.get("/api/export/{entity}")
+def export_entity_csv(
+    entity: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Export CRM entities as CSV."""
+    try:
+        csv_payload = crm.export_entity_csv(entity)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    entity_name = entity.strip().lower()
+    if entity_name == "opps":
+        entity_name = "opportunities"
+    if entity_name == "activity":
+        entity_name = "activities"
+    if entity_name == "task":
+        entity_name = "tasks"
+
+    filename = f"{entity_name}.csv"
+    return StreamingResponse(
+        iter([csv_payload.encode("utf-8")]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # =============================================================================
