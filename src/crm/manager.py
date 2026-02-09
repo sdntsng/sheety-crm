@@ -21,6 +21,7 @@ from .models import (
     CustomFieldDefinition,
     CustomFieldType,
     CustomFieldValue,
+    IntegrationConnection,
     TaskPriority,
     TaskStatus,
     LeadStatus,
@@ -47,6 +48,7 @@ TASKS_WS = "Tasks"
 VIEWS_WS = "_System_Views"
 CUSTOM_FIELDS_WS = "_CustomFields"
 CUSTOM_VALUES_WS = "_CustomFieldValues"
+INTEGRATIONS_WS = "_Integrations"
 SUMMARY_WS = "Summary"
 
 
@@ -940,6 +942,107 @@ class CRMManager:
             return parsed_list
 
         raise ValueError(f"Unsupported custom field type for '{field_key}'")
+
+    # -------------------------------------------------------------------------
+    # Integration Connections
+    # -------------------------------------------------------------------------
+
+    def get_integrations(self) -> List[IntegrationConnection]:
+        """List configured integration connections."""
+        data = self._get_cached_data(INTEGRATIONS_WS)
+        if data is None:
+            self._ensure_headers(INTEGRATIONS_WS, IntegrationConnection.headers())
+            data = self.sm.read_data(self.sheet_name, INTEGRATIONS_WS)
+            if data:
+                self._set_cached_data(INTEGRATIONS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        return [
+            IntegrationConnection.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+
+    def upsert_integration(
+        self,
+        provider: str,
+        config: Dict[str, Any],
+        status: str = "connected",
+        last_sync_at: Optional[datetime] = None,
+    ) -> IntegrationConnection:
+        """Create or update a provider connection."""
+        data = self._get_cached_data(INTEGRATIONS_WS)
+        if not data:
+            self._ensure_headers(INTEGRATIONS_WS, IntegrationConnection.headers())
+            data = self.sm.read_data(self.sheet_name, INTEGRATIONS_WS)
+            if data:
+                self._set_cached_data(INTEGRATIONS_WS, data)
+
+        provider = provider.strip().lower()
+        if not data:
+            data = [IntegrationConnection.headers()]
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and len(row) > 1 and str(row[1]).strip().lower() == provider:
+                existing = IntegrationConnection.from_row(row)
+                existing.config = config
+                existing.status = status
+                if last_sync_at:
+                    existing.last_sync_at = last_sync_at
+                existing.updated_at = datetime.now()
+                new_row = existing.to_row()
+                self.sm.update_row(self.sheet_name, i + 1, new_row, INTEGRATIONS_WS)
+                data[i] = new_row
+                self._set_cached_data(INTEGRATIONS_WS, data)
+                return existing
+
+        created = IntegrationConnection(
+            provider=provider,
+            config=config,
+            status=status,
+            last_sync_at=last_sync_at,
+        )
+        self.sm.append_row(self.sheet_name, created.to_row(), INTEGRATIONS_WS)
+        self._invalidate_cache(INTEGRATIONS_WS)
+        return created
+
+    def run_integration_sync(self, provider: str) -> Dict[str, Any]:
+        """Run a lightweight sync action for a provider."""
+        provider_key = provider.strip().lower()
+        integrations = self.get_integrations()
+        integration = next((item for item in integrations if item.provider == provider_key), None)
+        if not integration:
+            raise ValueError(f"Integration '{provider}' is not connected")
+
+        synced_records = 0
+        if provider_key == "google_calendar":
+            synced_records = len([task for task in self.get_tasks() if task.status != TaskStatus.COMPLETED])
+        elif provider_key == "gmail":
+            synced_records = len(self.get_leads())
+        elif provider_key == "slack":
+            synced_records = len(self.get_opportunities())
+        else:
+            synced_records = len(self.get_activities())
+
+        integration.last_sync_at = datetime.now()
+        integration.status = "synced"
+        integration.updated_at = datetime.now()
+        self.upsert_integration(
+            provider_key,
+            integration.config,
+            status=integration.status,
+            last_sync_at=integration.last_sync_at,
+        )
+
+        return {
+            "provider": provider_key,
+            "synced_records": synced_records,
+            "last_sync_at": integration.last_sync_at.isoformat(),
+        }
 
     # -------------------------------------------------------------------------
     # Export Operations

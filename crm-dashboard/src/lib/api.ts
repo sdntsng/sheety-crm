@@ -114,6 +114,15 @@ export interface CustomFieldDefinition {
   updated_at: string;
 }
 
+export interface IntegrationConnection {
+  integration_id: string;
+  provider: string;
+  status: string;
+  config: Record<string, unknown>;
+  last_sync_at?: string;
+  updated_at: string;
+}
+
 export interface DashboardData {
   total_leads: number;
   total_opportunities: number;
@@ -638,6 +647,37 @@ export async function deleteCustomField(fieldId: string): Promise<void> {
   return handleResponse(response);
 }
 
+export async function getIntegrations(): Promise<{
+  integrations: IntegrationConnection[];
+  count: number;
+}> {
+  const response = await fetchWithAuth(`${API_BASE}/api/integrations`);
+  return handleResponse(response);
+}
+
+export async function connectIntegration(
+  provider: string,
+  config: Record<string, unknown>,
+): Promise<IntegrationConnection> {
+  const response = await fetchWithAuth(`${API_BASE}/api/integrations/${provider}/connect`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config }),
+  });
+  return handleResponse(response);
+}
+
+export async function syncIntegration(provider: string): Promise<{
+  provider: string;
+  synced_records: number;
+  last_sync_at: string;
+}> {
+  const response = await fetchWithAuth(`${API_BASE}/api/integrations/${provider}/sync`, {
+    method: "POST",
+  });
+  return handleResponse(response);
+}
+
 export async function exportEntityCSV(
   entity: "leads" | "opportunities" | "activities" | "tasks",
 ): Promise<Blob> {
@@ -740,6 +780,79 @@ export async function explainAITopic(topic: string): Promise<{
 
 export async function getAISuggestions(): Promise<{ suggestions: string[] }> {
   const response = await fetchWithAuth(`${API_BASE}/api/ai/suggest`);
+  return handleResponse(response);
+}
+
+export async function parseMeetingNotes(payload: {
+  content: string;
+  lead_id?: string;
+  opp_id?: string;
+}): Promise<{
+  summary: string;
+  sentiment: string;
+  tasks: Record<string, unknown>[];
+  deal_updates: Record<string, unknown>;
+  key_points: string[];
+  objections: string[];
+  new_contacts: Record<string, unknown>[];
+}> {
+  const response = await fetchWithAuth(`${API_BASE}/api/ai/parse-notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function applyParsedNotes(payload: {
+  lead_id?: string;
+  opp_id?: string;
+  tasks?: Record<string, unknown>[];
+  deal_updates?: Record<string, unknown>;
+  key_points?: string[];
+}): Promise<{ success: boolean; applied: Record<string, unknown> }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/ai/parse-notes/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function getCoachTips(params?: {
+  lead_id?: string;
+  opp_id?: string;
+}): Promise<{ tips: { title: string; tip: string }[] }> {
+  const query = new URLSearchParams();
+  if (params?.lead_id) query.set("lead_id", params.lead_id);
+  if (params?.opp_id) query.set("opp_id", params.opp_id);
+  const response = await fetchWithAuth(`${API_BASE}/api/coach/tips?${query}`);
+  return handleResponse(response);
+}
+
+export async function askCoach(payload: {
+  question: string;
+  lead_id?: string;
+  opp_id?: string;
+}): Promise<{ question: string; context: string[]; advice: string }> {
+  const response = await fetchWithAuth(`${API_BASE}/api/coach/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function getForecast(params?: {
+  period?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<Record<string, unknown>> {
+  const query = new URLSearchParams();
+  if (params?.period) query.set("period", params.period);
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  const response = await fetchWithAuth(`${API_BASE}/api/forecast?${query}`);
   return handleResponse(response);
 }
 

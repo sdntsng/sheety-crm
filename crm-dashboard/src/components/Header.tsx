@@ -45,12 +45,19 @@ const ReportsIcon = () => (
     </svg>
 );
 
+const AIIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path d="M12 2l3 6 6 3-6 3-3 6-3-6-6-3 6-3 3-6z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
     { href: '/pipeline', label: 'Pipeline', icon: PipelineIcon },
     { href: '/leads', label: 'Leads', icon: LeadsIcon },
     { href: '/tasks', label: 'Tasks', icon: TasksIcon },
     { href: '/reports', label: 'Reports', icon: ReportsIcon },
+    { href: '/ai', label: 'AI', icon: AIIcon },
 ];
 
 

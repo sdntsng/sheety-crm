@@ -4,7 +4,7 @@ CRM Data Models using Pydantic for validation.
 import json
 from datetime import datetime, date
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 from pydantic import BaseModel, EmailStr, Field
 import uuid
 
@@ -657,4 +657,51 @@ class CustomFieldValue(BaseModel):
     def headers(cls) -> list:
         return [
             "value_id", "entity", "record_id", "field_key", "field_value", "updated_at"
+        ]
+
+
+class IntegrationConnection(BaseModel):
+    """Connection/configuration for an external integration provider."""
+    integration_id: str = Field(default_factory=generate_id)
+    provider: str
+    status: str = "connected"
+    config: Dict[str, Any] = Field(default_factory=dict)
+    last_sync_at: Optional[datetime] = None
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    def to_row(self) -> list:
+        return [
+            self.integration_id,
+            self.provider,
+            self.status,
+            json.dumps(self.config),
+            self.last_sync_at.isoformat() if self.last_sync_at else "",
+            self.updated_at.isoformat(),
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "IntegrationConnection":
+        raw_config = row[3] if len(row) > 3 and row[3] else "{}"
+        try:
+            config = json.loads(raw_config)
+            if not isinstance(config, dict):
+                config = {}
+        except (json.JSONDecodeError, TypeError):
+            config = {}
+
+        last_sync_raw = row[4] if len(row) > 4 and row[4] else None
+        updated_raw = row[5] if len(row) > 5 and row[5] else None
+        return cls(
+            integration_id=str(row[0]) if row and row[0] else generate_id(),
+            provider=str(row[1]) if len(row) > 1 else "",
+            status=str(row[2]) if len(row) > 2 and row[2] else "connected",
+            config=config,
+            last_sync_at=datetime.fromisoformat(last_sync_raw) if last_sync_raw else None,
+            updated_at=datetime.fromisoformat(updated_raw) if updated_raw else datetime.now(),
+        )
+
+    @classmethod
+    def headers(cls) -> list:
+        return [
+            "integration_id", "provider", "status", "config", "last_sync_at", "updated_at"
         ]

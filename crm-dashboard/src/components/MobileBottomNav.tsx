@@ -100,6 +100,22 @@ const ReportsIcon = () => (
   </svg>
 );
 
+const AIIcon = () => (
+  <svg
+    className="w-6 h-6"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    viewBox="0 0 24 24"
+  >
+    <path
+      d="M12 2l3 6 6 3-6 3-3 6-3-6-6-3 6-3 3-6z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { status } = useSession();
@@ -115,6 +131,7 @@ export default function MobileBottomNav() {
     { href: "/leads", label: "Leads", icon: LeadsIcon },
     { href: "/tasks", label: "Tasks", icon: TasksIcon },
     { href: "/reports", label: "Reports", icon: ReportsIcon },
+    { href: "/ai", label: "AI", icon: AIIcon },
     { href: "/settings", label: "Settings", icon: SettingsIcon },
   ];
 

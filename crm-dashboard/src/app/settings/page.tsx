@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react";
 import {
+  connectIntegration,
   createCustomField,
   deleteCustomField,
   getConfig,
   getCustomFields,
+  getIntegrations,
+  syncIntegration,
   Config,
   CustomFieldDefinition,
+  IntegrationConnection,
 } from "@/lib/api";
 import { useSettings } from "@/providers/SettingsProvider";
 import { SkeletonBox } from "@/components/SkeletonLoader";
@@ -28,17 +32,24 @@ export default function SettingsPage() {
   });
   const [customFieldError, setCustomFieldError] = useState<string | null>(null);
   const [customFieldSaving, setCustomFieldSaving] = useState(false);
+  const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
+  const [integrationSaving, setIntegrationSaving] = useState(false);
+  const [integrationProvider, setIntegrationProvider] = useState("google_calendar");
+  const [integrationConfig, setIntegrationConfig] = useState("");
+  const [integrationError, setIntegrationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const [data, fields] = await Promise.all([
+        const [data, fields, integrationsData] = await Promise.all([
           getConfig(),
           getCustomFields(),
+          getIntegrations(),
         ]);
         setConfig(data);
         setCustomFields(fields.fields);
+        setIntegrations(integrationsData.integrations);
       } catch (err) {
         console.error("Failed to fetch config for settings:", err);
       } finally {
@@ -105,6 +116,48 @@ export default function SettingsPage() {
       setCustomFieldError(
         err instanceof Error ? err.message : "Failed to delete custom field.",
       );
+    }
+  };
+
+  const refreshIntegrations = async () => {
+    const data = await getIntegrations();
+    setIntegrations(data.integrations);
+  };
+
+  const connectProvider = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIntegrationSaving(true);
+    try {
+      const parsedConfig = integrationConfig.trim()
+        ? (JSON.parse(integrationConfig) as Record<string, unknown>)
+        : {};
+      await connectIntegration(integrationProvider, parsedConfig);
+      setIntegrationError(null);
+      setIntegrationConfig("");
+      await refreshIntegrations();
+    } catch (err) {
+      setIntegrationError(
+        err instanceof Error
+          ? err.message
+          : "Failed to connect integration. Use valid JSON config.",
+      );
+    } finally {
+      setIntegrationSaving(false);
+    }
+  };
+
+  const runProviderSync = async (provider: string) => {
+    setIntegrationSaving(true);
+    try {
+      await syncIntegration(provider);
+      await refreshIntegrations();
+      setIntegrationError(null);
+    } catch (err) {
+      setIntegrationError(
+        err instanceof Error ? err.message : "Failed to sync integration.",
+      );
+    } finally {
+      setIntegrationSaving(false);
     }
   };
 
@@ -374,6 +427,78 @@ export default function SettingsPage() {
                     onClick={() => removeCustomField(field.field_id)}
                   >
                     Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-sans font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+            <span className="text-[var(--accent-blue)]">■</span> Integrations
+          </h2>
+          <div className="bg-white border-2 border-[var(--border-ink)] p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.1)] space-y-5">
+            <p className="font-mono text-xs text-[var(--text-secondary)] uppercase tracking-wider">
+              Connect providers and run manual sync.
+            </p>
+
+            {integrationError && (
+              <div className="border border-red-500 bg-red-50 text-red-700 p-3 font-mono text-xs">
+                {integrationError}
+              </div>
+            )}
+
+            <form onSubmit={connectProvider} className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <select
+                  value={integrationProvider}
+                  onChange={(e) => setIntegrationProvider(e.target.value)}
+                  className="px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                >
+                  <option value="google_calendar">Google Calendar</option>
+                  <option value="gmail">Gmail</option>
+                  <option value="slack">Slack</option>
+                </select>
+                <button className="btn-primary" type="submit" disabled={integrationSaving}>
+                  {integrationSaving ? "Saving..." : "Connect Provider"}
+                </button>
+              </div>
+              <textarea
+                className="w-full px-3 py-2 border border-[var(--border-pencil)] bg-white font-mono text-xs"
+                rows={3}
+                placeholder={"Optional JSON config, e.g. {\"webhook_url\":\"https://...\"}"}
+                value={integrationConfig}
+                onChange={(e) => setIntegrationConfig(e.target.value)}
+              />
+            </form>
+
+            <div className="space-y-2">
+              {integrations.length === 0 && (
+                <p className="font-mono text-xs text-[var(--text-secondary)]">
+                  No integrations connected yet.
+                </p>
+              )}
+              {integrations.map((integration) => (
+                <div
+                  key={integration.integration_id}
+                  className="border border-[var(--border-pencil)] p-3 bg-[var(--bg-paper)] flex items-center justify-between gap-3"
+                >
+                  <div>
+                    <p className="font-sans font-bold text-sm">{integration.provider}</p>
+                    <p className="font-mono text-[10px] text-[var(--text-secondary)] uppercase">
+                      {integration.status}
+                      {integration.last_sync_at
+                        ? ` • last sync ${new Date(integration.last_sync_at).toLocaleString()}`
+                        : ""}
+                    </p>
+                  </div>
+                  <button
+                    className="btn-secondary text-xs"
+                    onClick={() => runProviderSync(integration.provider)}
+                    disabled={integrationSaving}
+                  >
+                    Sync
                   </button>
                 </div>
               ))}

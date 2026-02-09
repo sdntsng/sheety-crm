@@ -242,6 +242,15 @@ export default function CommandPalette({
               <Command.Item onSelect={() => navigate("/leads")}>
                 <Users className="mr-2 w-4 h-4" /> Leads
               </Command.Item>
+              <Command.Item onSelect={() => navigate("/tasks")}>
+                <Trello className="mr-2 w-4 h-4" /> Tasks
+              </Command.Item>
+              <Command.Item onSelect={() => navigate("/reports")}>
+                <BarChart3 className="mr-2 w-4 h-4" /> Reports
+              </Command.Item>
+              <Command.Item onSelect={() => navigate("/ai")}>
+                <Search className="mr-2 w-4 h-4" /> AI Lab
+              </Command.Item>
               <Command.Item onSelect={() => navigate("/settings")}>
                 <Settings className="mr-2 w-4 h-4" /> Settings
               </Command.Item>

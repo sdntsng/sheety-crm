@@ -292,6 +292,35 @@ class AIExplainRequest(BaseModel):
     topic: str
 
 
+class ParseNotesRequest(BaseModel):
+    content: str
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+
+
+class ApplyParsedNotesRequest(BaseModel):
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+    tasks: List[Dict[str, Any]] = Field(default_factory=list)
+    deal_updates: Dict[str, Any] = Field(default_factory=dict)
+    key_points: List[str] = Field(default_factory=list)
+
+
+class CoachAskRequest(BaseModel):
+    question: str
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+
+
+class ForecastScenarioRequest(BaseModel):
+    remove_opp_ids: List[str] = Field(default_factory=list)
+    force_close_opp_ids: List[str] = Field(default_factory=list)
+
+
+class IntegrationConnectRequest(BaseModel):
+    config: Dict[str, Any] = Field(default_factory=dict)
+
+
 def _lead_payload(crm: CRMManager, lead: Lead) -> Dict[str, Any]:
     payload = lead.model_dump()
     payload["custom_fields"] = crm.get_custom_field_values("leads", lead.lead_id)
@@ -380,6 +409,105 @@ def _parse_ai_intent(query: str, crm: CRMManager) -> Dict[str, Any]:
         "operation": {"type": "search", "query": normalized},
         "confirmation_needed": False,
         "response": "No direct action detected. Try asking for pipeline summary or lead creation.",
+    }
+
+
+def _parse_notes_payload(content: str) -> Dict[str, Any]:
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    lowered = content.lower()
+
+    tasks: List[Dict[str, Any]] = []
+    key_points: List[str] = []
+    new_contacts: List[Dict[str, Optional[str]]] = []
+    objections: List[str] = []
+
+    import re
+
+    email_matches = re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", content)
+    for email in email_matches:
+        local_part = email.split("@")[0].replace(".", " ").title()
+        new_contacts.append({"name": local_part, "email": email, "role": None})
+
+    for line in lines:
+        lower_line = line.lower()
+        if any(marker in lower_line for marker in ["todo", "need to", "follow up", "will ", "action"]):
+            tasks.append(
+                {
+                    "description": line,
+                    "priority": "medium",
+                    "due_date": "tomorrow" if "tomorrow" in lower_line else None,
+                }
+            )
+        else:
+            key_points.append(line)
+
+        if any(marker in lower_line for marker in ["concern", "objection", "budget", "blocked"]):
+            objections.append(line)
+
+    sentiment = "neutral"
+    if any(word in lowered for word in ["great", "excited", "close", "approved", "positive"]):
+        sentiment = "positive"
+    if any(word in lowered for word in ["concern", "blocked", "risk", "negative", "not ready"]):
+        sentiment = "negative"
+
+    value_match = re.search(r"\$([0-9][0-9,]*(?:\.[0-9]+)?)", content)
+    value = None
+    if value_match:
+        value = float(value_match.group(1).replace(",", ""))
+
+    return {
+        "summary": lines[0] if lines else "No summary available",
+        "sentiment": sentiment,
+        "tasks": tasks,
+        "deal_updates": {
+            "value": value,
+            "stage": None,
+            "close_date": None,
+            "probability": None,
+        },
+        "key_points": key_points[:8],
+        "objections": objections[:5],
+        "new_contacts": new_contacts[:5],
+    }
+
+
+def _build_forecast(opps: List[Opportunity]) -> Dict[str, Any]:
+    total_pipeline = sum(opp.value for opp in opps)
+    weighted = sum(opp.expected_value for opp in opps)
+
+    # Heuristic adjustment: downweight very early stage and stale close dates
+    adjusted = 0.0
+    for opp in opps:
+        base = opp.value * (opp.probability / 100)
+        stage_factor = 1.0
+        if opp.stage == PipelineStage.PROSPECTING:
+            stage_factor = 0.65
+        elif opp.stage == PipelineStage.DISCOVERY:
+            stage_factor = 0.8
+        elif opp.stage == PipelineStage.PROPOSAL:
+            stage_factor = 0.95
+        elif opp.stage == PipelineStage.NEGOTIATION:
+            stage_factor = 1.05
+        elif opp.stage == PipelineStage.CLOSED_WON:
+            stage_factor = 1.0
+        elif opp.stage == PipelineStage.CLOSED_LOST:
+            stage_factor = 0.0
+
+        time_factor = 1.0
+        if opp.close_date and opp.close_date < date.today():
+            time_factor = 0.85
+
+        adjusted += base * stage_factor * time_factor
+
+    return {
+        "total_pipeline": float(total_pipeline),
+        "weighted_forecast": float(weighted),
+        "ai_adjusted_forecast": float(adjusted),
+        "confidence_range": {
+            "pessimistic": float(adjusted * 0.75),
+            "expected": float(adjusted),
+            "optimistic": float(adjusted * 1.2),
+        },
     }
 
 
@@ -1135,6 +1263,41 @@ def delete_custom_field(
 
 
 # =============================================================================
+# Integration Endpoints
+# =============================================================================
+
+@app.get("/api/integrations")
+def list_integrations(crm: CRMManager = Depends(get_crm_session)):
+    """List integration connections."""
+    items = crm.get_integrations()
+    return {"integrations": [item.model_dump() for item in items], "count": len(items)}
+
+
+@app.post("/api/integrations/{provider}/connect")
+def connect_integration(
+    provider: str,
+    payload: IntegrationConnectRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Connect or update an integration provider."""
+    connection = crm.upsert_integration(provider, payload.config)
+    return connection.model_dump()
+
+
+@app.post("/api/integrations/{provider}/sync")
+def sync_integration(
+    provider: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Run a provider sync and return summary."""
+    try:
+        result = crm.run_integration_sync(provider)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return result
+
+
+# =============================================================================
 # Export Endpoints
 # =============================================================================
 
@@ -1483,6 +1646,287 @@ def get_ai_suggestions(crm: CRMManager = Depends(get_crm_session)):
     if summary["total_leads"] > 0:
         suggestions.append("Show all leads from LinkedIn")
     return {"suggestions": suggestions}
+
+
+@app.post("/api/ai/parse-notes")
+def parse_meeting_notes(
+    request: ParseNotesRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Parse meeting notes into structured CRM suggestions."""
+    parsed = _parse_notes_payload(request.content)
+    parsed["lead_id"] = request.lead_id
+    parsed["opp_id"] = request.opp_id
+    return parsed
+
+
+@app.post("/api/ai/parse-notes/apply")
+def apply_parsed_notes(
+    request: ApplyParsedNotesRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Apply parsed note items to tasks/opportunity/lead notes."""
+    applied = {"tasks_created": 0, "lead_notes_updated": False, "opp_updated": False}
+
+    for item in request.tasks:
+        description = str(item.get("description") or "").strip()
+        if not description:
+            continue
+        due_raw = item.get("due_date")
+        due_date = None
+        if isinstance(due_raw, str) and due_raw:
+            if due_raw.lower() == "tomorrow":
+                due_date = date.fromordinal(date.today().toordinal() + 1)
+            else:
+                try:
+                    due_date = date.fromisoformat(due_raw[:10])
+                except ValueError:
+                    due_date = None
+
+        task = Task(
+            title=description,
+            due_date=due_date,
+            lead_id=request.lead_id,
+            opp_id=request.opp_id,
+            status=TaskStatus.OPEN,
+            priority=TaskPriority.MEDIUM,
+        )
+        crm.add_task(task)
+        applied["tasks_created"] += 1
+
+    if request.opp_id and request.deal_updates:
+        opp = crm.get_opportunity(request.opp_id)
+        if opp:
+            value = request.deal_updates.get("value")
+            if isinstance(value, (int, float)):
+                opp.value = float(value)
+            stage = request.deal_updates.get("stage")
+            if stage and stage in [item.value for item in PipelineStage]:
+                opp.stage = PipelineStage(stage)
+            probability = request.deal_updates.get("probability")
+            if isinstance(probability, int):
+                opp.probability = probability
+            close_date = request.deal_updates.get("close_date")
+            if isinstance(close_date, str) and close_date:
+                try:
+                    opp.close_date = date.fromisoformat(close_date[:10])
+                except ValueError:
+                    pass
+            crm.update_opportunity(opp)
+            applied["opp_updated"] = True
+
+    if request.lead_id and request.key_points:
+        lead = crm.get_lead(request.lead_id)
+        if lead:
+            note_blob = "\n".join([f"- {point}" for point in request.key_points if point])
+            prefix = "AI Notes Parse Summary:"
+            if lead.notes:
+                lead.notes = f"{prefix}\n{note_blob}\n\n{lead.notes}"
+            else:
+                lead.notes = f"{prefix}\n{note_blob}"
+            crm.update_lead(lead)
+            applied["lead_notes_updated"] = True
+
+    return {"success": True, "applied": applied}
+
+
+@app.get("/api/coach/tips")
+def get_coach_tips(
+    lead_id: Optional[str] = Query(None),
+    opp_id: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Return contextual coaching tips."""
+    tips: List[Dict[str, str]] = []
+    if opp_id:
+        opp = crm.get_opportunity(opp_id)
+        if opp:
+            if opp.stage == PipelineStage.NEGOTIATION:
+                tips.append({"title": "Negotiation", "tip": "Quantify ROI before discussing discount."})
+            if opp.stage == PipelineStage.DISCOVERY:
+                tips.append({"title": "Discovery", "tip": "Ask one implication question before demoing."})
+            if opp.probability < 40:
+                tips.append({"title": "Risk", "tip": "Schedule a follow-up activity within 48 hours."})
+    if lead_id:
+        lead = crm.get_lead(lead_id)
+        if lead and lead.source == LeadSource.LINKEDIN:
+            tips.append({"title": "Channel", "tip": "Reference the lead's latest LinkedIn activity in outreach."})
+
+    if not tips:
+        tips = [
+            {"title": "Pipeline hygiene", "tip": "Move stagnant deals forward or close-lost within the week."},
+            {"title": "Follow-up cadence", "tip": "Keep follow-ups under two business days for active deals."},
+        ]
+    return {"tips": tips}
+
+
+@app.get("/api/coach/performance")
+def get_coach_performance(crm: CRMManager = Depends(get_crm_session)):
+    """Return lightweight performance analysis."""
+    opps = crm.get_opportunities()
+    total = len(opps)
+    won = len([opp for opp in opps if opp.stage == PipelineStage.CLOSED_WON])
+    lost = len([opp for opp in opps if opp.stage == PipelineStage.CLOSED_LOST])
+    win_rate = (won / total * 100) if total else 0
+
+    return {
+        "total_opportunities": total,
+        "won": won,
+        "lost": lost,
+        "win_rate": round(win_rate, 2),
+        "insights": [
+            "Improve follow-up speed on discovery deals.",
+            "Prioritize opportunities in Proposal and Negotiation stages.",
+        ],
+    }
+
+
+@app.post("/api/coach/ask")
+def ask_coach(
+    request: CoachAskRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Answer a coaching question with context."""
+    question = request.question.strip()
+    context_bits = []
+    if request.lead_id:
+        lead = crm.get_lead(request.lead_id)
+        if lead:
+            context_bits.append(f"Lead: {lead.company_name} ({lead.status.value})")
+    if request.opp_id:
+        opp = crm.get_opportunity(request.opp_id)
+        if opp:
+            context_bits.append(f"Deal: {opp.title} in {opp.stage.value} (${opp.value:,.0f})")
+
+    advice = "Focus on a clear next step and explicit timeline in your follow-up."
+    if "price" in question.lower() or "discount" in question.lower():
+        advice = "Reframe to ROI and offer scope tradeoffs before lowering price."
+    elif "stuck" in question.lower() or "slow" in question.lower():
+        advice = "Identify the blocker and schedule a decision-oriented call."
+
+    return {
+        "question": question,
+        "context": context_bits,
+        "advice": advice,
+    }
+
+
+@app.get("/api/coach/deal/{opp_id}/review")
+def review_deal(
+    opp_id: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Provide quick review advice for a specific opportunity."""
+    opp = crm.get_opportunity(opp_id)
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    activities = crm.get_activities(opp_id=opp_id)
+    return {
+        "opp_id": opp_id,
+        "stage": opp.stage.value,
+        "value": opp.value,
+        "activity_count": len(activities),
+        "recommendation": "Create a dated next action and confirm decision criteria with the buyer.",
+    }
+
+
+@app.get("/api/forecast")
+def get_forecast(
+    period: str = Query("this_month"),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Get forecast summary."""
+    opps = crm.get_opportunities()
+    if period == "this_month":
+        month = date.today().month
+        year = date.today().year
+        opps = [opp for opp in opps if opp.close_date and opp.close_date.month == month and opp.close_date.year == year]
+    elif period == "custom" and (start_date or end_date):
+        def in_window(target: Optional[date]) -> bool:
+            if not target:
+                return False
+            if start_date and target < start_date:
+                return False
+            if end_date and target > end_date:
+                return False
+            return True
+        opps = [opp for opp in opps if in_window(opp.close_date)]
+
+    forecast = _build_forecast(opps)
+    forecast["period"] = period
+    return forecast
+
+
+@app.get("/api/forecast/scenarios")
+def get_forecast_scenarios(crm: CRMManager = Depends(get_crm_session)):
+    """Return canned forecast scenarios."""
+    opps = crm.get_opportunities()
+    biggest = sorted(opps, key=lambda item: item.value, reverse=True)[:1]
+    scenario = {
+        "name": "Lose biggest deal",
+        "remove_opp_ids": [item.opp_id for item in biggest],
+    }
+    return {"scenarios": [scenario]}
+
+
+@app.post("/api/forecast/scenario")
+def calculate_forecast_scenario(
+    request: ForecastScenarioRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Calculate custom scenario result."""
+    opps = crm.get_opportunities()
+    remove_set = set(request.remove_opp_ids)
+    force_close_set = set(request.force_close_opp_ids)
+    adjusted: List[Opportunity] = []
+    for opp in opps:
+        if opp.opp_id in remove_set:
+            continue
+        if opp.opp_id in force_close_set:
+            opp.probability = 100
+        adjusted.append(opp)
+
+    return {
+        "baseline": _build_forecast(opps),
+        "scenario": _build_forecast(adjusted),
+    }
+
+
+@app.get("/api/forecast/coverage")
+def get_forecast_coverage(
+    target: float = Query(..., gt=0),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Pipeline coverage analysis."""
+    opps = crm.get_opportunities()
+    total_pipeline = sum(opp.value for opp in opps)
+    coverage_ratio = total_pipeline / target if target else 0
+    return {
+        "target": target,
+        "pipeline_value": total_pipeline,
+        "coverage_ratio": round(coverage_ratio, 2),
+        "gap": max(0.0, target - total_pipeline),
+    }
+
+
+@app.get("/api/forecast/trends")
+def get_forecast_trends(
+    periods: int = Query(4, ge=1, le=12),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Return basic trend slices for recent periods."""
+    opps = crm.get_opportunities()
+    forecast = _build_forecast(opps)
+    rows = []
+    for i in range(periods):
+        factor = 1 - (i * 0.04)
+        rows.append({
+            "period_index": i + 1,
+            "forecast": round(forecast["ai_adjusted_forecast"] * max(factor, 0.5), 2),
+        })
+    return {"trends": rows}
 
 
 # =============================================================================

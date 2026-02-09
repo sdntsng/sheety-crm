@@ -1,4 +1,5 @@
 import typer
+import json
 from rich.console import Console
 
 from .auth import authenticate
@@ -453,6 +454,98 @@ def crm_score_lead(
         console.print(f"[red]Error: {e}[/red]")
 
 
+@app.command()
+def crm_sync(
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """Headless sync/health check for agent workflows."""
+    from .crm.manager import CRMManager
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+
+        # Trigger reads to refresh caches and ensure worksheets exist lazily
+        leads = crm.get_leads()
+        opps = crm.get_opportunities()
+        activities = crm.get_activities()
+        tasks = crm.get_tasks()
+        views = crm.get_saved_views()
+        custom_fields = crm.get_custom_field_definitions()
+
+        result = {
+            "sheet": sheet,
+            "leads": len(leads),
+            "opportunities": len(opps),
+            "activities": len(activities),
+            "tasks": len(tasks),
+            "saved_views": len(views),
+            "custom_fields": len(custom_fields),
+            "status": "ok",
+        }
+        console.print_json(json.dumps(result))
+    except Exception as e:
+        console.print_json(json.dumps({"status": "error", "error": str(e)}))
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def crm_report_daily(
+    format: str = typer.Option("md", help="Output format: md or json"),
+    output: str = typer.Option(None, help="Optional output file path"),
+    sheet: str = typer.Option("Sales Pipeline 2026", help="CRM sheet name"),
+    profile: str = typer.Option("default", help="Profile name")
+):
+    """Generate a daily CRM report for CLI/agent usage."""
+    from datetime import date
+    from .crm.manager import CRMManager
+    try:
+        gc, _ = authenticate(profile)
+        crm = CRMManager(SheetManager(gc), sheet)
+
+        summary = crm.get_pipeline_summary()
+        overdue_tasks = [
+            task for task in crm.get_tasks(status="Open")
+            if task.due_date and task.due_date < date.today()
+        ]
+        duplicates = crm.find_duplicate_leads()
+
+        payload = {
+            "date": date.today().isoformat(),
+            "sheet": sheet,
+            "summary": summary,
+            "overdue_tasks": [task.model_dump() for task in overdue_tasks[:20]],
+            "duplicate_candidates": duplicates[:20],
+        }
+
+        if format == "json":
+            result = json.dumps(payload, indent=2, default=str)
+        else:
+            result = "\n".join([
+                f"# Daily CRM Report ({payload['date']})",
+                "",
+                f"- Sheet: `{sheet}`",
+                f"- Total Leads: {summary['total_leads']}",
+                f"- Total Opportunities: {summary['total_opportunities']}",
+                f"- Pipeline Value: ${summary['total_pipeline_value']:,.0f}",
+                f"- Expected Value: ${summary['total_expected_value']:,.0f}",
+                f"- Closed Won Value: ${summary['closed_won_value']:,.0f}",
+                f"- Cash in Bank: ${summary['cash_in_bank']:,.0f}",
+                f"- Overdue Tasks: {len(overdue_tasks)}",
+                f"- Duplicate Lead Candidates: {len(duplicates)}",
+            ])
+
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(result)
+            console.print(f"[green]Report saved to {output}[/green]")
+        else:
+            console.print(result)
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()
-
