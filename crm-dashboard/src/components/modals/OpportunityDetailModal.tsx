@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import ReactMarkdown from 'react-markdown';
 import {
   Opportunity,
   Activity,
@@ -292,9 +293,26 @@ export default function OpportunityDetailModal({
                           <span className="text-lg leading-none" title={activity.type}>
                             {activityIcon(activity.type)}
                           </span>
-                          <span className="font-sans text-[var(--text-primary)] text-lg leading-snug">
-                            {activity.description || activity.subject}
-                          </span>
+                          <div className="font-sans text-[var(--text-primary)] text-lg leading-snug">
+                            <div className="prose prose-sm max-w-none text-[var(--text-primary)] prose-p:my-0 prose-ul:my-1 prose-ol:my-1 prose-li:my-0">
+                              <ReactMarkdown
+                                components={{
+                                  a: ({ href, children }) => (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-[var(--accent-blue)] underline"
+                                    >
+                                      {children}
+                                    </a>
+                                  ),
+                                }}
+                              >
+                                {activity.description || activity.subject}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
@@ -319,14 +337,19 @@ export default function OpportunityDetailModal({
             onSubmit={handleAddNote}
             className="flex flex-col md:flex-row gap-4"
           >
-            <input
-              type="text"
-              placeholder="Type a new note here..."
-              className="flex-1 bg-white border border-[var(--border-pencil)] px-4 py-3 font-sans shadow-inner focus:border-[var(--accent-blue)] focus:outline-none"
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              autoFocus
-            />
+            <div className="flex-1 space-y-2">
+              <textarea
+                placeholder="Type a new note here..."
+                className="w-full bg-white border border-[var(--border-pencil)] px-4 py-3 font-sans shadow-inner focus:border-[var(--accent-blue)] focus:outline-none"
+                rows={3}
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                autoFocus
+              />
+              <p className="font-mono text-[10px] uppercase text-[var(--text-muted)]">
+                Markdown enabled: **bold**, *italic*, lists, links.
+              </p>
+            </div>
             <button
               type="submit"
               disabled={submitting || !newNote.trim()}
