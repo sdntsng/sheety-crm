@@ -27,6 +27,7 @@ class LeadStatus(str, Enum):
 class LeadSource(str, Enum):
     """How leads are acquired."""
     WEBSITE = "Website"
+    WEB_FORM = "Web Form"
     REFERRAL = "Referral"
     COLD_OUTREACH = "Cold Outreach"
     EVENT = "Event"

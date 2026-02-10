@@ -2,7 +2,7 @@
 FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
-from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks, File, UploadFile, Body
+from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks, File, UploadFile, Body, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
@@ -10,6 +10,7 @@ from typing import List, Optional, Dict, Any
 from datetime import date
 import csv
 import io
+import time
 try:
     import multipart  # type: ignore  # noqa: F401
     MULTIPART_AVAILABLE = True
@@ -22,6 +23,11 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Public lead capture rate limiting (in-memory, per instance)
+PUBLIC_LEAD_RATE_WINDOW_SECONDS = int(os.getenv('PUBLIC_LEAD_RATE_WINDOW_SECONDS', '3600'))
+PUBLIC_LEAD_RATE_MAX = int(os.getenv('PUBLIC_LEAD_RATE_MAX', '20'))
+_public_lead_rate_limit: Dict[str, List[float]] = {}
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -120,6 +126,31 @@ app.add_middleware(
 # =============================================================================
 # Request/Response Models
 # =============================================================================
+
+class PublicLeadCapture(BaseModel):
+    name: str
+    email: str
+    company: Optional[str] = None
+    phone: Optional[str] = None
+    message: Optional[str] = None
+    website: Optional[str] = None
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise ValueError('Name is required.')
+        return name
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        email = value.strip()
+        if '@' not in email:
+            raise ValueError('Valid email required.')
+        return email
+
 
 class LeadCreate(BaseModel):
     company_name: str
@@ -387,6 +418,37 @@ class IntegrationConnectRequest(BaseModel):
 class IntegrationSyncRequest(BaseModel):
     idempotency_key: Optional[str] = None
     max_retries: int = 1
+
+
+def _get_public_client_ip(request: Request) -> str:
+    forwarded = request.headers.get('x-forwarded-for')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    if request.client:
+        return request.client.host
+    return 'unknown'
+
+
+def _enforce_public_lead_rate_limit(request: Request) -> None:
+    ip = _get_public_client_ip(request)
+    now = time.time()
+    window_start = now - PUBLIC_LEAD_RATE_WINDOW_SECONDS
+
+    timestamps = [
+        stamp for stamp in _public_lead_rate_limit.get(ip, [])
+        if stamp >= window_start
+    ]
+
+    if len(timestamps) >= PUBLIC_LEAD_RATE_MAX:
+        retry_after = int(max(1, PUBLIC_LEAD_RATE_WINDOW_SECONDS - (now - min(timestamps))))
+        raise HTTPException(
+            status_code=429,
+            detail='Rate limit exceeded. Try again later.',
+            headers={'Retry-After': str(retry_after)},
+        )
+
+    timestamps.append(now)
+    _public_lead_rate_limit[ip] = timestamps
 
 
 def _lead_payload(crm: CRMManager, lead: Lead) -> Dict[str, Any]:
@@ -693,6 +755,54 @@ def list_leads(
         leads = [l for l in leads if l.owner and l.owner.lower().strip() == owner_key]
 
     return {"leads": [_lead_payload(crm, lead) for lead in leads], "count": len(leads)}
+
+
+@app.post("/api/leads/public", status_code=201)
+def capture_public_lead(
+    payload: PublicLeadCapture,
+    request: Request,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Capture a lead from a public form submission."""
+    _enforce_public_lead_rate_limit(request)
+
+    company_name = (payload.company or '').strip()
+    contact_name = payload.name.strip()
+    if not company_name:
+        company_name = contact_name
+
+    notes_parts = []
+    if payload.message:
+        notes_parts.append(f"Message: {payload.message.strip()}")
+    if payload.phone:
+        notes_parts.append(f"Phone: {payload.phone.strip()}")
+    if payload.website:
+        notes_parts.append(f"Website: {payload.website.strip()}")
+
+    lead = Lead(
+        company_name=company_name,
+        contact_name=contact_name,
+        contact_email=payload.email.strip(),
+        contact_phone=payload.phone.strip() if payload.phone else None,
+        status=LeadStatus.NEW,
+        source=LeadSource.WEB_FORM,
+        notes='\n'.join(notes_parts) if notes_parts else None,
+        website=payload.website.strip() if payload.website else None,
+    )
+    created = crm.add_lead(lead)
+
+    _log_audit(
+        crm,
+        action="public_lead_capture",
+        entity="leads",
+        record_id=created.lead_id,
+        metadata={
+            "ip": _get_public_client_ip(request),
+            "source": LeadSource.WEB_FORM.value,
+        },
+    )
+
+    return {"success": True, "lead_id": created.lead_id}
 
 
 @app.get("/api/leads/duplicates")
