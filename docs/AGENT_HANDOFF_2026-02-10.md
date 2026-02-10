@@ -10,6 +10,8 @@ Continue delivering the master implementation plan on branch `feat/ai-lead-scori
 - PR title: `feat: deliver master CRM tranche (core, AI, integrations, CLI, E2E)`
 
 ## Recently Pushed Commits (latest first)
+- `2fd8bf2` feat(collab): add owner assignment and my leads filter
+- `e8cfe8f` feat(notes): add markdown rendering for activity notes
 - `f84c34b` feat(frontend): add public lead capture form
 - `047f542` feat(api): add public lead capture with rate limiting
 - `31152ae` test(e2e): refresh evidence after UI polish
@@ -51,6 +53,8 @@ Continue delivering the master implementation plan on branch `feat/ai-lead-scori
 
 ### Frontend
 - Leads page: advanced filters + saved views + bulk actions + duplicate scan + export
+- Leads page: owner assignment, My Leads filter, inline owner editing
+- Activity timeline: Markdown rendering for notes + activity icons
 - Tasks page
 - Reports page
 - AI Lab page + command palette AI actions
@@ -65,6 +69,10 @@ Continue delivering the master implementation plan on branch `feat/ai-lead-scori
   - analytics charts (funnel/trend/mix) via `DashboardCharts.tsx`
 - Public lead capture form at `/forms/contact` (header and mobile nav hidden for this route)
 
+### Collaboration
+- Owner field assignable in UI
+- Activity log shows `created_by`
+
 ### CLI
 - Added/expanded `crm-sync`, `crm-report-daily`, and related CLI surface in this branch
 
@@ -74,16 +82,15 @@ Continue delivering the master implementation plan on branch `feat/ai-lead-scori
 
 ## Current Working Tree
 - Clean (no tracked changes)
-- Untracked: this file only (`docs/AGENT_HANDOFF_2026-02-10.md`)
 
 ## Validation Status Right Now
 - `python3 -m py_compile src/crm/models.py api/server.py` passed
 - `cd crm-dashboard && npx tsc --noEmit` passed
-- `cd crm-dashboard && npx eslint ...` passes with existing `@next/next/no-img-element` warning in `crm-dashboard/src/components/Header.tsx`
+- `cd crm-dashboard && npx eslint ...` passes with existing warnings on `@next/next/no-img-element`
 
 ## Remaining Gaps vs Open Product Issues (non-marketing)
-- #59 Lead Magnet Capture Form is implemented and pushed
-- Other open issues not re-verified in this handoff; review `gh issue list` for any remaining product/CLI/AI/integration gaps
+- #53 docs screenshots for `docs/GOOGLE_SETUP.md` still pending (requires manual Google Cloud Console screenshots)
+- Attempted to close resolved issues via `gh issue close` but hit `error connecting to api.github.com`
 
 ## Useful Commands
 - Status:
