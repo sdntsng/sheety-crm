@@ -146,6 +146,7 @@ export default function MobileBottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              title={item.label}
               className={`flex flex-col items-center gap-1 min-w-[64px] transition-all duration-200 ${
                 isActive
                   ? "text-[var(--accent-blue)] -translate-y-1"

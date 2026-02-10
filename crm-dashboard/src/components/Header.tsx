@@ -133,6 +133,7 @@ export default function Header() {
                                 <Link
                                     key={item.href}
                                     href={item.href}
+                                    title={item.label}
                                     className={`header-nav-item flex items-center gap-2 ${pathname === item.href ? 'active border-b-2 border-[var(--accent-blue)] text-[var(--accent-blue)]' : 'border-transparent'}`}
                                 >
                                     <Icon />

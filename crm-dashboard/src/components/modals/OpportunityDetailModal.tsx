@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Opportunity,
   Activity,
@@ -30,12 +30,7 @@ export default function OpportunityDetailModal({
   const [newNote, setNewNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadActivities();
-    loadAnalysis();
-  }, [opportunity.opp_id]);
-
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     setLoadingActivities(true);
     try {
       const data = await getActivities(undefined, opportunity.opp_id);
@@ -50,9 +45,9 @@ export default function OpportunityDetailModal({
     } finally {
       setLoadingActivities(false);
     }
-  };
+  }, [opportunity.opp_id]);
 
-  const loadAnalysis = async () => {
+  const loadAnalysis = useCallback(async () => {
     setLoadingAnalysis(true);
     try {
       const data = await getOpportunityAnalysis(opportunity.opp_id);
@@ -62,7 +57,12 @@ export default function OpportunityDetailModal({
     } finally {
       setLoadingAnalysis(false);
     }
-  };
+  }, [opportunity.opp_id]);
+
+  useEffect(() => {
+    loadActivities();
+    loadAnalysis();
+  }, [loadActivities, loadAnalysis]);
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +102,14 @@ export default function OpportunityDetailModal({
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
+  };
+
+  const activityIcon = (type: string) => {
+    const normalized = type.toLowerCase();
+    if (normalized.includes("call")) return "📞";
+    if (normalized.includes("email")) return "✉️";
+    if (normalized.includes("meeting")) return "📅";
+    return "📝";
   };
 
   return (
@@ -224,7 +232,7 @@ export default function OpportunityDetailModal({
                         Risk Reason
                       </div>
                       <p className="font-sans text-sm text-[var(--text-primary)] italic">
-                        "{analysis.risk_reason}"
+                        {`"${analysis.risk_reason}"`}
                       </p>
                     </div>
                     <div className="bg-blue-50 p-3 border border-dashed border-blue-200">
@@ -280,9 +288,14 @@ export default function OpportunityDetailModal({
 
                     <div className="flex flex-col gap-1">
                       <div className="flex justify-between items-baseline">
-                        <span className="font-sans text-[var(--text-primary)] text-lg leading-snug">
-                          {activity.description || activity.subject}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg leading-none" title={activity.type}>
+                            {activityIcon(activity.type)}
+                          </span>
+                          <span className="font-sans text-[var(--text-primary)] text-lg leading-snug">
+                            {activity.description || activity.subject}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.5 border border-[var(--border-pencil)] rounded bg-white text-[var(--text-secondary)]">
