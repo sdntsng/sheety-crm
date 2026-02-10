@@ -20,6 +20,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `POST /api/import/csv/preview` - Preview mapped data
   - `POST /api/import/csv/execute` - Execute batch import
 - **Navigation**: Import CSV button added to Leads page
+- **Tasks & Reminders**: Task CRUD, filters, and dedicated `/tasks` UI.
+- **Saved Views**: Advanced filters with reusable saved views for leads.
+- **Bulk Actions**: Server-side bulk updates and deletes for leads/opportunities.
+- **Custom Fields**: Definitions, validation, and value storage for leads/opps.
+- **Duplicate Detection**: Detection, merge suggestions, and smart merge execution.
+- **Reports**: Pipeline and activity reporting dashboard.
+- **AI-native CRM**: Command parsing/execution, meeting notes parser, AI lab, and coaching/forecast endpoints.
+- **Integrations**: Connector framework with sync runs, retries, and audit log.
+- **Email Templates**: CRUD, preview rendering, and clipboard-ready templates.
+- **Workflow Rules**: If/then automation for lead creation and stage changes.
+- **Lead Capture**: Public lead capture form at `/forms/contact` and `/api/leads/public`.
+- **Markdown Notes**: Markdown rendering for activity notes in the timeline.
+- **Collaboration**: Owner assignment and "My Leads" filtering.
+- **Dashboard Analytics**: Funnel, trend, and mix charts.
+- **CLI Enhancements**: `crm-sync` and `crm-report-daily` commands.
+- **E2E Harness**: Master end-to-end runner with evidence artifacts.
+
+### Changed
+- **Settings**: Expanded settings for integrations, workflows, and templates.
 
 ## [0.52.0] - 2026-01-18
 **AI Enrichment & Data Scaling**
