@@ -1,0 +1,409 @@
+{
+  "timestamp_utc": "2026-02-09T17:22:24.407750+00:00",
+  "passed": 67,
+  "failed": 0,
+  "results": [
+    {
+      "name": "health",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_leads",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_opportunities",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_leads_by_owner",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_opportunities_by_owner",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "dashboard",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "pipeline",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "create_task",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "list_tasks",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "update_task",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "delete_task",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "create_saved_view",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "list_saved_views",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "update_saved_view",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "delete_saved_view",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "create_custom_field",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "create_lead_with_custom_fields",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "get_lead_with_custom_fields",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "bulk_update_leads_status",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "bulk_delete_leads",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "delete_custom_field",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "create_email_template",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "list_email_templates",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "render_email_template",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "update_email_template",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "delete_email_template",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "create_workflow_rule",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "list_workflow_rules",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "evaluate_workflow_rules",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "update_workflow_rule",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "delete_workflow_rule",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "detect_duplicate_leads",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "create_duplicate_lead_a",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "create_duplicate_lead_b",
+      "ok": true,
+      "status": 201,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "suggest_duplicate_merge",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "merge_duplicate_leads",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "reports",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "export_leads_csv",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "export_leads_csv_content_type",
+      "ok": true,
+      "status": null,
+      "detail": "text/csv; charset=utf-8"
+    },
+    {
+      "name": "ai_parse",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "ai_execute",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "ai_explain",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "ai_suggest",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "ai_parse_notes",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "ai_apply_parsed_notes",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "coach_tips",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "coach_performance",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "coach_ask",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "coach_deal_review",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "forecast",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "forecast_scenarios",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "forecast_custom_scenario",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "forecast_coverage",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "forecast_trends",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_integrations_initial",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "connect_integration_google_calendar",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "sync_integration_google_calendar",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "sync_integration_google_calendar_dedup",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "integration_sync_deduplicated",
+      "ok": true,
+      "status": null,
+      "detail": "True"
+    },
+    {
+      "name": "list_integrations_after_connect",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_integration_runs_provider",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_integration_runs_all",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list_audit_events",
+      "ok": true,
+      "status": 200,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "audit_events_populated",
+      "ok": true,
+      "status": null,
+      "detail": "count=17"
+    },
+    {
+      "name": "csv_import_endpoint_check",
+      "ok": true,
+      "status": 503,
+      "detail": "HTTP 503"
+    },
+    {
+      "name": "csv_import_graceful_degradation",
+      "ok": true,
+      "status": null,
+      "detail": "disabled without python-multipart"
+    },
+    {
+      "name": "cli_commands_registered",
+      "ok": true,
+      "status": null,
+      "detail": "return_code=0"
+    }
+  ]
+}

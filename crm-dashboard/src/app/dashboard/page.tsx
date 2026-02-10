@@ -3,14 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { getDashboard, DashboardData } from "@/lib/api";
+import {
+  getDashboard,
+  getLeads,
+  getOpportunities,
+  getTasks,
+  DashboardData,
+  Task,
+} from "@/lib/api";
 import { useSettings } from "@/providers/SettingsProvider";
 import StatCard from "@/components/StatCard";
+import DashboardCharts from "@/components/DashboardCharts";
 import Link from "next/link";
 import SheetSelector from "@/components/SheetSelector";
 import { SkeletonBox, SkeletonStatCard } from "@/components/SkeletonLoader";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import OnboardingTour, { isTourCompleted } from "@/components/OnboardingTour";
 
 function DashboardSkeleton({ subtitle }: { subtitle: string }) {
   return (
@@ -85,7 +92,9 @@ function DashboardPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
   const [checkingStorage, setCheckingStorage] = useState(true);
-  const [runTour, setRunTour] = useState(false);
+  const [myTasks, setMyTasks] = useState<Task[]>([]);
+  const [myLeadCount, setMyLeadCount] = useState(0);
+  const [myDealCount, setMyDealCount] = useState(0);
 
   useEffect(() => {
     // Check for sheet selection in local storage
@@ -94,24 +103,6 @@ function DashboardPageContent() {
       setSelectedSheet(saved);
     }
     setCheckingStorage(false);
-
-    // Check if we should run the tour (first login)
-    if (saved && !isTourCompleted()) {
-      let retryCount = 0;
-      const maxRetries = 10;
-
-      const checkElementsAndStartTour = () => {
-        const dashboardLink = document.querySelector('[data-tour="dashboard"]');
-        if (dashboardLink) {
-          setRunTour(true);
-        } else if (retryCount < maxRetries) {
-          retryCount++;
-          setTimeout(checkElementsAndStartTour, 200);
-        }
-      };
-
-      setTimeout(checkElementsAndStartTour, 500);
-    }
   }, []);
 
   const handleSheetSelection = (sheet: { id: string; name: string }) => {
@@ -125,8 +116,29 @@ function DashboardPageContent() {
     async function fetchData() {
       setLoading(true); // Ensure loading is true when we start fetching
       try {
-        const dashboard = await getDashboard();
+        const [dashboard, tasks, myLeads, myDeals] = await Promise.all([
+          getDashboard(),
+          getTasks(
+            session?.user?.email
+              ? { assignee: session.user.email, status: "Open" }
+              : { status: "Open" },
+          ),
+          session?.user?.email ? getLeads(undefined, undefined, session.user.email) : Promise.resolve({ leads: [], count: 0 }),
+          session?.user?.email ? getOpportunities(undefined, undefined, session.user.email) : Promise.resolve({ opportunities: [], count: 0 }),
+        ]);
         setData(dashboard);
+        setMyLeadCount(myLeads.count);
+        setMyDealCount(myDeals.count);
+        setMyTasks(
+          tasks.tasks
+            .filter((task) => task.status !== "Completed")
+            .sort((a, b) => {
+              if (!a.due_date) return 1;
+              if (!b.due_date) return -1;
+              return a.due_date.localeCompare(b.due_date);
+            })
+            .slice(0, 5),
+        );
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to fetch dashboard",
@@ -138,7 +150,7 @@ function DashboardPageContent() {
     if (status === "authenticated") {
       fetchData();
     }
-  }, [selectedSheet, status]);
+  }, [selectedSheet, status, session?.user?.email]);
 
   // 1. Loading State (Init or Auth check)
   if (status === "loading" || checkingStorage) {
@@ -209,7 +221,7 @@ function DashboardPageContent() {
             A clean desk!
           </h2>
           <p className="font-sans italic text-[var(--text-secondary)] text-lg mb-8">
-            "The secret of getting ahead is getting started."
+            {"The secret of getting ahead is getting started."}
           </p>
           <div className="flex flex-col gap-3">
             <Link href="/leads" className="btn-primary">
@@ -284,6 +296,12 @@ function DashboardPageContent() {
         />
       </div>
 
+      <DashboardCharts
+        funnelData={data.funnel_chart || []}
+        trendData={data.trend_chart || []}
+        mixData={data.mix_chart || []}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Pipeline Stages - List on Paper */}
         <div className="lg:col-span-2 paper-card p-0 bg-white overflow-hidden">
@@ -357,6 +375,45 @@ function DashboardPageContent() {
               ))}
             </div>
 
+            <div className="mt-8">
+              <h3 className="font-sans font-bold text-lg mb-3">My Tasks</h3>
+              <div className="space-y-2">
+                {myTasks.length === 0 && (
+                  <p className="font-mono text-xs text-[var(--text-secondary)]">
+                    No open tasks assigned.
+                  </p>
+                )}
+                {myTasks.map((task) => (
+                  <div
+                    key={task.task_id}
+                    className="border border-[var(--border-pencil)] bg-white px-3 py-2"
+                  >
+                    <p className="font-sans text-sm font-semibold">{task.title}</p>
+                    <p className="font-mono text-[10px] text-[var(--text-secondary)]">
+                      {task.due_date
+                        ? `Due ${new Date(task.due_date).toLocaleDateString()}`
+                        : "No due date"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <div className="border border-[var(--border-pencil)] bg-white px-3 py-2">
+                <p className="font-mono text-[10px] uppercase text-[var(--text-secondary)]">
+                  My Leads
+                </p>
+                <p className="font-sans text-lg font-bold">{myLeadCount}</p>
+              </div>
+              <div className="border border-[var(--border-pencil)] bg-white px-3 py-2">
+                <p className="font-mono text-[10px] uppercase text-[var(--text-secondary)]">
+                  My Deals
+                </p>
+                <p className="font-sans text-lg font-bold">{myDealCount}</p>
+              </div>
+            </div>
+
             <div className="mt-8 pt-4 border-t-2 border-[var(--border-ink)]">
               <Link
                 href="/leads"
@@ -371,8 +428,6 @@ function DashboardPageContent() {
           </div>
         </div>
       </div>
-      {/* Onboarding Tour */}
-      <OnboardingTour run={runTour} onComplete={() => setRunTour(false)} />
     </div>
   );
 }

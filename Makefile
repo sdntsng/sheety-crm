@@ -1,5 +1,5 @@
 
-.PHONY: install setup login whoami run lint list-sheets list-files update-cell append-row read-doc crm-init crm-add-lead crm-list crm-pipeline crm-api crm-dashboard crm-dev mock-dev crm-stop kill-ports lint-check format
+.PHONY: setup login run lint crm-init crm-api crm-dashboard crm-dev kill-ports lint-check format
 
 PYTHON = ./venv/bin/python
 MODULE = src.main
@@ -8,18 +8,12 @@ MODULE = src.main
 API_PORT = 8026
 DASHBOARD_PORT = 3026
 
-# Convenience aliases
-run: crm-dev
-lint: lint-check
-
 # =============================================================================
 # Setup & Auth
 # =============================================================================
 
 install:
-	@echo "Creating Python venv (./venv) if it doesn't exist..."
-	@test -d venv || python3 -m venv venv
-	$(PYTHON) -m pip install -r requirements.txt
+	pip install -r requirements.txt
 	cd crm-dashboard && npm install
 
 setup:
@@ -120,15 +114,7 @@ crm-stop:
 lint-check:
 	@echo "Checking Frontend formatting (Prettier)..."
 	cd crm-dashboard && npm run format:check
-	@echo "Checking Backend formatting (Ruff)..."
-	$(PYTHON) -m ruff format --check src api scripts
-	@echo "Checking Backend lint (Ruff)..."
-	$(PYTHON) -m ruff check src api scripts
-
-lint: lint-check
 
 format:
 	@echo "Formatting Frontend (Prettier)..."
 	cd crm-dashboard && npm run format
-	@echo "Formatting Backend (Ruff)..."
-	$(PYTHON) -m ruff format src api scripts

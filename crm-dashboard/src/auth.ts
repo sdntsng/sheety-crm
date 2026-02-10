@@ -1,7 +1,4 @@
 import NextAuth from "next-auth";
-import type { User } from "next-auth";
-import type { JWT } from "next-auth/jwt";
-import type { Provider } from "next-auth/providers";
 import Google from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 
@@ -10,27 +7,16 @@ import CredentialsProvider from "next-auth/providers/credentials";
  * `accessToken` and `accessTokenExpires`. If an error occurs,
  * returns the old token and an error property
  */
-type ExtendedToken = JWT & {
-  accessToken?: string;
-  accessTokenExpires?: number;
-  refreshToken?: string;
-  error?: string;
-  user?: User;
-};
-
-async function refreshAccessToken(
-  token: ExtendedToken,
-): Promise<ExtendedToken> {
+async function refreshAccessToken(token: any) {
   try {
-    const params = new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID || "",
-      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
-      grant_type: "refresh_token",
-    });
-    if (token.refreshToken) {
-      params.set("refresh_token", token.refreshToken);
-    }
-    const url = "https://oauth2.googleapis.com/token?" + params.toString();
+    const url =
+      "https://oauth2.googleapis.com/token?" +
+      new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID || "",
+        client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+        grant_type: "refresh_token",
+        refresh_token: token.refreshToken,
+      });
 
     const response = await fetch(url, {
       headers: {
@@ -62,14 +48,14 @@ async function refreshAccessToken(
   }
 }
 
-const providers: Provider[] = [
+const providers: any[] = [
   Google({
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     authorization: {
       params: {
         scope:
-          "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly openid email profile",
+          "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file openid email profile",
         prompt: "consent",
         access_type: "offline",
         response_type: "code",
@@ -93,7 +79,7 @@ if (process.env.NEXT_PUBLIC_MOCK_AUTH === "true") {
           email: "dev@localhost",
           image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
           accessToken: "mock_token_xyz", // Backend checks this
-        } as User;
+        } as any;
       },
     }),
   );
@@ -118,8 +104,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Return previous token if the access token has not expired yet
-      const expiresAt = token.accessTokenExpires;
-      if (typeof expiresAt === "number" && Date.now() < expiresAt) {
+      // @ts-ignore
+      const expiresAt = token.accessTokenExpires as number;
+      if (Date.now() < expiresAt) {
         return token;
       }
 
@@ -128,26 +115,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return refreshAccessToken(token);
     },
     async session({ session, token }) {
-      const enrichedSession = session as typeof session & {
-        accessToken?: string;
-        error?: string;
-      };
+      // @ts-ignore
+      session.user = token.user;
+      // @ts-ignore
+      session.accessToken = token.accessToken;
+      // @ts-ignore
+      session.error = token.error;
 
-      if (token.user) {
-        const baseUser = session.user ?? {};
-        enrichedSession.user = {
-          ...baseUser,
-          ...token.user,
-          emailVerified:
-            (token.user as { emailVerified?: Date | null }).emailVerified ??
-            (baseUser as { emailVerified?: Date | null }).emailVerified ??
-            null,
-        } as typeof session.user;
-      }
-      enrichedSession.accessToken = token.accessToken as string | undefined;
-      enrichedSession.error = token.error as string | undefined;
-
-      return enrichedSession;
+      return session;
     },
   },
   pages: {

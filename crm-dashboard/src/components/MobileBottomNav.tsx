@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState, useRef, useEffect } from "react";
 
 // Icons
 const DashboardIcon = () => (
@@ -48,6 +47,22 @@ const LeadsIcon = () => (
   </svg>
 );
 
+const TasksIcon = () => (
+  <svg
+    className="w-6 h-6"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    viewBox="0 0 24 24"
+  >
+    <path
+      d="M9 6h11M9 12h11M9 18h11M5 6h.01M5 12h.01M5 18h.01"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const SettingsIcon = () => (
   <svg
     className="w-6 h-6"
@@ -69,9 +84,45 @@ const SettingsIcon = () => (
   </svg>
 );
 
+const ReportsIcon = () => (
+  <svg
+    className="w-6 h-6"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    viewBox="0 0 24 24"
+  >
+    <path
+      d="M4 19V5m6 14V9m6 10v-6m4 6H2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const AIIcon = () => (
+  <svg
+    className="w-6 h-6"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    viewBox="0 0 24 24"
+  >
+    <path
+      d="M12 2l3 6 6 3-6 3-3 6-3-6-6-3 6-3 3-6z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { status } = useSession();
+
+  if (pathname.startsWith('/forms')) {
+    return null;
+  }
 
   // Hide if not authenticated or on login page
   if (status !== "authenticated" || pathname === "/login" || pathname === "/") {
@@ -82,6 +133,9 @@ export default function MobileBottomNav() {
     { href: "/dashboard", label: "Dashboard", icon: DashboardIcon },
     { href: "/pipeline", label: "Pipeline", icon: PipelineIcon },
     { href: "/leads", label: "Leads", icon: LeadsIcon },
+    { href: "/tasks", label: "Tasks", icon: TasksIcon },
+    { href: "/reports", label: "Reports", icon: ReportsIcon },
+    { href: "/ai", label: "AI", icon: AIIcon },
     { href: "/settings", label: "Settings", icon: SettingsIcon },
   ];
 
@@ -96,6 +150,7 @@ export default function MobileBottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              title={item.label}
               className={`flex flex-col items-center gap-1 min-w-[64px] transition-all duration-200 ${
                 isActive
                   ? "text-[var(--accent-blue)] -translate-y-1"

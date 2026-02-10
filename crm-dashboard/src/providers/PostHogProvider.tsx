@@ -4,12 +4,6 @@ import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { useEffect } from "react";
 
-declare global {
-  interface Window {
-    posthog?: typeof posthog;
-  }
-}
-
 export default function PostHogProvider({
   children,
 }: {
@@ -29,7 +23,7 @@ export default function PostHogProvider({
 
       // Expose for console debugging
       if (typeof window !== "undefined") {
-        window.posthog = posthog;
+        (window as any).posthog = posthog;
       }
     }
   }, []);

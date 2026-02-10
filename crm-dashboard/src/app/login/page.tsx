@@ -1,8 +1,52 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
+  const [providerIds, setProviderIds] = useState<string[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProviders() {
+      try {
+        const response = await fetch("/api/auth/providers");
+        const providers = (await response.json()) as Record<string, unknown>;
+        setProviderIds(Object.keys(providers || {}));
+      } catch {
+        setProviderIds(["google"]);
+      } finally {
+        setProvidersLoading(false);
+      }
+    }
+    loadProviders();
+  }, []);
+
+  const isMockAuth = useMemo(
+    () => providerIds.includes("mock-login"),
+    [providerIds],
+  );
+
+  const handleSignIn = async () => {
+    if (isMockAuth) {
+      window.location.href = "/api/auth/signin/mock-login?callbackUrl=%2Fdashboard";
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/auth/providers");
+      const providers = (await response.json()) as Record<string, unknown>;
+      if (providers["mock-login"]) {
+        window.location.href = "/api/auth/signin/mock-login?callbackUrl=%2Fdashboard";
+        return;
+      }
+      await signIn("google", { callbackUrl: "/dashboard" });
+      return;
+    } catch {
+      await signIn("google", { callbackUrl: "/dashboard" });
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--bg-paper)] p-4">
       <div className="glass-card max-w-md w-full p-8 text-center space-y-6">
@@ -17,7 +61,8 @@ export default function LoginPage() {
 
         <div className="py-4">
           <button
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+            onClick={handleSignIn}
+            disabled={providersLoading}
             className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-all font-medium shadow-sm hover:shadow-md"
           >
             {/* Google Icon */}
@@ -42,7 +87,13 @@ export default function LoginPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span className="text-white">Continue with Google</span>
+            <span className="text-white">
+              {providersLoading
+                ? "Checking sign-in options..."
+                : isMockAuth
+                  ? "Continue in Mock Mode"
+                  : "Continue with Google"}
+            </span>
           </button>
         </div>
 

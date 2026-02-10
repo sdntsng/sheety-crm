@@ -1,23 +1,40 @@
 """
 CRM Manager - Business logic layer for CRM operations.
 """
-
-from datetime import datetime
+import csv
+import difflib
+import io
+import json
+import re
+from datetime import date, datetime
 from typing import List, Optional, Dict, Any
 from rich.console import Console
 from rich.table import Table
-from google.oauth2.credentials import Credentials
 
 from ..sheets import SheetManager
 from .models import (
     Lead,
     Opportunity,
     Activity,
+    Task,
+    SavedView,
+    CustomFieldDefinition,
+    CustomFieldType,
+    CustomFieldValue,
+    EmailTemplate,
+    WorkflowRule,
+    IntegrationConnection,
+    IntegrationSyncRun,
+    AuditLogEntry,
+    TaskPriority,
+    TaskStatus,
     LeadStatus,
     PipelineStage,
     ActivityType,
+    LeadSource,
     CompanySize,
 )
+from .ai import AIManager
 from .templates import CRMTemplates
 from .enrichment import enrichment_service
 from .analyzer import deal_analyzer
@@ -31,29 +48,29 @@ SHEET_NAME = "Sales Pipeline 2026"
 LEADS_WS = "Leads"
 OPPS_WS = "Opportunities"
 ACTIVITIES_WS = "Activities"
+TASKS_WS = "Tasks"
+VIEWS_WS = "_System_Views"
+CUSTOM_FIELDS_WS = "_CustomFields"
+CUSTOM_VALUES_WS = "_CustomFieldValues"
+EMAIL_TEMPLATES_WS = "_EmailTemplates"
+WORKFLOW_RULES_WS = "_WorkflowRules"
+INTEGRATIONS_WS = "_Integrations"
+INTEGRATION_RUNS_WS = "_IntegrationSyncRuns"
+AUDIT_LOG_WS = "_AuditLog"
 SUMMARY_WS = "Summary"
-
-# Email sync constants
-MAX_EMAIL_DESCRIPTION_LENGTH = 500
 
 
 class CRMManager:
     """Manages CRM operations against Google Sheets."""
 
-    def __init__(
-        self,
-        sheet_manager: SheetManager,
-        sheet_name: str = SHEET_NAME,
-        google_creds: Optional[Credentials] = None,
-    ):
+    def __init__(self, sheet_manager: SheetManager, sheet_name: str = SHEET_NAME):
         self.sm = sheet_manager
         self.sheet_name = sheet_name
-        self.google_creds = google_creds
-
+        self.templates = CRMTemplates(self.sm.gc)
+        
         # Caching
         self._cache: Dict[str, List[Any]] = {}
         self._last_fetch: Dict[str, datetime] = {}
-        self.templates = CRMTemplates(self.sm.gc)
         self.CACHE_TTL = 30  # seconds
 
     def _ensure_worksheet_exists(self, worksheet_name: str):
@@ -81,6 +98,24 @@ class CRMManager:
         if worksheet in self._last_fetch:
             del self._last_fetch[worksheet]
 
+    def _ensure_headers(self, worksheet: str, headers: List[str]):
+        """Ensure a worksheet has the expected header row."""
+        try:
+            data = self.sm.read_data(self.sheet_name, worksheet)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(worksheet)
+            data = self.sm.read_data(self.sheet_name, worksheet)
+
+        if not data:
+            self.sm.append_row(self.sheet_name, headers, worksheet)
+            self._invalidate_cache(worksheet)
+            return
+
+        current_header = data[0] if data else []
+        if current_header != headers:
+            self.sm.update_row(self.sheet_name, 1, headers, worksheet)
+            self._invalidate_cache(worksheet)
+
     # -------------------------------------------------------------------------
     # Lead Operations
     # -------------------------------------------------------------------------
@@ -94,7 +129,7 @@ class CRMManager:
         except gspread.exceptions.WorksheetNotFound:
             self._ensure_worksheet_exists(LEADS_WS)
             self.sm.append_row(self.sheet_name, lead.to_row(), LEADS_WS)
-
+            
         self._invalidate_cache(LEADS_WS)
         return lead
 
@@ -102,20 +137,20 @@ class CRMManager:
         """Batch add leads to the CRM."""
         if not leads:
             return 0
-
+            
         now = datetime.now()
         rows_to_append = []
         for lead in leads:
             lead.created_at = now
             lead.updated_at = now
             rows_to_append.append(lead.to_row())
-
+            
         try:
             self.sm.append_rows(self.sheet_name, rows_to_append, LEADS_WS)
         except gspread.exceptions.WorksheetNotFound:
             self._ensure_worksheet_exists(LEADS_WS)
             self.sm.append_rows(self.sheet_name, rows_to_append, LEADS_WS)
-
+            
         self._invalidate_cache(LEADS_WS)
         return len(leads)
 
@@ -125,39 +160,34 @@ class CRMManager:
         if data is None:
             try:
                 data = self.sm.read_data(self.sheet_name, LEADS_WS)
-
+                
                 # Migrate schema if needed
                 if data and len(data) > 0:
                     headers = data[0]
                     expected_headers = Lead.headers()
                     if len(headers) < len(expected_headers):
-                        print(
-                            f"[CRMManager] Migrating Leads sheet schema for {self.sheet_name}"
-                        )
+                        print(f"[CRMManager] Migrating Leads sheet schema for {self.sheet_name}")
                         # Update headers
-                        self.sm.update_row(
-                            self.sheet_name, 1, expected_headers, LEADS_WS
-                        )
+                        self.sm.update_row(self.sheet_name, 1, expected_headers, LEADS_WS)
                         # Re-read data after update (optional, but safer)
                         data[0] = expected_headers
                         self._set_cached_data(LEADS_WS, data)
 
             except gspread.exceptions.WorksheetNotFound:
                 return []
-
+                
             if data:
                 self._set_cached_data(LEADS_WS, data)
-
+        
         if not data or len(data) < 2:
             return []
-
+        
         # Check if we need to adjust row length for migration
         processed_leads = []
         headers = data[0]
         for row in data[1:]:
-            if not row or not row[0]:
-                continue
-
+            if not row or not row[0]: continue
+            
             # If row is shorter than expected, it's likely an old format
             # Old format had created_at at index 10.
             # New format has website at index 10.
@@ -170,30 +200,27 @@ class CRMManager:
                 processed_leads.append(Lead.from_row(new_row))
             else:
                 processed_leads.append(Lead.from_row(row))
-
+                
         return processed_leads
 
     def get_lead(self, lead_id: str) -> Optional[Lead]:
         """Get a specific lead by ID."""
         leads = self.get_leads()
-        return next((lead for lead in leads if lead.lead_id == lead_id), None)
+        return next((l for l in leads if l.lead_id == lead_id), None)
 
     def update_lead(self, lead: Lead) -> bool:
         """Update an existing lead."""
         data = self._get_cached_data(LEADS_WS)
         if not data:
             data = self.sm.read_data(self.sheet_name, LEADS_WS)
-            if data:
-                self._set_cached_data(LEADS_WS, data)
-
-        if not data:
-            return False
+            if data: self._set_cached_data(LEADS_WS, data)
+            
+        if not data: return False
 
         # Iterate raw data to find ID (col 0)
         # Skip header (index 0)
         for i, row in enumerate(data):
-            if i == 0:
-                continue
+            if i == 0: continue
             if row and row[0] == lead.lead_id:
                 lead.updated_at = datetime.now()
                 row_index = i + 1  # 1-indexed sheet
@@ -206,14 +233,82 @@ class CRMManager:
         return False
 
     def enrich_lead(self, lead_id: str) -> Optional[Lead]:
-        """Enrich a lead with AI data and persist updates to the sheet.
-
-        Safe to use in FastAPI BackgroundTasks: updates `enrichment_status` and
-        saves intermediate state.
-        """
+        """Enrich a lead with AI data and update it in the sheet."""
         lead = self.get_lead(lead_id)
         if not lead:
             return None
+
+        ai = AIManager()
+        enrichment = ai.enrich_lead_data(lead)
+        
+        if not enrichment:
+            return lead
+
+        # Update lead fields
+        if enrichment.get("industry"):
+            lead.industry = enrichment["industry"]
+        
+        if enrichment.get("company_size"):
+            try:
+                lead.company_size = CompanySize(enrichment["company_size"])
+            except ValueError:
+                pass
+        
+        if enrichment.get("description"):
+            # Append description to notes or prepend it
+            desc = f"AI Description: {enrichment['description']}"
+            if lead.notes:
+                lead.notes = f"{desc}\n\n{lead.notes}"
+            else:
+                lead.notes = desc
+
+        self.update_lead(lead)
+        return lead
+
+    def score_lead(self, lead_id: str) -> Optional[Lead]:
+        """Assign an AI lead score and update it in the sheet."""
+        lead = self.get_lead(lead_id)
+        if not lead:
+            return None
+
+        activities = self.get_activities(lead_id=lead_id)
+        ai = AIManager()
+        scoring = ai.score_lead(lead, activities)
+        
+        if "score" in scoring:
+            lead.score = scoring["score"]
+            # Prepend reasoning to notes
+            reason = f"AI Score: {scoring['score']}/100 - {scoring.get('reasoning', '')}"
+            if lead.notes:
+                lead.notes = f"{reason}\n\n{lead.notes}"
+            else:
+                lead.notes = reason
+
+        self.update_lead(lead)
+        return lead
+
+    def delete_lead(self, lead_id: str) -> bool:
+        """Delete a lead by ID."""
+        data = self._get_cached_data(LEADS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, LEADS_WS)
+        
+        if not data: return False
+
+        for i, row in enumerate(data):
+            if i == 0: continue
+            if row and row[0] == lead_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, LEADS_WS)
+                self._invalidate_cache(LEADS_WS)
+                return True
+        return False
+
+    def enrich_lead(self, lead_id: str):
+        """Perform AI enrichment for a lead."""
+        lead = self.get_lead(lead_id)
+        if not lead:
+            return
 
         # 1. Mark as enriching
         lead.enrichment_status = "Enriching"
@@ -222,7 +317,7 @@ class CRMManager:
         try:
             # 2. Call enrichment service
             enriched_data = enrichment_service.enrich_lead_data(lead)
-
+            
             if enriched_data:
                 # 3. Update lead with new data
                 if enriched_data.get("website") and not lead.website:
@@ -238,76 +333,42 @@ class CRMManager:
                         lead.company_size = CompanySize(enriched_data["company_size"])
                     except ValueError:
                         pass
-
+                
                 lead.enrichment_status = "Completed"
             else:
                 lead.enrichment_status = "Failed"
-
+            
             # 4. Save updates
             self.update_lead(lead)
 
-            # 5. Best-effort auto-score after enrichment
-            try:
-                self.score_lead(lead_id)
-            except Exception as e:
-                print(f"[CRMManager] Auto-scoring failed for {lead_id}: {e}")
-
-            return lead
-
+            # 5. Automatically score after enrichment
+            self.score_lead(lead_id)
+            
         except Exception as e:
             print(f"[CRMManager] Enrichment failed for {lead_id}: {e}")
             lead.enrichment_status = "Failed"
             self.update_lead(lead)
-            return lead
 
-    def score_lead(self, lead_id: str) -> Optional[Lead]:
-        """Perform AI scoring for a lead and persist updates to the sheet.
-
-        Returns the updated Lead (or None if not found).
-        """
+    def score_lead(self, lead_id: str):
+        """Perform AI scoring for a lead."""
         lead = self.get_lead(lead_id)
         if not lead:
-            return None
+            return
 
         activities = self.get_activities(lead_id=lead_id)
-
+        
         try:
             scoring_result = scoring_service.score_lead(lead, activities)
-
+            
             lead.score = scoring_result.get("score")
             lead.heat_level = scoring_result.get("heat_level")
-
+            
             # Save updates
             self.update_lead(lead)
-            print(
-                f"[CRMManager] Scored lead {lead_id}: {lead.score} ({lead.heat_level})"
-            )
-            return lead
-
+            print(f"[CRMManager] Scored lead {lead_id}: {lead.score} ({lead.heat_level})")
+            
         except Exception as e:
             print(f"[CRMManager] Scoring failed for {lead_id}: {e}")
-            return lead
-
-    def delete_lead(self, lead_id: str) -> bool:
-        """Delete a lead by ID."""
-        data = self._get_cached_data(LEADS_WS)
-        if not data:
-            data = self.sm.read_data(self.sheet_name, LEADS_WS)
-
-        if not data:
-            return False
-
-        for i, row in enumerate(data):
-            if i == 0:
-                continue
-            if row and row[0] == lead_id:
-                row_index = i + 1
-                self.sm.delete_row(self.sheet_name, row_index, LEADS_WS)
-                # Optimistic cache update
-                data.pop(i)
-                self._set_cached_data(LEADS_WS, data)
-                return True
-        return False
 
     def analyze_deal(self, opp_id: str) -> Dict[str, Any]:
         """Perform AI analysis for a deal."""
@@ -330,7 +391,7 @@ class CRMManager:
         except gspread.exceptions.WorksheetNotFound:
             self._ensure_worksheet_exists(OPPS_WS)
             self.sm.append_row(self.sheet_name, opp.to_row(), OPPS_WS)
-
+            
         self._invalidate_cache(OPPS_WS)
         return opp
 
@@ -341,7 +402,7 @@ class CRMManager:
             data = self.sm.read_data(self.sheet_name, OPPS_WS)
             if data:
                 self._set_cached_data(OPPS_WS, data)
-
+        
         if not data or len(data) < 2:
             return []
         return [Opportunity.from_row(row) for row in data[1:] if row[0]]
@@ -360,23 +421,20 @@ class CRMManager:
         data = self._get_cached_data(OPPS_WS)
         if not data:
             data = self.sm.read_data(self.sheet_name, OPPS_WS)
-            if data:
-                self._set_cached_data(OPPS_WS, data)
-
-        if not data:
-            return False
-
+            if data: self._set_cached_data(OPPS_WS, data)
+            
+        if not data: return False
+        
         # Iterate raw data to find ID (col 0)
         for i, row in enumerate(data):
-            if i == 0:
-                continue
+            if i == 0: continue
             if row and row[0] == opp.opp_id:
                 opp.updated_at = datetime.now()
                 row_index = i + 1
-
+                
                 new_row = opp.to_row()
                 self.sm.update_row(self.sheet_name, row_index, new_row, OPPS_WS)
-
+                
                 # Optimistic cache update
                 data[i] = new_row
                 self._set_cached_data(OPPS_WS, data)
@@ -390,11 +448,7 @@ class CRMManager:
             return False
         opp.stage = new_stage
         opp.updated_at = datetime.now()
-        if new_stage in [
-            PipelineStage.CLOSED_WON,
-            PipelineStage.CLOSED_LOST,
-            PipelineStage.CASH_IN_BANK,
-        ]:
+        if new_stage in [PipelineStage.CLOSED_WON, PipelineStage.CLOSED_LOST, PipelineStage.CASH_IN_BANK]:
             opp.closed_at = datetime.now()
         return self.update_opportunity(opp)
 
@@ -403,19 +457,15 @@ class CRMManager:
         data = self._get_cached_data(OPPS_WS)
         if not data:
             data = self.sm.read_data(self.sheet_name, OPPS_WS)
-
-        if not data:
-            return False
+            
+        if not data: return False
 
         for i, row in enumerate(data):
-            if i == 0:
-                continue
+            if i == 0: continue
             if row and row[0] == opp_id:
                 row_index = i + 1
                 self.sm.delete_row(self.sheet_name, row_index, OPPS_WS)
-                # Optimistic cache update
-                data.pop(i)
-                self._set_cached_data(OPPS_WS, data)
+                self._invalidate_cache(OPPS_WS)
                 return True
         return False
 
@@ -431,13 +481,11 @@ class CRMManager:
         except gspread.exceptions.WorksheetNotFound:
             self._ensure_worksheet_exists(ACTIVITIES_WS)
             self.sm.append_row(self.sheet_name, activity.to_row(), ACTIVITIES_WS)
-
+            
         self._invalidate_cache(ACTIVITIES_WS)
         return activity
 
-    def get_activities(
-        self, lead_id: Optional[str] = None, opp_id: Optional[str] = None
-    ) -> List[Activity]:
+    def get_activities(self, lead_id: Optional[str] = None, opp_id: Optional[str] = None) -> List[Activity]:
         """Get activities, optionally filtered by lead or opportunity."""
         data = self._get_cached_data(ACTIVITIES_WS)
         if data is None:
@@ -452,6 +500,1488 @@ class CRMManager:
         if opp_id:
             activities = [a for a in activities if a.opp_id == opp_id]
         return activities
+
+    # -------------------------------------------------------------------------
+    # Task Operations
+    # -------------------------------------------------------------------------
+
+    def add_task(self, task: Task) -> Task:
+        """Add a new task."""
+        self._ensure_headers(TASKS_WS, Task.headers())
+        task.created_at = datetime.now()
+        task.updated_at = datetime.now()
+        if task.status == TaskStatus.COMPLETED and not task.completed_at:
+            task.completed_at = datetime.now()
+
+        try:
+            self.sm.append_row(self.sheet_name, task.to_row(), TASKS_WS)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(TASKS_WS)
+            self.sm.append_row(self.sheet_name, task.to_row(), TASKS_WS)
+
+        self._invalidate_cache(TASKS_WS)
+        return task
+
+    def get_tasks(
+        self,
+        status: Optional[str] = None,
+        due_before: Optional[date] = None,
+        assignee: Optional[str] = None,
+        lead_id: Optional[str] = None,
+        opp_id: Optional[str] = None,
+    ) -> List[Task]:
+        """Retrieve tasks with optional filters."""
+        data = self._get_cached_data(TASKS_WS)
+        if data is None:
+            self._ensure_headers(TASKS_WS, Task.headers())
+            try:
+                data = self.sm.read_data(self.sheet_name, TASKS_WS)
+            except gspread.exceptions.WorksheetNotFound:
+                return []
+
+            if data:
+                self._set_cached_data(TASKS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        tasks = [Task.from_row(row) for row in data[1:] if row and row[0]]
+
+        if status:
+            tasks = [t for t in tasks if t.status.value == status]
+        if due_before:
+            tasks = [t for t in tasks if t.due_date and t.due_date <= due_before]
+        if assignee:
+            assignee_lower = assignee.lower()
+            tasks = [
+                t for t in tasks
+                if t.assignee and t.assignee.lower() == assignee_lower
+            ]
+        if lead_id:
+            tasks = [t for t in tasks if t.lead_id == lead_id]
+        if opp_id:
+            tasks = [t for t in tasks if t.opp_id == opp_id]
+
+        return tasks
+
+    def get_task(self, task_id: str) -> Optional[Task]:
+        """Get a specific task by ID."""
+        tasks = self.get_tasks()
+        return next((t for t in tasks if t.task_id == task_id), None)
+
+    def update_task(self, task: Task) -> bool:
+        """Update an existing task."""
+        data = self._get_cached_data(TASKS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, TASKS_WS)
+            if data:
+                self._set_cached_data(TASKS_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == task.task_id:
+                task.updated_at = datetime.now()
+                if task.status == TaskStatus.COMPLETED and not task.completed_at:
+                    task.completed_at = datetime.now()
+                if task.status != TaskStatus.COMPLETED:
+                    task.completed_at = None
+
+                row_index = i + 1
+                new_row = task.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, TASKS_WS)
+                data[i] = new_row
+                self._set_cached_data(TASKS_WS, data)
+                return True
+
+        return False
+
+    def delete_task(self, task_id: str) -> bool:
+        """Delete a task by ID."""
+        data = self._get_cached_data(TASKS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, TASKS_WS)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == task_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, TASKS_WS)
+                self._invalidate_cache(TASKS_WS)
+                return True
+        return False
+
+    # -------------------------------------------------------------------------
+    # Saved Views Operations
+    # -------------------------------------------------------------------------
+
+    def add_saved_view(self, view: SavedView) -> SavedView:
+        """Add a new saved view."""
+        self._ensure_headers(VIEWS_WS, SavedView.headers())
+        view.created_at = datetime.now()
+        view.updated_at = datetime.now()
+        try:
+            self.sm.append_row(self.sheet_name, view.to_row(), VIEWS_WS)
+        except gspread.exceptions.WorksheetNotFound:
+            self._ensure_worksheet_exists(VIEWS_WS)
+            self.sm.append_row(self.sheet_name, view.to_row(), VIEWS_WS)
+
+        self._invalidate_cache(VIEWS_WS)
+        return view
+
+    def get_saved_views(
+        self,
+        entity: Optional[str] = None,
+        owner: Optional[str] = None,
+    ) -> List[SavedView]:
+        """Retrieve saved views with optional filters."""
+        data = self._get_cached_data(VIEWS_WS)
+        if data is None:
+            self._ensure_headers(VIEWS_WS, SavedView.headers())
+            try:
+                data = self.sm.read_data(self.sheet_name, VIEWS_WS)
+            except gspread.exceptions.WorksheetNotFound:
+                return []
+
+            if data:
+                self._set_cached_data(VIEWS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        views = [SavedView.from_row(row) for row in data[1:] if row and row[0]]
+
+        if entity:
+            views = [v for v in views if v.entity == entity]
+        if owner:
+            owner_lower = owner.lower()
+            views = [v for v in views if v.owner and v.owner.lower() == owner_lower]
+
+        return views
+
+    def get_saved_view(self, view_id: str) -> Optional[SavedView]:
+        """Get a saved view by ID."""
+        views = self.get_saved_views()
+        return next((v for v in views if v.view_id == view_id), None)
+
+    def update_saved_view(self, view: SavedView) -> bool:
+        """Update an existing saved view."""
+        data = self._get_cached_data(VIEWS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, VIEWS_WS)
+            if data:
+                self._set_cached_data(VIEWS_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == view.view_id:
+                view.updated_at = datetime.now()
+                row_index = i + 1
+                new_row = view.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, VIEWS_WS)
+                data[i] = new_row
+                self._set_cached_data(VIEWS_WS, data)
+                return True
+
+        return False
+
+    def delete_saved_view(self, view_id: str) -> bool:
+        """Delete a saved view by ID."""
+        data = self._get_cached_data(VIEWS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, VIEWS_WS)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == view_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, VIEWS_WS)
+                self._invalidate_cache(VIEWS_WS)
+                return True
+
+        return False
+
+    # -------------------------------------------------------------------------
+    # Custom Fields Operations
+    # -------------------------------------------------------------------------
+
+    def add_custom_field_definition(self, definition: CustomFieldDefinition) -> CustomFieldDefinition:
+        """Create a custom field definition."""
+        self._ensure_headers(CUSTOM_FIELDS_WS, CustomFieldDefinition.headers())
+        definition.created_at = datetime.now()
+        definition.updated_at = datetime.now()
+        self.sm.append_row(self.sheet_name, definition.to_row(), CUSTOM_FIELDS_WS)
+        self._invalidate_cache(CUSTOM_FIELDS_WS)
+        return definition
+
+    def get_custom_field_definitions(self, entity: Optional[str] = None) -> List[CustomFieldDefinition]:
+        """List custom field definitions, optionally filtered by entity."""
+        data = self._get_cached_data(CUSTOM_FIELDS_WS)
+        if data is None:
+            self._ensure_headers(CUSTOM_FIELDS_WS, CustomFieldDefinition.headers())
+            data = self.sm.read_data(self.sheet_name, CUSTOM_FIELDS_WS)
+            if data:
+                self._set_cached_data(CUSTOM_FIELDS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        definitions = [
+            CustomFieldDefinition.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+
+        if entity:
+            definitions = [item for item in definitions if item.entity == entity]
+        return definitions
+
+    def get_custom_field_definition(self, field_id: str) -> Optional[CustomFieldDefinition]:
+        """Get a custom field definition by ID."""
+        definitions = self.get_custom_field_definitions()
+        return next((item for item in definitions if item.field_id == field_id), None)
+
+    def update_custom_field_definition(self, definition: CustomFieldDefinition) -> bool:
+        """Update a custom field definition."""
+        data = self._get_cached_data(CUSTOM_FIELDS_WS)
+        if not data:
+            self._ensure_headers(CUSTOM_FIELDS_WS, CustomFieldDefinition.headers())
+            data = self.sm.read_data(self.sheet_name, CUSTOM_FIELDS_WS)
+            if data:
+                self._set_cached_data(CUSTOM_FIELDS_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == definition.field_id:
+                definition.updated_at = datetime.now()
+                row_index = i + 1
+                new_row = definition.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, CUSTOM_FIELDS_WS)
+                data[i] = new_row
+                self._set_cached_data(CUSTOM_FIELDS_WS, data)
+                return True
+
+        return False
+
+    def delete_custom_field_definition(self, field_id: str) -> bool:
+        """Delete a custom field definition."""
+        data = self._get_cached_data(CUSTOM_FIELDS_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, CUSTOM_FIELDS_WS)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == field_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, CUSTOM_FIELDS_WS)
+                self._invalidate_cache(CUSTOM_FIELDS_WS)
+                return True
+        return False
+
+    def get_custom_field_values(self, entity: str, record_id: str) -> Dict[str, Any]:
+        """Get custom field values for a record."""
+        data = self._get_cached_data(CUSTOM_VALUES_WS)
+        if data is None:
+            self._ensure_headers(CUSTOM_VALUES_WS, CustomFieldValue.headers())
+            data = self.sm.read_data(self.sheet_name, CUSTOM_VALUES_WS)
+            if data:
+                self._set_cached_data(CUSTOM_VALUES_WS, data)
+
+        if not data or len(data) < 2:
+            return {}
+
+        values: Dict[str, tuple[str, datetime]] = {}
+        for row in data[1:]:
+            if not row or len(row) < 6:
+                continue
+            parsed = CustomFieldValue.from_row(row)
+            if parsed.entity != entity or parsed.record_id != record_id:
+                continue
+            current = values.get(parsed.field_key)
+            if not current or parsed.updated_at >= current[1]:
+                values[parsed.field_key] = (parsed.field_value, parsed.updated_at)
+
+        result: Dict[str, Any] = {}
+        for field_key, (raw_value, _) in values.items():
+            try:
+                result[field_key] = json.loads(raw_value)
+            except json.JSONDecodeError:
+                result[field_key] = raw_value
+        return result
+
+    def set_custom_field_values(self, entity: str, record_id: str, values: Dict[str, Any]):
+        """Persist custom field values for a record by appending value snapshots."""
+        if not values:
+            return
+
+        normalized_values = self.validate_custom_fields(entity, values)
+        self._ensure_headers(CUSTOM_VALUES_WS, CustomFieldValue.headers())
+
+        rows = []
+        now = datetime.now()
+        for field_key, value in normalized_values.items():
+            encoded = json.dumps(value)
+            model = CustomFieldValue(
+                entity=entity,
+                record_id=record_id,
+                field_key=field_key,
+                field_value=encoded,
+                updated_at=now,
+            )
+            rows.append(model.to_row())
+
+        self.sm.append_rows(self.sheet_name, rows, CUSTOM_VALUES_WS)
+        self._invalidate_cache(CUSTOM_VALUES_WS)
+
+    def validate_custom_fields(self, entity: str, values: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate and normalize custom field values for an entity."""
+        definitions = self.get_custom_field_definitions(entity=entity)
+        if not definitions:
+            return values or {}
+
+        values = values or {}
+        by_key = {item.key: item for item in definitions}
+        normalized: Dict[str, Any] = {}
+        errors: List[str] = []
+
+        for key, definition in by_key.items():
+            raw_value = values.get(key)
+            if definition.required and (raw_value is None or raw_value == ""):
+                errors.append(f"Missing required custom field '{key}'")
+                continue
+            if raw_value is None:
+                continue
+
+            try:
+                normalized[key] = self._normalize_custom_field_value(definition, raw_value)
+            except ValueError as exc:
+                errors.append(str(exc))
+
+        extra_keys = [key for key in values.keys() if key not in by_key]
+        if extra_keys:
+            errors.append(f"Unknown custom field keys: {', '.join(extra_keys)}")
+
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        return normalized
+
+    def _normalize_custom_field_value(self, definition: CustomFieldDefinition, value: Any) -> Any:
+        """Normalize and validate one custom field value."""
+        field_key = definition.key
+        field_type = definition.field_type
+        validation_rule = definition.validation_rule
+
+        if field_type == CustomFieldType.TEXT:
+            parsed = str(value)
+            if validation_rule and not re.fullmatch(validation_rule, parsed):
+                raise ValueError(f"Custom field '{field_key}' does not match validation rule")
+            return parsed
+
+        if field_type == CustomFieldType.NUMBER:
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Custom field '{field_key}' must be a number") from exc
+
+            if validation_rule:
+                min_match = re.search(r"min[:=](-?\d+(\.\d+)?)", validation_rule)
+                max_match = re.search(r"max[:=](-?\d+(\.\d+)?)", validation_rule)
+                if min_match and parsed < float(min_match.group(1)):
+                    raise ValueError(f"Custom field '{field_key}' must be >= {min_match.group(1)}")
+                if max_match and parsed > float(max_match.group(1)):
+                    raise ValueError(f"Custom field '{field_key}' must be <= {max_match.group(1)}")
+            return parsed
+
+        if field_type == CustomFieldType.DATE:
+            try:
+                return date.fromisoformat(str(value)[:10]).isoformat()
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Custom field '{field_key}' must be an ISO date") from exc
+
+        if field_type == CustomFieldType.SELECT:
+            parsed = str(value)
+            if definition.options and parsed not in definition.options:
+                raise ValueError(f"Custom field '{field_key}' must be one of: {', '.join(definition.options)}")
+            return parsed
+
+        if field_type == CustomFieldType.MULTI_SELECT:
+            if isinstance(value, list):
+                parsed_list = [str(item) for item in value]
+            else:
+                parsed_list = [item.strip() for item in str(value).split(",") if item.strip()]
+
+            if definition.options:
+                invalid = [item for item in parsed_list if item not in definition.options]
+                if invalid:
+                    raise ValueError(
+                        f"Custom field '{field_key}' has invalid values: {', '.join(invalid)}"
+                    )
+            return parsed_list
+
+        raise ValueError(f"Unsupported custom field type for '{field_key}'")
+
+    # -------------------------------------------------------------------------
+    # Email Templates
+    # -------------------------------------------------------------------------
+
+    def add_email_template(self, template: EmailTemplate) -> EmailTemplate:
+        """Create an email template."""
+        self._ensure_headers(EMAIL_TEMPLATES_WS, EmailTemplate.headers())
+        template.created_at = datetime.now()
+        template.updated_at = datetime.now()
+        self.sm.append_row(self.sheet_name, template.to_row(), EMAIL_TEMPLATES_WS)
+        self._invalidate_cache(EMAIL_TEMPLATES_WS)
+        return template
+
+    def get_email_templates(
+        self,
+        entity: Optional[str] = None,
+        owner: Optional[str] = None,
+    ) -> List[EmailTemplate]:
+        """List email templates with optional entity/owner filters."""
+        data = self._get_cached_data(EMAIL_TEMPLATES_WS)
+        if data is None:
+            self._ensure_headers(EMAIL_TEMPLATES_WS, EmailTemplate.headers())
+            data = self.sm.read_data(self.sheet_name, EMAIL_TEMPLATES_WS)
+            if data:
+                self._set_cached_data(EMAIL_TEMPLATES_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        templates = [
+            EmailTemplate.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+
+        if entity:
+            entity_key = entity.strip().lower()
+            templates = [item for item in templates if item.entity.strip().lower() == entity_key]
+
+        if owner:
+            owner_key = owner.strip().lower()
+            templates = [
+                item
+                for item in templates
+                if item.owner and item.owner.strip().lower() == owner_key
+            ]
+
+        return templates
+
+    def get_email_template(self, template_id: str) -> Optional[EmailTemplate]:
+        """Get one email template by ID."""
+        templates = self.get_email_templates()
+        return next((item for item in templates if item.template_id == template_id), None)
+
+    def update_email_template(self, template: EmailTemplate) -> bool:
+        """Update an email template."""
+        data = self._get_cached_data(EMAIL_TEMPLATES_WS)
+        if not data:
+            self._ensure_headers(EMAIL_TEMPLATES_WS, EmailTemplate.headers())
+            data = self.sm.read_data(self.sheet_name, EMAIL_TEMPLATES_WS)
+            if data:
+                self._set_cached_data(EMAIL_TEMPLATES_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == template.template_id:
+                template.updated_at = datetime.now()
+                row_index = i + 1
+                new_row = template.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, EMAIL_TEMPLATES_WS)
+                data[i] = new_row
+                self._set_cached_data(EMAIL_TEMPLATES_WS, data)
+                return True
+
+        return False
+
+    def delete_email_template(self, template_id: str) -> bool:
+        """Delete an email template."""
+        data = self._get_cached_data(EMAIL_TEMPLATES_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, EMAIL_TEMPLATES_WS)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == template_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, EMAIL_TEMPLATES_WS)
+                self._invalidate_cache(EMAIL_TEMPLATES_WS)
+                return True
+        return False
+
+    def render_email_template(
+        self,
+        template_id: str,
+        lead_id: Optional[str] = None,
+        opp_id: Optional[str] = None,
+        my_name: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """Render template variables against lead/opportunity context."""
+        template = self.get_email_template(template_id)
+        if not template:
+            raise ValueError("Email template not found")
+
+        lead = self.get_lead(lead_id) if lead_id else None
+        opp = self.get_opportunity(opp_id) if opp_id else None
+        if not lead and opp:
+            lead = self.get_lead(opp.lead_id)
+
+        context = {
+            "{{First Name}}": "",
+            "{{Company}}": "",
+            "{{My Name}}": my_name or "Sales Team",
+            "{{Opportunity}}": "",
+        }
+        if lead:
+            name_parts = (lead.contact_name or "").split()
+            context["{{First Name}}"] = name_parts[0] if name_parts else (lead.contact_name or "")
+            context["{{Company}}"] = lead.company_name or ""
+        if opp:
+            context["{{Opportunity}}"] = opp.title or ""
+
+        rendered_subject = template.subject
+        rendered_body = template.body
+        for token, value in context.items():
+            rendered_subject = rendered_subject.replace(token, value)
+            rendered_body = rendered_body.replace(token, value)
+
+        return {
+            "subject": rendered_subject,
+            "body": rendered_body,
+        }
+
+    # -------------------------------------------------------------------------
+    # Workflow Rules
+    # -------------------------------------------------------------------------
+
+    def add_workflow_rule(self, rule: WorkflowRule) -> WorkflowRule:
+        """Create a workflow rule."""
+        self._ensure_headers(WORKFLOW_RULES_WS, WorkflowRule.headers())
+        rule.created_at = datetime.now()
+        rule.updated_at = datetime.now()
+        self.sm.append_row(self.sheet_name, rule.to_row(), WORKFLOW_RULES_WS)
+        self._invalidate_cache(WORKFLOW_RULES_WS)
+        return rule
+
+    def get_workflow_rules(
+        self,
+        trigger_type: Optional[str] = None,
+        active_only: bool = False,
+    ) -> List[WorkflowRule]:
+        """List workflow rules."""
+        data = self._get_cached_data(WORKFLOW_RULES_WS)
+        if data is None:
+            self._ensure_headers(WORKFLOW_RULES_WS, WorkflowRule.headers())
+            data = self.sm.read_data(self.sheet_name, WORKFLOW_RULES_WS)
+            if data:
+                self._set_cached_data(WORKFLOW_RULES_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        rules = [
+            WorkflowRule.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+
+        if trigger_type:
+            trigger_key = trigger_type.strip().lower()
+            rules = [item for item in rules if item.trigger_type.strip().lower() == trigger_key]
+        if active_only:
+            rules = [item for item in rules if item.is_active]
+
+        return rules
+
+    def get_workflow_rule(self, rule_id: str) -> Optional[WorkflowRule]:
+        """Get one workflow rule by ID."""
+        rules = self.get_workflow_rules()
+        return next((item for item in rules if item.rule_id == rule_id), None)
+
+    def update_workflow_rule(self, rule: WorkflowRule) -> bool:
+        """Update a workflow rule."""
+        data = self._get_cached_data(WORKFLOW_RULES_WS)
+        if not data:
+            self._ensure_headers(WORKFLOW_RULES_WS, WorkflowRule.headers())
+            data = self.sm.read_data(self.sheet_name, WORKFLOW_RULES_WS)
+            if data:
+                self._set_cached_data(WORKFLOW_RULES_WS, data)
+
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == rule.rule_id:
+                rule.updated_at = datetime.now()
+                row_index = i + 1
+                new_row = rule.to_row()
+                self.sm.update_row(self.sheet_name, row_index, new_row, WORKFLOW_RULES_WS)
+                data[i] = new_row
+                self._set_cached_data(WORKFLOW_RULES_WS, data)
+                return True
+        return False
+
+    def delete_workflow_rule(self, rule_id: str) -> bool:
+        """Delete a workflow rule."""
+        data = self._get_cached_data(WORKFLOW_RULES_WS)
+        if not data:
+            data = self.sm.read_data(self.sheet_name, WORKFLOW_RULES_WS)
+        if not data:
+            return False
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and row[0] == rule_id:
+                row_index = i + 1
+                self.sm.delete_row(self.sheet_name, row_index, WORKFLOW_RULES_WS)
+                self._invalidate_cache(WORKFLOW_RULES_WS)
+                return True
+        return False
+
+    def run_workflow_rules(
+        self,
+        trigger_type: str,
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Execute matching workflow rules for a trigger."""
+        matching_rules = self.get_workflow_rules(trigger_type=trigger_type, active_only=True)
+        executed: List[Dict[str, Any]] = []
+        skipped: List[Dict[str, Any]] = []
+
+        for rule in matching_rules:
+            if rule.trigger_type == "stage_changed" and rule.trigger_value:
+                new_stage = str(context.get("new_stage") or "")
+                if new_stage != rule.trigger_value:
+                    skipped.append({"rule_id": rule.rule_id, "reason": "trigger_value_mismatch"})
+                    continue
+
+            if not self._workflow_conditions_match(rule.conditions, context):
+                skipped.append({"rule_id": rule.rule_id, "reason": "conditions_not_met"})
+                continue
+
+            rule_actions = []
+            for action in rule.actions:
+                result = self._execute_workflow_action(action, context)
+                if result:
+                    rule_actions.append(result)
+
+            executed.append({
+                "rule_id": rule.rule_id,
+                "rule_name": rule.name,
+                "actions": rule_actions,
+            })
+
+        return {
+            "trigger_type": trigger_type,
+            "executed": executed,
+            "skipped": skipped,
+        }
+
+    def _workflow_conditions_match(self, conditions: List[Dict[str, Any]], context: Dict[str, Any]) -> bool:
+        """Evaluate simple equals/not_equals/contains conditions."""
+        if not conditions:
+            return True
+
+        for condition in conditions:
+            field = str(condition.get("field") or "").strip()
+            operator = str(condition.get("operator") or "equals").strip().lower()
+            expected = condition.get("value")
+            if not field:
+                continue
+
+            actual = context.get(field)
+            if operator == "equals" and actual != expected:
+                return False
+            if operator == "not_equals" and actual == expected:
+                return False
+            if operator == "contains":
+                if actual is None:
+                    return False
+                if str(expected).lower() not in str(actual).lower():
+                    return False
+        return True
+
+    def _execute_workflow_action(self, action: Dict[str, Any], context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Execute one workflow action."""
+        action_type = str(action.get("type") or "").strip().lower()
+
+        if action_type == "create_task":
+            title = str(action.get("title") or "Follow up")
+            due_days = int(action.get("due_days") or 0)
+            assignee = action.get("assignee")
+            lead_id = context.get("lead_id")
+            opp_id = context.get("opp_id")
+            if not lead_id and not opp_id:
+                return {"type": action_type, "status": "skipped", "reason": "missing_target"}
+
+            due_date = None
+            if due_days > 0:
+                due_date = date.fromordinal(date.today().toordinal() + due_days)
+
+            task = Task(
+                title=title,
+                due_date=due_date,
+                lead_id=str(lead_id) if lead_id else None,
+                opp_id=str(opp_id) if opp_id else None,
+                assignee=str(assignee) if assignee else None,
+                status=TaskStatus.OPEN,
+                priority=TaskPriority.MEDIUM,
+            )
+            created = self.add_task(task)
+            return {"type": action_type, "status": "ok", "task_id": created.task_id}
+
+        if action_type == "update_field":
+            target = str(action.get("target") or "").strip().lower()
+            field = str(action.get("field") or "").strip()
+            value = action.get("value")
+            if not target or not field:
+                return {"type": action_type, "status": "skipped", "reason": "missing_target_or_field"}
+
+            if target == "leads":
+                lead_id = context.get("lead_id")
+                if not lead_id:
+                    return {"type": action_type, "status": "skipped", "reason": "missing_lead_id"}
+                lead = self.get_lead(str(lead_id))
+                if not lead:
+                    return {"type": action_type, "status": "skipped", "reason": "lead_not_found"}
+                if not hasattr(lead, field):
+                    return {"type": action_type, "status": "skipped", "reason": "invalid_field"}
+                if field == "status" and isinstance(value, str) and value in [item.value for item in LeadStatus]:
+                    value = LeadStatus(value)
+                if field == "source" and isinstance(value, str) and value in [item.value for item in LeadSource]:
+                    value = LeadSource(value)
+                if field == "company_size" and isinstance(value, str) and value in [item.value for item in CompanySize]:
+                    value = CompanySize(value)
+                setattr(lead, field, value)
+                self.update_lead(lead)
+                return {"type": action_type, "status": "ok", "entity": "leads", "record_id": lead.lead_id}
+
+            if target == "opportunities":
+                opp_id = context.get("opp_id")
+                if not opp_id:
+                    return {"type": action_type, "status": "skipped", "reason": "missing_opp_id"}
+                opp = self.get_opportunity(str(opp_id))
+                if not opp:
+                    return {"type": action_type, "status": "skipped", "reason": "opportunity_not_found"}
+                if not hasattr(opp, field):
+                    return {"type": action_type, "status": "skipped", "reason": "invalid_field"}
+                if field == "stage" and isinstance(value, str) and value in [item.value for item in PipelineStage]:
+                    value = PipelineStage(value)
+                setattr(opp, field, value)
+                self.update_opportunity(opp)
+                return {"type": action_type, "status": "ok", "entity": "opportunities", "record_id": opp.opp_id}
+
+            return {"type": action_type, "status": "skipped", "reason": "unsupported_target"}
+
+        return {"type": action_type or "unknown", "status": "skipped", "reason": "unsupported_action"}
+
+    # -------------------------------------------------------------------------
+    # Integration Connections
+    # -------------------------------------------------------------------------
+
+    def get_integrations(self) -> List[IntegrationConnection]:
+        """List configured integration connections."""
+        data = self._get_cached_data(INTEGRATIONS_WS)
+        if data is None:
+            self._ensure_headers(INTEGRATIONS_WS, IntegrationConnection.headers())
+            data = self.sm.read_data(self.sheet_name, INTEGRATIONS_WS)
+            if data:
+                self._set_cached_data(INTEGRATIONS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        return [
+            IntegrationConnection.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+
+    def log_audit_event(
+        self,
+        action: str,
+        entity: str,
+        record_id: Optional[str] = None,
+        status: str = "success",
+        actor: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> AuditLogEntry:
+        """Append an audit entry for mutating or sensitive operations."""
+        self._ensure_headers(AUDIT_LOG_WS, AuditLogEntry.headers())
+        event = AuditLogEntry(
+            action=action,
+            entity=entity,
+            record_id=record_id,
+            status=status,
+            actor=actor,
+            metadata=metadata or {},
+            created_at=datetime.now(),
+        )
+        self.sm.append_row(self.sheet_name, event.to_row(), AUDIT_LOG_WS)
+        self._invalidate_cache(AUDIT_LOG_WS)
+        return event
+
+    def get_audit_events(
+        self,
+        limit: int = 100,
+        action: Optional[str] = None,
+        entity: Optional[str] = None,
+    ) -> List[AuditLogEntry]:
+        """Read audit trail entries newest-first."""
+        data = self._get_cached_data(AUDIT_LOG_WS)
+        if data is None:
+            self._ensure_headers(AUDIT_LOG_WS, AuditLogEntry.headers())
+            data = self.sm.read_data(self.sheet_name, AUDIT_LOG_WS)
+            if data:
+                self._set_cached_data(AUDIT_LOG_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        events = [
+            AuditLogEntry.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+        if action:
+            action_key = action.strip().lower()
+            events = [item for item in events if item.action.lower() == action_key]
+        if entity:
+            entity_key = entity.strip().lower()
+            events = [item for item in events if item.entity.lower() == entity_key]
+
+        events.sort(key=lambda item: item.created_at, reverse=True)
+        return events[:limit]
+
+    def get_integration_runs(
+        self,
+        provider: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[IntegrationSyncRun]:
+        """List integration sync runs, newest first."""
+        data = self._get_cached_data(INTEGRATION_RUNS_WS)
+        if data is None:
+            self._ensure_headers(INTEGRATION_RUNS_WS, IntegrationSyncRun.headers())
+            data = self.sm.read_data(self.sheet_name, INTEGRATION_RUNS_WS)
+            if data:
+                self._set_cached_data(INTEGRATION_RUNS_WS, data)
+
+        if not data or len(data) < 2:
+            return []
+
+        runs = [
+            IntegrationSyncRun.from_row(row)
+            for row in data[1:]
+            if row and row[0]
+        ]
+        if provider:
+            provider_key = provider.strip().lower()
+            runs = [item for item in runs if item.provider == provider_key]
+
+        runs.sort(key=lambda item: item.started_at, reverse=True)
+        return runs[:limit]
+
+    def _create_integration_run(
+        self,
+        provider: str,
+        idempotency_key: Optional[str],
+        retry_count: int,
+    ) -> IntegrationSyncRun:
+        self._ensure_headers(INTEGRATION_RUNS_WS, IntegrationSyncRun.headers())
+        run = IntegrationSyncRun(
+            provider=provider,
+            idempotency_key=idempotency_key,
+            status="running",
+            retry_count=retry_count,
+            synced_records=0,
+            error=None,
+            started_at=datetime.now(),
+            finished_at=None,
+        )
+        self.sm.append_row(self.sheet_name, run.to_row(), INTEGRATION_RUNS_WS)
+        self._invalidate_cache(INTEGRATION_RUNS_WS)
+        return run
+
+    def _update_integration_run(self, run: IntegrationSyncRun):
+        data = self._get_cached_data(INTEGRATION_RUNS_WS)
+        if data is None:
+            data = self.sm.read_data(self.sheet_name, INTEGRATION_RUNS_WS)
+        if not data:
+            return
+
+        for i, row in enumerate(data):
+            if i == 0 or not row:
+                continue
+            if row[0] == run.run_id:
+                self.sm.update_row(self.sheet_name, i + 1, run.to_row(), INTEGRATION_RUNS_WS)
+                self._invalidate_cache(INTEGRATION_RUNS_WS)
+                return
+
+    def upsert_integration(
+        self,
+        provider: str,
+        config: Dict[str, Any],
+        status: str = "connected",
+        last_sync_at: Optional[datetime] = None,
+    ) -> IntegrationConnection:
+        """Create or update a provider connection."""
+        data = self._get_cached_data(INTEGRATIONS_WS)
+        if not data:
+            self._ensure_headers(INTEGRATIONS_WS, IntegrationConnection.headers())
+            data = self.sm.read_data(self.sheet_name, INTEGRATIONS_WS)
+            if data:
+                self._set_cached_data(INTEGRATIONS_WS, data)
+
+        provider = provider.strip().lower()
+        if not data:
+            data = [IntegrationConnection.headers()]
+
+        for i, row in enumerate(data):
+            if i == 0:
+                continue
+            if row and len(row) > 1 and str(row[1]).strip().lower() == provider:
+                existing = IntegrationConnection.from_row(row)
+                existing.config = config
+                existing.status = status
+                if last_sync_at:
+                    existing.last_sync_at = last_sync_at
+                existing.updated_at = datetime.now()
+                new_row = existing.to_row()
+                self.sm.update_row(self.sheet_name, i + 1, new_row, INTEGRATIONS_WS)
+                data[i] = new_row
+                self._set_cached_data(INTEGRATIONS_WS, data)
+                return existing
+
+        created = IntegrationConnection(
+            provider=provider,
+            config=config,
+            status=status,
+            last_sync_at=last_sync_at,
+        )
+        self.sm.append_row(self.sheet_name, created.to_row(), INTEGRATIONS_WS)
+        self._invalidate_cache(INTEGRATIONS_WS)
+        return created
+
+    def run_integration_sync(
+        self,
+        provider: str,
+        idempotency_key: Optional[str] = None,
+        max_retries: int = 1,
+    ) -> Dict[str, Any]:
+        """Run a lightweight sync action for a provider."""
+        provider_key = provider.strip().lower()
+        integrations = self.get_integrations()
+        integration = next((item for item in integrations if item.provider == provider_key), None)
+        if not integration:
+            raise ValueError(f"Integration '{provider}' is not connected")
+
+        if idempotency_key:
+            existing = next(
+                (
+                    run
+                    for run in self.get_integration_runs(provider=provider_key, limit=200)
+                    if run.idempotency_key == idempotency_key and run.status == "succeeded"
+                ),
+                None,
+            )
+            if existing:
+                return {
+                    "provider": provider_key,
+                    "synced_records": existing.synced_records,
+                    "last_sync_at": existing.finished_at.isoformat() if existing.finished_at else "",
+                    "deduplicated": True,
+                    "run": existing.model_dump(),
+                }
+
+        last_error: Optional[str] = None
+        for retry_count in range(max_retries + 1):
+            run = self._create_integration_run(provider_key, idempotency_key, retry_count)
+            try:
+                force_error = bool(integration.config.get("force_error"))
+                if force_error:
+                    raise ValueError("forced sync failure from integration config")
+
+                synced_records = 0
+                if provider_key == "google_calendar":
+                    synced_records = len([task for task in self.get_tasks() if task.status != TaskStatus.COMPLETED])
+                elif provider_key == "gmail":
+                    synced_records = len(self.get_leads())
+                elif provider_key == "slack":
+                    synced_records = len(self.get_opportunities())
+                else:
+                    synced_records = len(self.get_activities())
+
+                integration.last_sync_at = datetime.now()
+                integration.status = "synced"
+                integration.updated_at = datetime.now()
+                self.upsert_integration(
+                    provider_key,
+                    integration.config,
+                    status=integration.status,
+                    last_sync_at=integration.last_sync_at,
+                )
+
+                run.status = "succeeded"
+                run.synced_records = synced_records
+                run.error = None
+                run.finished_at = datetime.now()
+                self._update_integration_run(run)
+
+                return {
+                    "provider": provider_key,
+                    "synced_records": synced_records,
+                    "last_sync_at": integration.last_sync_at.isoformat(),
+                    "deduplicated": False,
+                    "run": run.model_dump(),
+                }
+            except Exception as exc:
+                last_error = str(exc)
+                run.status = "failed"
+                run.error = last_error
+                run.finished_at = datetime.now()
+                self._update_integration_run(run)
+
+        raise ValueError(last_error or f"Sync failed for integration '{provider}'")
+
+    # -------------------------------------------------------------------------
+    # Export Operations
+    # -------------------------------------------------------------------------
+
+    def export_entity_csv(self, entity: str) -> str:
+        """Export an entity dataset as CSV content."""
+        entity_normalized = entity.strip().lower()
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        if entity_normalized == "leads":
+            rows = [lead.to_row() for lead in self.get_leads()]
+            writer.writerow(Lead.headers())
+        elif entity_normalized in {"opportunities", "opps"}:
+            rows = [opp.to_row() for opp in self.get_opportunities()]
+            writer.writerow(Opportunity.headers())
+        elif entity_normalized in {"activities", "activity"}:
+            rows = [activity.to_row() for activity in self.get_activities()]
+            writer.writerow(Activity.headers())
+        elif entity_normalized in {"tasks", "task"}:
+            rows = [task.to_row() for task in self.get_tasks()]
+            writer.writerow(Task.headers())
+        else:
+            raise ValueError(f"Unsupported export entity: {entity}")
+
+        writer.writerows(rows)
+        return output.getvalue()
+
+    # -------------------------------------------------------------------------
+    # Bulk Operations
+    # -------------------------------------------------------------------------
+
+    def bulk_update_lead_status(self, lead_ids: List[str], status: str) -> Dict[str, Any]:
+        """Bulk update lead status."""
+        valid_statuses = {item.value for item in LeadStatus}
+        if status not in valid_statuses:
+            raise ValueError(f"Invalid lead status: {status}")
+
+        updated = 0
+        failed_ids: List[str] = []
+        for lead_id in lead_ids:
+            lead = self.get_lead(lead_id)
+            if not lead:
+                failed_ids.append(lead_id)
+                continue
+            lead.status = LeadStatus(status)
+            if self.update_lead(lead):
+                updated += 1
+            else:
+                failed_ids.append(lead_id)
+
+        return {
+            "requested": len(lead_ids),
+            "updated": updated,
+            "failed_ids": failed_ids,
+        }
+
+    def bulk_delete_leads(self, lead_ids: List[str]) -> Dict[str, Any]:
+        """Bulk delete leads by IDs."""
+        deleted = 0
+        failed_ids: List[str] = []
+        for lead_id in lead_ids:
+            if self.delete_lead(lead_id):
+                deleted += 1
+            else:
+                failed_ids.append(lead_id)
+        return {
+            "requested": len(lead_ids),
+            "deleted": deleted,
+            "failed_ids": failed_ids,
+        }
+
+    def bulk_update_opportunity_stage(self, opp_ids: List[str], stage: str) -> Dict[str, Any]:
+        """Bulk update opportunity stages."""
+        valid_stages = {item.value for item in PipelineStage}
+        if stage not in valid_stages:
+            raise ValueError(f"Invalid pipeline stage: {stage}")
+
+        updated = 0
+        failed_ids: List[str] = []
+        for opp_id in opp_ids:
+            if self.move_opportunity_stage(opp_id, PipelineStage(stage)):
+                updated += 1
+            else:
+                failed_ids.append(opp_id)
+
+        return {
+            "requested": len(opp_ids),
+            "updated": updated,
+            "failed_ids": failed_ids,
+        }
+
+    def bulk_delete_opportunities(self, opp_ids: List[str]) -> Dict[str, Any]:
+        """Bulk delete opportunities by IDs."""
+        deleted = 0
+        failed_ids: List[str] = []
+        for opp_id in opp_ids:
+            if self.delete_opportunity(opp_id):
+                deleted += 1
+            else:
+                failed_ids.append(opp_id)
+        return {
+            "requested": len(opp_ids),
+            "deleted": deleted,
+            "failed_ids": failed_ids,
+        }
+
+    # -------------------------------------------------------------------------
+    # Duplicate Detection
+    # -------------------------------------------------------------------------
+
+    def find_duplicate_leads(self, min_confidence: float = 0.75) -> List[Dict[str, Any]]:
+        """Find potential duplicate leads using deterministic heuristics."""
+        leads = self.get_leads()
+        candidates: List[Dict[str, Any]] = []
+
+        for i in range(len(leads)):
+            for j in range(i + 1, len(leads)):
+                first = leads[i]
+                second = leads[j]
+                confidence = 0.0
+                reasons: List[str] = []
+
+                first_email = (first.contact_email or "").strip().lower()
+                second_email = (second.contact_email or "").strip().lower()
+                if first_email and second_email and first_email == second_email:
+                    confidence = max(confidence, 0.98)
+                    reasons.append("matching email")
+
+                first_company = re.sub(r"[^a-z0-9]+", "", first.company_name.lower())
+                second_company = re.sub(r"[^a-z0-9]+", "", second.company_name.lower())
+                if first_company and second_company:
+                    ratio = difflib.SequenceMatcher(None, first_company, second_company).ratio()
+                    if ratio >= min_confidence:
+                        confidence = max(confidence, ratio)
+                        reasons.append("similar company name")
+
+                first_contact = re.sub(r"[^a-z0-9]+", "", first.contact_name.lower())
+                second_contact = re.sub(r"[^a-z0-9]+", "", second.contact_name.lower())
+                if first_contact and second_contact:
+                    ratio = difflib.SequenceMatcher(None, first_contact, second_contact).ratio()
+                    if ratio >= min_confidence:
+                        confidence = max(confidence, ratio)
+                        reasons.append("similar contact name")
+
+                if confidence >= min_confidence:
+                    candidates.append(
+                        {
+                            "confidence": round(confidence, 3),
+                            "reasons": reasons,
+                            "lead_a": first.model_dump(),
+                            "lead_b": second.model_dump(),
+                        }
+                    )
+
+        candidates.sort(key=lambda item: item["confidence"], reverse=True)
+        return candidates
+
+    def suggest_duplicate_merge(self, lead_a_id: str, lead_b_id: str) -> Dict[str, Any]:
+        """Return a deterministic merge suggestion for a duplicate pair."""
+        lead_a = self.get_lead(lead_a_id)
+        lead_b = self.get_lead(lead_b_id)
+        if not lead_a or not lead_b:
+            raise ValueError("Both lead_a_id and lead_b_id must exist")
+
+        field_names = [
+            "company_name",
+            "contact_name",
+            "contact_email",
+            "contact_phone",
+            "status",
+            "source",
+            "industry",
+            "company_size",
+            "notes",
+            "website",
+            "linkedin_url",
+            "logo_url",
+            "owner",
+            "score",
+            "heat_level",
+        ]
+
+        def serialize(value: Any) -> Any:
+            if value is None:
+                return None
+            if hasattr(value, "value"):
+                return value.value
+            return value
+
+        def filled_count(lead: Lead) -> int:
+            count = 0
+            for key in field_names:
+                value = serialize(getattr(lead, key, None))
+                if value not in {None, ""}:
+                    count += 1
+            count += len(self.get_opportunities_for_lead(lead.lead_id)) * 2
+            count += len(self.get_tasks(lead_id=lead.lead_id))
+            return count
+
+        score_a = filled_count(lead_a)
+        score_b = filled_count(lead_b)
+        primary = lead_a if score_a >= score_b else lead_b
+        secondary = lead_b if primary.lead_id == lead_a.lead_id else lead_a
+
+        field_resolution: Dict[str, Dict[str, Any]] = {}
+        conflicts: List[str] = []
+        merged_preview: Dict[str, Any] = {}
+
+        for field in field_names:
+            a_val = serialize(getattr(lead_a, field, None))
+            b_val = serialize(getattr(lead_b, field, None))
+            suggested = serialize(getattr(primary, field, None))
+            if suggested in {None, ""}:
+                suggested = serialize(getattr(secondary, field, None))
+
+            has_conflict = (
+                a_val not in {None, ""}
+                and b_val not in {None, ""}
+                and a_val != b_val
+            )
+            if has_conflict:
+                conflicts.append(field)
+
+            field_resolution[field] = {
+                "lead_a": a_val,
+                "lead_b": b_val,
+                "suggested": suggested,
+                "conflict": has_conflict,
+            }
+            merged_preview[field] = suggested
+
+        return {
+            "lead_a_id": lead_a.lead_id,
+            "lead_b_id": lead_b.lead_id,
+            "primary_lead_id": primary.lead_id,
+            "secondary_lead_id": secondary.lead_id,
+            "confidence": self._duplicate_pair_confidence(lead_a, lead_b),
+            "field_resolution": field_resolution,
+            "conflicts": conflicts,
+            "merged_preview": merged_preview,
+        }
+
+    def merge_duplicate_leads(
+        self,
+        lead_a_id: str,
+        lead_b_id: str,
+        primary_id: Optional[str] = None,
+        selected_fields: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Merge duplicate leads and rewire related records."""
+        suggestion = self.suggest_duplicate_merge(lead_a_id, lead_b_id)
+        lead_a = self.get_lead(lead_a_id)
+        lead_b = self.get_lead(lead_b_id)
+        if not lead_a or not lead_b:
+            raise ValueError("Both leads must exist before merge")
+
+        if primary_id and primary_id not in {lead_a_id, lead_b_id}:
+            raise ValueError("primary_id must match one of the duplicate leads")
+
+        resolved_primary_id = primary_id or suggestion["primary_lead_id"]
+        primary = lead_a if lead_a.lead_id == resolved_primary_id else lead_b
+        secondary = lead_b if primary.lead_id == lead_a.lead_id else lead_a
+
+        merged_payload = dict(suggestion["merged_preview"])
+        if selected_fields:
+            merged_payload.update(selected_fields)
+
+        self._apply_merged_lead_fields(primary, merged_payload)
+        primary.updated_at = datetime.now()
+
+        if not self.update_lead(primary):
+            raise ValueError("Failed to update primary lead during merge")
+
+        moved_opps = self._reassign_opportunities_to_lead(secondary.lead_id, primary.lead_id)
+        moved_tasks = self._reassign_tasks_to_lead(secondary.lead_id, primary.lead_id)
+        moved_activities = self._reassign_activities_to_lead(secondary.lead_id, primary.lead_id)
+
+        primary_custom = self.get_custom_field_values("leads", primary.lead_id)
+        secondary_custom = self.get_custom_field_values("leads", secondary.lead_id)
+        merged_custom = dict(primary_custom)
+        for key, value in secondary_custom.items():
+            if key not in merged_custom or merged_custom[key] in {"", None, []}:
+                merged_custom[key] = value
+        if merged_custom:
+            self.set_custom_field_values("leads", primary.lead_id, merged_custom)
+
+        secondary_deleted = self.delete_lead(secondary.lead_id)
+        if not secondary_deleted:
+            raise ValueError("Failed to delete secondary lead after merge")
+
+        return {
+            "merged": True,
+            "primary_lead_id": primary.lead_id,
+            "secondary_lead_id": secondary.lead_id,
+            "moved": {
+                "opportunities": moved_opps,
+                "tasks": moved_tasks,
+                "activities": moved_activities,
+            },
+            "primary": primary.model_dump(),
+            "conflicts_resolved": suggestion["conflicts"],
+        }
+
+    def _duplicate_pair_confidence(self, first: Lead, second: Lead) -> float:
+        """Compute pair confidence used by duplicate merge suggestions."""
+        confidence = 0.0
+        first_email = (first.contact_email or "").strip().lower()
+        second_email = (second.contact_email or "").strip().lower()
+        if first_email and second_email and first_email == second_email:
+            confidence = max(confidence, 0.98)
+
+        first_company = re.sub(r"[^a-z0-9]+", "", first.company_name.lower())
+        second_company = re.sub(r"[^a-z0-9]+", "", second.company_name.lower())
+        if first_company and second_company:
+            confidence = max(
+                confidence,
+                difflib.SequenceMatcher(None, first_company, second_company).ratio(),
+            )
+
+        first_contact = re.sub(r"[^a-z0-9]+", "", first.contact_name.lower())
+        second_contact = re.sub(r"[^a-z0-9]+", "", second.contact_name.lower())
+        if first_contact and second_contact:
+            confidence = max(
+                confidence,
+                difflib.SequenceMatcher(None, first_contact, second_contact).ratio(),
+            )
+        return round(confidence, 3)
+
+    def _apply_merged_lead_fields(self, lead: Lead, payload: Dict[str, Any]):
+        """Apply merged payload fields to a lead instance."""
+        if "company_name" in payload and payload["company_name"]:
+            lead.company_name = str(payload["company_name"])
+        if "contact_name" in payload and payload["contact_name"]:
+            lead.contact_name = str(payload["contact_name"])
+        if "contact_email" in payload:
+            lead.contact_email = str(payload["contact_email"]) if payload["contact_email"] else None
+        if "contact_phone" in payload:
+            lead.contact_phone = str(payload["contact_phone"]) if payload["contact_phone"] else None
+        if "status" in payload and payload["status"] in [item.value for item in LeadStatus]:
+            lead.status = LeadStatus(payload["status"])
+        if "source" in payload and payload["source"] in [item.value for item in LeadSource]:
+            lead.source = LeadSource(payload["source"])
+        if "industry" in payload:
+            lead.industry = str(payload["industry"]) if payload["industry"] else None
+        if "company_size" in payload and payload["company_size"] in [item.value for item in CompanySize]:
+            lead.company_size = CompanySize(payload["company_size"])
+        if "notes" in payload:
+            lead.notes = str(payload["notes"]) if payload["notes"] else None
+        if "website" in payload:
+            lead.website = str(payload["website"]) if payload["website"] else None
+        if "linkedin_url" in payload:
+            lead.linkedin_url = str(payload["linkedin_url"]) if payload["linkedin_url"] else None
+        if "logo_url" in payload:
+            lead.logo_url = str(payload["logo_url"]) if payload["logo_url"] else None
+        if "owner" in payload:
+            lead.owner = str(payload["owner"]) if payload["owner"] else None
+        if "score" in payload:
+            try:
+                lead.score = int(payload["score"]) if payload["score"] is not None else None
+            except (TypeError, ValueError):
+                pass
+        if "heat_level" in payload:
+            lead.heat_level = str(payload["heat_level"]) if payload["heat_level"] else None
+
+    def _reassign_opportunities_to_lead(self, source_lead_id: str, target_lead_id: str) -> int:
+        moved = 0
+        for opp in self.get_opportunities_for_lead(source_lead_id):
+            opp.lead_id = target_lead_id
+            if self.update_opportunity(opp):
+                moved += 1
+        return moved
+
+    def _reassign_tasks_to_lead(self, source_lead_id: str, target_lead_id: str) -> int:
+        moved = 0
+        for task in self.get_tasks(lead_id=source_lead_id):
+            task.lead_id = target_lead_id
+            if self.update_task(task):
+                moved += 1
+        return moved
+
+    def _reassign_activities_to_lead(self, source_lead_id: str, target_lead_id: str) -> int:
+        moved = 0
+        data = self._get_cached_data(ACTIVITIES_WS)
+        if data is None:
+            data = self.sm.read_data(self.sheet_name, ACTIVITIES_WS)
+        if not data:
+            return moved
+
+        for i, row in enumerate(data):
+            if i == 0 or not row:
+                continue
+            if len(row) > 1 and row[1] == source_lead_id:
+                row_index = i + 1
+                updated_row = list(row)
+                updated_row[1] = target_lead_id
+                self.sm.update_row(self.sheet_name, row_index, updated_row, ACTIVITIES_WS)
+                moved += 1
+
+        if moved:
+            self._invalidate_cache(ACTIVITIES_WS)
+        return moved
 
     # -------------------------------------------------------------------------
     # Pipeline & Dashboard
@@ -475,33 +2005,25 @@ class CRMManager:
         # Lead stats
         leads_by_status = {}
         for status in LeadStatus:
-            leads_by_status[status.value] = len(
-                [lead for lead in leads if lead.status == status]
-            )
+            leads_by_status[status.value] = len([l for l in leads if l.status == status])
 
         # Top leads by score
         top_leads = sorted(
-            [lead for lead in leads if lead.score > 0],
-            key=lambda lead: lead.score,
-            reverse=True,
+            [l for l in leads if (l.score or 0) > 0],
+            key=lambda l: l.score or 0,
+            reverse=True
         )[:5]
 
         return {
             "total_leads": len(leads),
             "total_opportunities": len(opps),
-            "total_pipeline_value": sum(
-                o.value for o in opps if o.stage not in [PipelineStage.CLOSED_LOST]
-            ),
+            "total_pipeline_value": sum(o.value for o in opps if o.stage not in [PipelineStage.CLOSED_LOST]),
             "total_expected_value": sum(o.expected_value for o in opps),
-            "closed_won_value": sum(
-                o.value for o in opps if o.stage == PipelineStage.CLOSED_WON
-            ),
-            "cash_in_bank": sum(
-                o.value for o in opps if o.stage == PipelineStage.CASH_IN_BANK
-            ),
+            "closed_won_value": sum(o.value for o in opps if o.stage == PipelineStage.CLOSED_WON),
+            "cash_in_bank": sum(o.value for o in opps if o.stage == PipelineStage.CASH_IN_BANK),
             "pipeline_by_stage": by_stage,
             "leads_by_status": leads_by_status,
-            "top_leads": [lead.model_dump() for lead in top_leads],
+            "top_leads": [l.model_dump() for l in top_leads],
         }
 
     def print_pipeline(self):
@@ -524,151 +2046,5 @@ class CRMManager:
             )
 
         console.print(table)
-        console.print(
-            f"\n[bold]Total Pipeline Value:[/bold] ${summary['total_pipeline_value']:,.0f}"
-        )
-        console.print(
-            f"[bold]Cash in Bank:[/bold] [green]${summary['cash_in_bank']:,.0f}[/green]"
-        )
-
-    # -------------------------------------------------------------------------
-    # Gmail Integration
-    # -------------------------------------------------------------------------
-
-    def sync_emails_for_lead(
-        self, lead: Lead, days_back: int = 30, auto_log: bool = True
-    ) -> List[Activity]:
-        """Sync emails for a specific lead and optionally auto-log as activities.
-
-        Args:
-            lead: Lead object with contact email
-            days_back: How many days back to search for emails
-            auto_log: Whether to automatically log emails as activities
-
-        Returns:
-            List of Activity objects created from emails
-        """
-        if not self.google_creds:
-            raise ValueError("Google credentials required for Gmail sync")
-
-        if not lead.contact_email:
-            return []
-
-        from ..gmail import GmailManager
-
-        gmail = GmailManager(self.google_creds)
-        emails = gmail.search_emails_by_contact(
-            contact_email=lead.contact_email, max_results=50, days_back=days_back
-        )
-
-        activities = []
-        existing_activities = self.get_activities(lead_id=lead.lead_id)
-
-        # Create a set of existing email IDs to avoid duplicates
-        # Use a combination of subject, date, and snippet for uniqueness
-        existing_email_keys = {
-            f"{a.subject}_{a.date.date()}_{a.description[:50] if a.description else ''}"
-            for a in existing_activities
-            if a.type == ActivityType.EMAIL
-        }
-
-        for email_data in emails:
-            # Create unique key from subject, date, and snippet
-            email_key = f"{email_data['subject']}_{email_data['date'].date()}_{email_data['snippet'][:50]}"
-
-            # Skip if already logged
-            if email_key in existing_email_keys:
-                continue
-
-            # Create activity from email
-            activity = Activity(
-                lead_id=lead.lead_id,
-                type=ActivityType.EMAIL,
-                subject=email_data["subject"],
-                description=email_data["snippet"][:MAX_EMAIL_DESCRIPTION_LENGTH],
-                date=email_data["date"],
-                created_by="Gmail Sync",
-            )
-
-            if auto_log:
-                self.log_activity(activity)
-
-            activities.append(activity)
-
-        return activities
-
-    def sync_emails_for_all_leads(
-        self, days_back: int = 7, auto_log: bool = True
-    ) -> Dict[str, int]:
-        """Sync emails for all leads with email addresses.
-
-        Args:
-            days_back: How many days back to search
-            auto_log: Whether to automatically log emails
-
-        Returns:
-            Dictionary with sync statistics
-        """
-        if not self.google_creds:
-            raise ValueError("Google credentials required for Gmail sync")
-
-        leads = self.get_leads()
-        stats = {
-            "total_leads": len(leads),
-            "leads_with_email": 0,
-            "emails_synced": 0,
-            "errors": 0,
-        }
-
-        for lead in leads:
-            if not lead.contact_email:
-                continue
-
-            stats["leads_with_email"] += 1
-
-            try:
-                activities = self.sync_emails_for_lead(
-                    lead=lead, days_back=days_back, auto_log=auto_log
-                )
-                stats["emails_synced"] += len(activities)
-            except Exception as e:
-                print(f"Error syncing emails for {lead.company_name}: {e}")
-                stats["errors"] += 1
-
-        return stats
-
-    def get_email_activity_summary(self, lead_id: str) -> Dict[str, Any]:
-        """Get summary of email activities for a lead.
-
-        Args:
-            lead_id: Lead ID
-
-        Returns:
-            Dictionary with email activity statistics
-        """
-        activities = self.get_activities(lead_id=lead_id)
-        email_activities = [a for a in activities if a.type == ActivityType.EMAIL]
-
-        if not email_activities:
-            return {
-                "total_emails": 0,
-                "last_email_date": None,
-                "first_email_date": None,
-            }
-
-        # Sort by date
-        sorted_emails = sorted(email_activities, key=lambda x: x.date)
-
-        return {
-            "total_emails": len(email_activities),
-            "last_email_date": sorted_emails[-1].date if sorted_emails else None,
-            "first_email_date": sorted_emails[0].date if sorted_emails else None,
-            "recent_emails": [
-                {
-                    "subject": a.subject,
-                    "date": a.date,
-                    "snippet": a.description[:100] if a.description else "",
-                }
-                for a in sorted_emails[-5:]  # Last 5 emails
-            ],
-        }
+        console.print(f"\n[bold]Total Pipeline Value:[/bold] ${summary['total_pipeline_value']:,.0f}")
+        console.print(f"[bold]Cash in Bank:[/bold] [green]${summary['cash_in_bank']:,.0f}[/green]")

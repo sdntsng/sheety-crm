@@ -20,7 +20,15 @@ async def get_crm_session(
     Supports Singleton fallback for Local Dev if no header is present (and not in Render).
     """
 
-    # 1. Local/Singleton Fallback (CLI or Single-Tenant Dev)
+    # 1. Mock fallback for unauthenticated local/dev browser sessions
+    if not authorization and os.getenv("MOCK_DATA_MODE") == "true":
+        print("[MockMode] Unauthenticated request in mock mode; using MockSheetManager.")
+        from src.services.local_json import MockSheetManager
+        sm = MockSheetManager()
+        sheet_name = x_sheet_id if x_sheet_id else "Sales Pipeline 2026"
+        return CRMManager(sm, sheet_name=sheet_name)
+
+    # 2. Local/Singleton Fallback (CLI or Single-Tenant Dev)
     # If no Auth header is present, we check if we have server-side credentials
     if not authorization:
         # Check if we have server credentials loaded globally (from server.py's old logic)
@@ -51,7 +59,7 @@ async def get_crm_session(
                 detail="Authentication required (Bearer Token or Server Credentials)",
             )
 
-    # 2. Multi-Tenant / SaaS Mode
+    # 3. Multi-Tenant / SaaS Mode
     token = authorization.replace("Bearer ", "").strip()
     if not token:
         raise HTTPException(status_code=401, detail="Invalid authorization header")

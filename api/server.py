@@ -2,72 +2,80 @@
 FastAPI Server for Sales CRM.
 Provides REST API endpoints for the Next.js dashboard.
 """
+from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks, File, UploadFile, Body, Request
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Dict, Any
+from datetime import date
+import csv
+import io
+import time
+try:
+    import multipart  # type: ignore  # noqa: F401
+    MULTIPART_AVAILABLE = True
+except ImportError:
+    MULTIPART_AVAILABLE = False
 
-import os
 import sys
+import os
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+# Public lead capture rate limiting (in-memory, per instance)
+PUBLIC_LEAD_RATE_WINDOW_SECONDS = int(os.getenv('PUBLIC_LEAD_RATE_WINDOW_SECONDS', '3600'))
+PUBLIC_LEAD_RATE_MAX = int(os.getenv('PUBLIC_LEAD_RATE_MAX', '20'))
+_public_lead_rate_limit: Dict[str, List[float]] = {}
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import (  # noqa: E402
-    FastAPI,
-    HTTPException,
-    Query,
-    Header,
-    BackgroundTasks,
-    File,
-    UploadFile,
-)
-
-from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
-from pydantic import BaseModel, field_validator  # noqa: E402
-from typing import List, Optional, Dict  # noqa: E402
-from datetime import date  # noqa: E402
-import csv  # noqa: E402
-import io  # noqa: E402
-
-from src.sheets import SheetManager  # noqa: E402
-from src.crm.manager import CRMManager  # noqa: E402
-from api.deps import get_crm_session  # noqa: E402
-from fastapi import Depends  # noqa: E402
-from src.crm.models import (  # noqa: E402
+from src.auth import authenticate
+from src.sheets import SheetManager
+from src.crm.manager import CRMManager
+from api.deps import get_crm_session
+from fastapi import Depends
+from src.crm.models import (
     Lead,
     Opportunity,
     Activity,
+    Task,
+    SavedView,
+    CustomFieldDefinition,
+    CustomFieldType,
+    EmailTemplate,
+    WorkflowRule,
+    TaskStatus,
+    TaskPriority,
     LeadStatus,
     LeadSource,
     PipelineStage,
     ActivityType,
     CompanySize,
 )
-from src.crm.ai import AIManager  # noqa: E402
-
+from src.crm.ai import AIManager
 
 # New dependency for just authenticated SheetManager (without CRM session)
 async def get_sheet_manager(authorization: Optional[str] = Header(None)):
+    from src.auth import authenticate
     from google.oauth2.credentials import Credentials
     from src.sheets import SheetManager
     import gspread
-
+    
     # Require Bearer token
     if not authorization:
-        raise HTTPException(
-            status_code=401, detail="Authorization header required. Please sign in."
-        )
-
+        raise HTTPException(status_code=401, detail="Authorization header required. Please sign in.")
+    
     token = authorization.replace("Bearer ", "").strip()
     if not token:
         raise HTTPException(status_code=401, detail="Invalid authorization header")
-
+    
     # MOCK MODE check
     if os.getenv("MOCK_DATA_MODE") == "true":
-        print("[Auth] Mock Mode enabled. Using MockSheetManager.")
+        print(f"[Auth] Mock Mode enabled. Using MockSheetManager.")
         from src.services.local_json import MockSheetManager
-
         return MockSheetManager()
 
     try:
@@ -81,15 +89,14 @@ async def get_sheet_manager(authorization: Optional[str] = Header(None)):
     except Exception as e:
         print(f"[Auth] Token auth failed: {e}")
         raise HTTPException(
-            status_code=401,
-            detail="Google authentication failed. Please sign out and sign in again to refresh your session.",
+            status_code=401, 
+            detail="Google authentication failed. Please sign out and sign in again to refresh your session."
         )
-
 
 app = FastAPI(
     title="Sales CRM API",
     description="REST API for Sales Pipeline CRM backed by Google Sheets",
-    version="0.52.0",
+    version="0.52.0"
 )
 
 # CORS for Next.js frontend
@@ -115,9 +122,34 @@ app.add_middleware(
 # Global CRM manager removed in favor of Dependency Injection (api.deps)
 
 
-#
+
+# =============================================================================
 # Request/Response Models
-#
+# =============================================================================
+
+class PublicLeadCapture(BaseModel):
+    name: str
+    email: str
+    company: Optional[str] = None
+    phone: Optional[str] = None
+    message: Optional[str] = None
+    website: Optional[str] = None
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise ValueError('Name is required.')
+        return name
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        email = value.strip()
+        if '@' not in email:
+            raise ValueError('Valid email required.')
+        return email
 
 
 class LeadCreate(BaseModel):
@@ -134,6 +166,7 @@ class LeadCreate(BaseModel):
     linkedin_url: Optional[str] = None
     logo_url: Optional[str] = None
     owner: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = None
     auto_enrich: bool = False
 
 
@@ -154,6 +187,7 @@ class LeadUpdate(BaseModel):
     enrichment_status: Optional[str] = None
     heat_level: Optional[str] = None
     owner: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = None
 
 
 class OpportunityCreate(BaseModel):
@@ -166,6 +200,7 @@ class OpportunityCreate(BaseModel):
     product: Optional[str] = None
     notes: Optional[str] = None
     owner: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = None
 
     @field_validator("value")
     @classmethod
@@ -184,6 +219,7 @@ class OpportunityUpdate(BaseModel):
     product: Optional[str] = None
     notes: Optional[str] = None
     owner: Optional[str] = None
+    custom_fields: Optional[Dict[str, Any]] = None
 
     @field_validator("value")
     @classmethod
@@ -213,10 +249,422 @@ class EmailDraftRequest(BaseModel):
     tone: Optional[str] = "Professional"
 
 
-#
-# Root & Health
-#
+class TaskCreate(BaseModel):
+    title: str
+    due_date: Optional[date] = None
+    status: str = "Open"
+    priority: str = "Medium"
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+    assignee: Optional[str] = None
+    notes: Optional[str] = None
 
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    due_date: Optional[date] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+    assignee: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class SavedViewCreate(BaseModel):
+    name: str
+    entity: str
+    filters: List[Dict[str, Any]] = Field(default_factory=list)
+    sort_by: Optional[str] = None
+    sort_order: str = "asc"
+    owner: Optional[str] = None
+    is_shared: bool = False
+
+
+class SavedViewUpdate(BaseModel):
+    name: Optional[str] = None
+    entity: Optional[str] = None
+    filters: Optional[List[Dict[str, Any]]] = None
+    sort_by: Optional[str] = None
+    sort_order: Optional[str] = None
+    owner: Optional[str] = None
+    is_shared: Optional[bool] = None
+
+
+class BulkOperationRequest(BaseModel):
+    operation: str  # update_status | update_stage | delete
+    ids: List[str]
+    status: Optional[str] = None
+    stage: Optional[str] = None
+
+
+class DuplicateMergeRequest(BaseModel):
+    lead_a_id: str
+    lead_b_id: str
+    primary_id: Optional[str] = None
+    selected_fields: Dict[str, Any] = Field(default_factory=dict)
+
+
+class CustomFieldCreate(BaseModel):
+    entity: str
+    key: str
+    label: str
+    field_type: str = "text"
+    required: bool = False
+    options: List[str] = Field(default_factory=list)
+    validation_rule: Optional[str] = None
+
+
+class CustomFieldUpdate(BaseModel):
+    entity: Optional[str] = None
+    key: Optional[str] = None
+    label: Optional[str] = None
+    field_type: Optional[str] = None
+    required: Optional[bool] = None
+    options: Optional[List[str]] = None
+    validation_rule: Optional[str] = None
+
+
+class EmailTemplateCreate(BaseModel):
+    name: str
+    entity: str = "leads"
+    subject: str
+    body: str
+    owner: Optional[str] = None
+    is_shared: bool = True
+
+
+class EmailTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    entity: Optional[str] = None
+    subject: Optional[str] = None
+    body: Optional[str] = None
+    owner: Optional[str] = None
+    is_shared: Optional[bool] = None
+
+
+class RenderEmailTemplateRequest(BaseModel):
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+    my_name: Optional[str] = None
+
+
+class WorkflowRuleCreate(BaseModel):
+    name: str
+    is_active: bool = True
+    trigger_type: str
+    trigger_value: Optional[str] = None
+    entity: str = "leads"
+    conditions: List[Dict[str, Any]] = Field(default_factory=list)
+    actions: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class WorkflowRuleUpdate(BaseModel):
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+    trigger_type: Optional[str] = None
+    trigger_value: Optional[str] = None
+    entity: Optional[str] = None
+    conditions: Optional[List[Dict[str, Any]]] = None
+    actions: Optional[List[Dict[str, Any]]] = None
+
+
+class WorkflowEvaluateRequest(BaseModel):
+    trigger_type: str
+    context: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AIParseRequest(BaseModel):
+    query: str
+
+
+class AIExecuteRequest(BaseModel):
+    operation: Dict[str, Any]
+
+
+class AIExplainRequest(BaseModel):
+    topic: str
+
+
+class ParseNotesRequest(BaseModel):
+    content: str
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+
+
+class ApplyParsedNotesRequest(BaseModel):
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+    tasks: List[Dict[str, Any]] = Field(default_factory=list)
+    deal_updates: Dict[str, Any] = Field(default_factory=dict)
+    key_points: List[str] = Field(default_factory=list)
+
+
+class CoachAskRequest(BaseModel):
+    question: str
+    lead_id: Optional[str] = None
+    opp_id: Optional[str] = None
+
+
+class ForecastScenarioRequest(BaseModel):
+    remove_opp_ids: List[str] = Field(default_factory=list)
+    force_close_opp_ids: List[str] = Field(default_factory=list)
+
+
+class IntegrationConnectRequest(BaseModel):
+    config: Dict[str, Any] = Field(default_factory=dict)
+
+
+class IntegrationSyncRequest(BaseModel):
+    idempotency_key: Optional[str] = None
+    max_retries: int = 1
+
+
+def _get_public_client_ip(request: Request) -> str:
+    forwarded = request.headers.get('x-forwarded-for')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    if request.client:
+        return request.client.host
+    return 'unknown'
+
+
+def _enforce_public_lead_rate_limit(request: Request) -> None:
+    ip = _get_public_client_ip(request)
+    now = time.time()
+    window_start = now - PUBLIC_LEAD_RATE_WINDOW_SECONDS
+
+    timestamps = [
+        stamp for stamp in _public_lead_rate_limit.get(ip, [])
+        if stamp >= window_start
+    ]
+
+    if len(timestamps) >= PUBLIC_LEAD_RATE_MAX:
+        retry_after = int(max(1, PUBLIC_LEAD_RATE_WINDOW_SECONDS - (now - min(timestamps))))
+        raise HTTPException(
+            status_code=429,
+            detail='Rate limit exceeded. Try again later.',
+            headers={'Retry-After': str(retry_after)},
+        )
+
+    timestamps.append(now)
+    _public_lead_rate_limit[ip] = timestamps
+
+
+def _lead_payload(crm: CRMManager, lead: Lead) -> Dict[str, Any]:
+    payload = lead.model_dump()
+    payload["custom_fields"] = crm.get_custom_field_values("leads", lead.lead_id)
+    return payload
+
+
+def _opportunity_payload(crm: CRMManager, opp: Opportunity) -> Dict[str, Any]:
+    payload = opp.model_dump()
+    payload["custom_fields"] = crm.get_custom_field_values("opportunities", opp.opp_id)
+    return payload
+
+
+def _log_audit(
+    crm: CRMManager,
+    action: str,
+    entity: str,
+    record_id: Optional[str] = None,
+    status: str = "success",
+    metadata: Optional[Dict[str, Any]] = None,
+):
+    """Best-effort audit logging helper."""
+    try:
+        crm.log_audit_event(
+            action=action,
+            entity=entity,
+            record_id=record_id,
+            status=status,
+            metadata=metadata or {},
+        )
+    except Exception as exc:
+        print(f"[Audit] Failed to log event {action}/{entity}: {exc}")
+
+
+def _parse_ai_intent(query: str, crm: CRMManager) -> Dict[str, Any]:
+    normalized = query.strip()
+    lowered = normalized.lower()
+
+    if lowered.startswith("create lead") or lowered.startswith("add lead"):
+        # Example: "create lead for John Smith at Acme"
+        import re
+        match = re.search(r"(?:for\s+)?(.+?)\s+at\s+(.+)$", normalized, re.IGNORECASE)
+        if match:
+            contact = match.group(1).strip()
+            company = match.group(2).strip()
+        else:
+            contact = "Unknown Contact"
+            company = normalized.replace("create lead", "").replace("add lead", "").strip() or "Unknown Company"
+
+        return {
+            "intent": "action",
+            "operation": {
+                "type": "create_lead",
+                "company_name": company,
+                "contact_name": contact,
+                "status": "New",
+                "source": "Other",
+            },
+            "confirmation_needed": True,
+            "response": f"Prepared new lead: {contact} at {company}.",
+        }
+
+    if lowered.startswith("move") and " to " in lowered:
+        import re
+        match = re.search(r"move\s+(.+?)\s+to\s+(.+)$", normalized, re.IGNORECASE)
+        if match:
+            title = match.group(1).strip()
+            stage = match.group(2).strip()
+            opp = next((item for item in crm.get_opportunities() if item.title.lower() == title.lower()), None)
+            if opp:
+                return {
+                    "intent": "action",
+                    "operation": {
+                        "type": "move_opportunity_stage",
+                        "opp_id": opp.opp_id,
+                        "stage": stage,
+                    },
+                    "confirmation_needed": True,
+                    "response": f"Prepared move for '{opp.title}' to {stage}.",
+                }
+
+    if "pipeline" in lowered or "forecast" in lowered:
+        summary = crm.get_pipeline_summary()
+        return {
+            "intent": "query",
+            "operation": {
+                "type": "pipeline_summary",
+            },
+            "confirmation_needed": False,
+            "response": (
+                f"Pipeline value: ${summary['total_pipeline_value']:,.0f}. "
+                f"Expected value: ${summary['total_expected_value']:,.0f}. "
+                f"Opportunities: {summary['total_opportunities']}."
+            ),
+        }
+
+    if lowered.startswith("go to ") or lowered.startswith("open "):
+        destination = lowered.replace("go to ", "").replace("open ", "").strip()
+        return {
+            "intent": "navigation",
+            "operation": {"type": "navigation", "destination": destination},
+            "confirmation_needed": False,
+            "response": f"Navigate to {destination}.",
+        }
+
+    return {
+        "intent": "query",
+        "operation": {"type": "search", "query": normalized},
+        "confirmation_needed": False,
+        "response": "No direct action detected. Try asking for pipeline summary or lead creation.",
+    }
+
+
+def _parse_notes_payload(content: str) -> Dict[str, Any]:
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    lowered = content.lower()
+
+    tasks: List[Dict[str, Any]] = []
+    key_points: List[str] = []
+    new_contacts: List[Dict[str, Optional[str]]] = []
+    objections: List[str] = []
+
+    import re
+
+    email_matches = re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", content)
+    for email in email_matches:
+        local_part = email.split("@")[0].replace(".", " ").title()
+        new_contacts.append({"name": local_part, "email": email, "role": None})
+
+    for line in lines:
+        lower_line = line.lower()
+        if any(marker in lower_line for marker in ["todo", "need to", "follow up", "will ", "action"]):
+            tasks.append(
+                {
+                    "description": line,
+                    "priority": "medium",
+                    "due_date": "tomorrow" if "tomorrow" in lower_line else None,
+                }
+            )
+        else:
+            key_points.append(line)
+
+        if any(marker in lower_line for marker in ["concern", "objection", "budget", "blocked"]):
+            objections.append(line)
+
+    sentiment = "neutral"
+    if any(word in lowered for word in ["great", "excited", "close", "approved", "positive"]):
+        sentiment = "positive"
+    if any(word in lowered for word in ["concern", "blocked", "risk", "negative", "not ready"]):
+        sentiment = "negative"
+
+    value_match = re.search(r"\$([0-9][0-9,]*(?:\.[0-9]+)?)", content)
+    value = None
+    if value_match:
+        value = float(value_match.group(1).replace(",", ""))
+
+    return {
+        "summary": lines[0] if lines else "No summary available",
+        "sentiment": sentiment,
+        "tasks": tasks,
+        "deal_updates": {
+            "value": value,
+            "stage": None,
+            "close_date": None,
+            "probability": None,
+        },
+        "key_points": key_points[:8],
+        "objections": objections[:5],
+        "new_contacts": new_contacts[:5],
+    }
+
+
+def _build_forecast(opps: List[Opportunity]) -> Dict[str, Any]:
+    total_pipeline = sum(opp.value for opp in opps)
+    weighted = sum(opp.expected_value for opp in opps)
+
+    # Heuristic adjustment: downweight very early stage and stale close dates
+    adjusted = 0.0
+    for opp in opps:
+        base = opp.value * (opp.probability / 100)
+        stage_factor = 1.0
+        if opp.stage == PipelineStage.PROSPECTING:
+            stage_factor = 0.65
+        elif opp.stage == PipelineStage.DISCOVERY:
+            stage_factor = 0.8
+        elif opp.stage == PipelineStage.PROPOSAL:
+            stage_factor = 0.95
+        elif opp.stage == PipelineStage.NEGOTIATION:
+            stage_factor = 1.05
+        elif opp.stage == PipelineStage.CLOSED_WON:
+            stage_factor = 1.0
+        elif opp.stage == PipelineStage.CLOSED_LOST:
+            stage_factor = 0.0
+
+        time_factor = 1.0
+        if opp.close_date and opp.close_date < date.today():
+            time_factor = 0.85
+
+        adjusted += base * stage_factor * time_factor
+
+    return {
+        "total_pipeline": float(total_pipeline),
+        "weighted_forecast": float(weighted),
+        "ai_adjusted_forecast": float(adjusted),
+        "confidence_range": {
+            "pessimistic": float(adjusted * 0.75),
+            "expected": float(adjusted),
+            "optimistic": float(adjusted * 1.2),
+        },
+    }
+
+
+# =============================================================================
+# Root & Health
+# =============================================================================
 
 @app.get("/")
 def root():
@@ -240,13 +688,11 @@ class CreateSheetRequest(BaseModel):
 
 
 @app.post("/api/sheets/create")
-def create_crm_sheet(
-    request: CreateSheetRequest, sm: SheetManager = Depends(get_sheet_manager)
-):
+def create_crm_sheet(request: CreateSheetRequest, sm: SheetManager = Depends(get_sheet_manager)):
     """Create a new CRM spreadsheet with all required worksheets."""
     from src.crm.templates import CRMTemplates
     import traceback
-
+    
     try:
         print(f"[CreateSheet] Creating CRM sheet: {request.name}")
         templates = CRMTemplates(sm.gc)
@@ -254,7 +700,11 @@ def create_crm_sheet(
         print(f"[CreateSheet] Successfully created: {sh.url}")
         return {
             "success": True,
-            "sheet": {"id": sh.id, "name": request.name, "url": sh.url},
+            "sheet": {
+                "id": sh.id,
+                "name": request.name,
+                "url": sh.url
+            }
         }
     except Exception as e:
         print(f"[CreateSheet] ERROR: {e}")
@@ -267,7 +717,7 @@ def ensure_schema_sheet(sheet_id: str, sm: SheetManager = Depends(get_sheet_mana
     """Add the Schema reference sheet to an existing CRM."""
     from src.crm.templates import CRMTemplates
     import traceback
-
+    
     try:
         print(f"[SchemaSheet] Adding schema to sheet: {sheet_id}")
         sh = sm.gc.open_by_key(sheet_id)
@@ -281,15 +731,15 @@ def ensure_schema_sheet(sheet_id: str, sm: SheetManager = Depends(get_sheet_mana
         raise HTTPException(status_code=500, detail=str(e))
 
 
-#
+# =============================================================================
 # Leads Endpoints
-#
-
+# =============================================================================
 
 @app.get("/api/leads")
 def list_leads(
     status: Optional[str] = Query(None, description="Filter by status"),
     source: Optional[str] = Query(None, description="Filter by source"),
+    owner: Optional[str] = Query(None, description="Filter by owner"),
     crm: CRMManager = Depends(get_crm_session),
 ):
     """Get all leads, optionally filtered."""
@@ -297,11 +747,125 @@ def list_leads(
     leads = crm.get_leads()
 
     if status:
-        leads = [lead for lead in leads if lead.status.value == status]
+        leads = [l for l in leads if l.status.value == status]
     if source:
-        leads = [lead for lead in leads if lead.source.value == source]
+        leads = [l for l in leads if l.source.value == source]
+    if owner:
+        owner_key = owner.lower().strip()
+        leads = [l for l in leads if l.owner and l.owner.lower().strip() == owner_key]
 
-    return {"leads": [lead.model_dump() for lead in leads], "count": len(leads)}
+    return {"leads": [_lead_payload(crm, lead) for lead in leads], "count": len(leads)}
+
+
+@app.post("/api/leads/public", status_code=201)
+def capture_public_lead(
+    payload: PublicLeadCapture,
+    request: Request,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Capture a lead from a public form submission."""
+    _enforce_public_lead_rate_limit(request)
+
+    company_name = (payload.company or '').strip()
+    contact_name = payload.name.strip()
+    if not company_name:
+        company_name = contact_name
+
+    notes_parts = []
+    if payload.message:
+        notes_parts.append(f"Message: {payload.message.strip()}")
+    if payload.phone:
+        notes_parts.append(f"Phone: {payload.phone.strip()}")
+    if payload.website:
+        notes_parts.append(f"Website: {payload.website.strip()}")
+
+    lead = Lead(
+        company_name=company_name,
+        contact_name=contact_name,
+        contact_email=payload.email.strip(),
+        contact_phone=payload.phone.strip() if payload.phone else None,
+        status=LeadStatus.NEW,
+        source=LeadSource.WEB_FORM,
+        notes='\n'.join(notes_parts) if notes_parts else None,
+        website=payload.website.strip() if payload.website else None,
+    )
+    created = crm.add_lead(lead)
+
+    _log_audit(
+        crm,
+        action="public_lead_capture",
+        entity="leads",
+        record_id=created.lead_id,
+        metadata={
+            "ip": _get_public_client_ip(request),
+            "source": LeadSource.WEB_FORM.value,
+        },
+    )
+
+    return {"success": True, "lead_id": created.lead_id}
+
+
+@app.get("/api/leads/duplicates")
+def detect_duplicate_leads(
+    min_confidence: float = Query(0.75, ge=0.5, le=1.0),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Detect potential duplicate leads."""
+    matches = crm.find_duplicate_leads(min_confidence=min_confidence)
+    return {"matches": matches, "count": len(matches)}
+
+
+@app.get("/api/leads/duplicates/suggest")
+def suggest_duplicate_merge(
+    lead_a_id: str = Query(...),
+    lead_b_id: str = Query(...),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Suggest a merge strategy for a duplicate lead pair."""
+    try:
+        return crm.suggest_duplicate_merge(lead_a_id, lead_b_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/leads/duplicates/merge")
+def merge_duplicate_leads(
+    payload: DuplicateMergeRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Merge duplicate leads and rewire related records."""
+    try:
+        result = crm.merge_duplicate_leads(
+            payload.lead_a_id,
+            payload.lead_b_id,
+            primary_id=payload.primary_id,
+            selected_fields=payload.selected_fields,
+        )
+        _log_audit(
+            crm,
+            action="merge_duplicates",
+            entity="leads",
+            record_id=result.get("primary_lead_id"),
+            metadata={
+                "lead_a_id": payload.lead_a_id,
+                "lead_b_id": payload.lead_b_id,
+                "moved": result.get("moved", {}),
+            },
+        )
+        return result
+    except ValueError as exc:
+        _log_audit(
+            crm,
+            action="merge_duplicates",
+            entity="leads",
+            status="failed",
+            metadata={
+                "lead_a_id": payload.lead_a_id,
+                "lead_b_id": payload.lead_b_id,
+                "error": str(exc),
+            },
+        )
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/leads/{lead_id}")
@@ -310,14 +874,14 @@ def get_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    return lead.model_dump()
+    return _lead_payload(crm, lead)
 
 
 @app.post("/api/leads", status_code=201)
 def create_lead(
-    data: LeadCreate,
+    data: LeadCreate, 
     background_tasks: BackgroundTasks,
-    crm: CRMManager = Depends(get_crm_session),
+    crm: CRMManager = Depends(get_crm_session)
 ):
     """Create a new lead."""
     lead = Lead(
@@ -325,44 +889,62 @@ def create_lead(
         contact_name=data.contact_name,
         contact_email=data.contact_email,
         contact_phone=data.contact_phone,
-        status=LeadStatus(data.status)
-        if data.status in [s.value for s in LeadStatus]
-        else LeadStatus.NEW,
-        source=LeadSource(data.source)
-        if data.source in [s.value for s in LeadSource]
-        else LeadSource.OTHER,
+        status=LeadStatus(data.status) if data.status in [s.value for s in LeadStatus] else LeadStatus.NEW,
+        source=LeadSource(data.source) if data.source in [s.value for s in LeadSource] else LeadSource.OTHER,
         industry=data.industry,
-        company_size=CompanySize(data.company_size)
-        if data.company_size in [s.value for s in CompanySize]
-        else None,
+        company_size=CompanySize(data.company_size) if data.company_size in [s.value for s in CompanySize] else None,
         notes=data.notes,
         website=data.website,
         linkedin_url=data.linkedin_url,
         logo_url=data.logo_url,
         owner=data.owner,
     )
-    created = crm.add_lead(lead)
+    if data.custom_fields:
+        crm.validate_custom_fields("leads", data.custom_fields)
 
+    created = crm.add_lead(lead)
+    if data.custom_fields:
+        crm.set_custom_field_values("leads", created.lead_id, data.custom_fields)
+    workflow_result = crm.run_workflow_rules(
+        "lead_created",
+        {
+            "lead_id": created.lead_id,
+            "company_name": created.company_name,
+            "status": created.status.value,
+            "source": created.source.value,
+            "owner": created.owner,
+        },
+    )
+    _log_audit(
+        crm,
+        action="create",
+        entity="lead",
+        record_id=created.lead_id,
+        metadata={"company_name": created.company_name},
+    )
+    
     # Enrichment
     if data.auto_enrich:
         # Synchronous enrich + return enriched record if possible
         try:
             enriched = crm.enrich_lead(created.lead_id)
             if enriched:
-                return enriched.model_dump()
+                payload = _lead_payload(crm, enriched)
+                payload["workflow_effects"] = workflow_result
+                return payload
         except Exception as e:
             print(f"[API] Auto-enrich failed: {e}")
 
     # Default behavior: enrich asynchronously when company name is present
     if created.company_name:
         background_tasks.add_task(crm.enrich_lead, created.lead_id)
-    return created.model_dump()
+    payload = _lead_payload(crm, created)
+    payload["workflow_effects"] = workflow_result
+    return payload
 
 
 @app.put("/api/leads/{lead_id}")
-def update_lead(
-    lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_crm_session)
-):
+def update_lead(lead_id: str, data: LeadUpdate, crm: CRMManager = Depends(get_crm_session)):
     """Update an existing lead."""
     lead = crm.get_lead(lead_id)
     if not lead:
@@ -399,39 +981,48 @@ def update_lead(
         lead.enrichment_status = data.enrichment_status
     if data.owner is not None:
         lead.owner = data.owner
+    if data.custom_fields is not None:
+        crm.validate_custom_fields("leads", data.custom_fields)
+        crm.set_custom_field_values("leads", lead_id, data.custom_fields)
 
     success = crm.update_lead(lead)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update lead")
-    return lead.model_dump()
+    _log_audit(
+        crm,
+        action="update",
+        entity="lead",
+        record_id=lead_id,
+    )
+    return _lead_payload(crm, lead)
 
 
 @app.post("/api/leads/{lead_id}/enrich")
 def enrich_lead(
-    lead_id: str,
+    lead_id: str, 
     background_tasks: BackgroundTasks,
-    crm: CRMManager = Depends(get_crm_session),
+    crm: CRMManager = Depends(get_crm_session)
 ):
     """Manually trigger enrichment for a lead."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-
+    
     background_tasks.add_task(crm.enrich_lead, lead_id)
     return {"message": "Enrichment started", "lead_id": lead_id}
 
 
 @app.post("/api/leads/{lead_id}/score")
 def score_lead(
-    lead_id: str,
+    lead_id: str, 
     background_tasks: BackgroundTasks,
-    crm: CRMManager = Depends(get_crm_session),
+    crm: CRMManager = Depends(get_crm_session)
 ):
     """Manually trigger AI scoring for a lead."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-
+    
     background_tasks.add_task(crm.score_lead, lead_id)
     return {"message": "Scoring started", "lead_id": lead_id}
 
@@ -442,90 +1033,116 @@ def delete_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
     success = crm.delete_lead(lead_id)
     if not success:
         raise HTTPException(status_code=404, detail="Lead not found")
+    _log_audit(crm, action="delete", entity="lead", record_id=lead_id)
     return {"deleted": True}
 
 
-# NOTE: Duplicate enrich/score endpoints removed. Use the async endpoints above.
+@app.post("/api/leads/{lead_id}/enrich")
+def enrich_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Enrich a lead with AI data."""
+    lead = crm.enrich_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return lead.model_dump()
+
+
+@app.post("/api/leads/{lead_id}/score")
+def score_lead(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Assign an AI lead score (0-100)."""
+    lead = crm.score_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return lead.model_dump()
 
 
 @app.post("/api/leads/{lead_id}/generate-email")
 def generate_lead_email(
-    lead_id: str, request: EmailDraftRequest, crm: CRMManager = Depends(get_crm_session)
+    lead_id: str, 
+    request: EmailDraftRequest,
+    crm: CRMManager = Depends(get_crm_session)
 ):
     """Generate an AI email draft for a lead."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-
+    
     # Get recent activities for context
     activities = crm.get_activities(lead_id=lead_id)
-
+    
     ai = AIManager()
     draft = ai.generate_email_draft(
-        lead=lead, activities=activities, purpose=request.purpose, tone=request.tone
+        lead=lead, 
+        activities=activities, 
+        purpose=request.purpose, 
+        tone=request.tone
     )
-
+    
     return {"draft": draft}
 
 
 @app.get("/api/leads/{lead_id}/suggest-action")
-def suggest_lead_action(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
+def suggest_lead_action(
+    lead_id: str,
+    crm: CRMManager = Depends(get_crm_session)
+):
     """Suggest the 'Next Best Action' for a lead using AI."""
     lead = crm.get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-
+    
     # Get associated opportunities (if any)
     opps = crm.get_opportunities_for_lead(lead_id)
     # Prefer the most recent/relevant opportunity if multiple exist
-    active_opp = next(
-        (
-            o
-            for o in opps
-            if o.stage not in [PipelineStage.CLOSED_WON, PipelineStage.CLOSED_LOST]
-        ),
-        None,
-    )
-
+    active_opp = next((o for o in opps if o.stage not in [PipelineStage.CLOSED_WON, PipelineStage.CLOSED_LOST]), None)
+    
     # Get recent activities for context
     activities = crm.get_activities(lead_id=lead_id)
-
+    
     ai = AIManager()
     suggestion = ai.suggest_next_action(
-        lead=lead, opportunity=active_opp, activities=activities
+        lead=lead,
+        opportunity=active_opp,
+        activities=activities
     )
-
+    
     return suggestion
 
 
 @app.post("/api/opportunities/{opp_id}/analyze-risk")
-def analyze_opportunity_risk(opp_id: str, crm: CRMManager = Depends(get_crm_session)):
+def analyze_opportunity_risk(
+    opp_id: str,
+    crm: CRMManager = Depends(get_crm_session)
+):
     """Analyze opportunity for risks and blockers using AI."""
     opp = crm.get_opportunity(opp_id)
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
-
+    
     lead = crm.get_lead(opp.lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Associated lead not found")
-
+        
     activities = crm.get_activities(opp_id=opp_id)
-
+    
     ai = AIManager()
-    analysis = ai.analyze_deal_risk(opportunity=opp, lead=lead, activities=activities)
-
+    analysis = ai.analyze_deal_risk(
+        opportunity=opp,
+        lead=lead,
+        activities=activities
+    )
+    
     return analysis
 
 
-#
+# =============================================================================
 # Opportunities Endpoints
-#
-
+# =============================================================================
 
 @app.get("/api/opportunities")
 def list_opportunities(
     stage: Optional[str] = Query(None, description="Filter by pipeline stage"),
     lead_id: Optional[str] = Query(None, description="Filter by lead"),
+    owner: Optional[str] = Query(None, description="Filter by owner"),
     crm: CRMManager = Depends(get_crm_session),
 ):
     """Get all opportunities, optionally filtered."""
@@ -535,8 +1152,11 @@ def list_opportunities(
         opps = [o for o in opps if o.stage.value == stage]
     if lead_id:
         opps = [o for o in opps if o.lead_id == lead_id]
+    if owner:
+        owner_key = owner.lower().strip()
+        opps = [o for o in opps if o.owner and o.owner.lower().strip() == owner_key]
 
-    return {"opportunities": [o.model_dump() for o in opps], "count": len(opps)}
+    return {"opportunities": [_opportunity_payload(crm, opp) for opp in opps], "count": len(opps)}
 
 
 @app.get("/api/opportunities/{opp_id}")
@@ -545,7 +1165,7 @@ def get_opportunity(opp_id: str, crm: CRMManager = Depends(get_crm_session)):
     opp = crm.get_opportunity(opp_id)
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
-    return opp.model_dump()
+    return _opportunity_payload(crm, opp)
 
 
 @app.get("/api/opportunities/{opp_id}/analysis")
@@ -558,9 +1178,7 @@ def analyze_opportunity(opp_id: str, crm: CRMManager = Depends(get_crm_session))
 
 
 @app.post("/api/opportunities", status_code=201)
-def create_opportunity(
-    data: OpportunityCreate, crm: CRMManager = Depends(get_crm_session)
-):
+def create_opportunity(data: OpportunityCreate, crm: CRMManager = Depends(get_crm_session)):
     """Create a new opportunity."""
 
     # Verify lead exists
@@ -571,9 +1189,7 @@ def create_opportunity(
     opp = Opportunity(
         lead_id=data.lead_id,
         title=data.title,
-        stage=PipelineStage(data.stage)
-        if data.stage in [s.value for s in PipelineStage]
-        else PipelineStage.PROSPECTING,
+        stage=PipelineStage(data.stage) if data.stage in [s.value for s in PipelineStage] else PipelineStage.PROSPECTING,
         value=data.value,
         probability=data.probability,
         close_date=data.close_date,
@@ -581,18 +1197,22 @@ def create_opportunity(
         notes=data.notes,
         owner=data.owner,
     )
+    if data.custom_fields:
+        crm.validate_custom_fields("opportunities", data.custom_fields)
+
     created = crm.add_opportunity(opp)
-    return created.model_dump()
+    if data.custom_fields:
+        crm.set_custom_field_values("opportunities", created.opp_id, data.custom_fields)
+    return _opportunity_payload(crm, created)
 
 
 @app.put("/api/opportunities/{opp_id}")
-def update_opportunity(
-    opp_id: str, data: OpportunityUpdate, crm: CRMManager = Depends(get_crm_session)
-):
+def update_opportunity(opp_id: str, data: OpportunityUpdate, crm: CRMManager = Depends(get_crm_session)):
     """Update an existing opportunity."""
     opp = crm.get_opportunity(opp_id)
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
+    previous_stage = opp.stage.value
 
     if data.title:
         opp.title = data.title
@@ -610,29 +1230,60 @@ def update_opportunity(
         opp.notes = data.notes
     if data.owner is not None:
         opp.owner = data.owner
+    if data.custom_fields is not None:
+        crm.validate_custom_fields("opportunities", data.custom_fields)
+        crm.set_custom_field_values("opportunities", opp_id, data.custom_fields)
 
     success = crm.update_opportunity(opp)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update opportunity")
-    return opp.model_dump()
+    payload = _opportunity_payload(crm, opp)
+    if opp.stage.value != previous_stage:
+        payload["workflow_effects"] = crm.run_workflow_rules(
+            "stage_changed",
+            {
+                "opp_id": opp.opp_id,
+                "lead_id": opp.lead_id,
+                "previous_stage": previous_stage,
+                "new_stage": opp.stage.value,
+                "owner": opp.owner,
+            },
+        )
+    return payload
 
 
 @app.patch("/api/opportunities/{opp_id}/stage")
-def update_opportunity_stage(
-    opp_id: str, data: StageUpdate, crm: CRMManager = Depends(get_crm_session)
-):
+def update_opportunity_stage(opp_id: str, data: StageUpdate, crm: CRMManager = Depends(get_crm_session)):
     """Update only the stage of an opportunity (for drag-and-drop)."""
+    current = crm.get_opportunity(opp_id)
+    if not current:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    previous_stage = current.stage.value
+
     # Validate enum lookup
     try:
         target_stage = PipelineStage(data.stage)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid stage: {data.stage}")
+            raise HTTPException(status_code=400, detail=f"Invalid stage: {data.stage}")
 
     success = crm.move_opportunity_stage(opp_id, target_stage)
     if not success:
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
-    return {"updated": True, "new_stage": data.stage}
+    workflow_effects = None
+    if data.stage != previous_stage:
+        workflow_effects = crm.run_workflow_rules(
+            "stage_changed",
+            {
+                "opp_id": current.opp_id,
+                "lead_id": current.lead_id,
+                "previous_stage": previous_stage,
+                "new_stage": data.stage,
+                "owner": current.owner,
+            },
+        )
+
+    return {"updated": True, "new_stage": data.stage, "workflow_effects": workflow_effects}
 
 
 @app.delete("/api/opportunities/{opp_id}")
@@ -644,10 +1295,9 @@ def delete_opportunity(opp_id: str, crm: CRMManager = Depends(get_crm_session)):
     return {"deleted": True}
 
 
-#
+# =============================================================================
 # Activities Endpoints
-#
-
+# =============================================================================
 
 @app.get("/api/activities")
 def list_activities(
@@ -657,10 +1307,7 @@ def list_activities(
 ):
     """Get activities, optionally filtered by lead or opportunity."""
     activities = crm.get_activities(lead_id=lead_id, opp_id=opp_id)
-    return {
-        "activities": [a.model_dump() for a in activities],
-        "count": len(activities),
-    }
+    return {"activities": [a.model_dump() for a in activities], "count": len(activities)}
 
 
 @app.post("/api/activities", status_code=201)
@@ -675,9 +1322,7 @@ def create_activity(data: ActivityCreate, crm: CRMManager = Depends(get_crm_sess
     activity = Activity(
         lead_id=data.lead_id,
         opp_id=data.opp_id,
-        type=ActivityType(data.type)
-        if data.type in [t.value for t in ActivityType]
-        else ActivityType.NOTE,
+        type=ActivityType(data.type) if data.type in [t.value for t in ActivityType] else ActivityType.NOTE,
         subject=data.subject,
         description=data.description,
         created_by=data.created_by,
@@ -686,22 +1331,708 @@ def create_activity(data: ActivityCreate, crm: CRMManager = Depends(get_crm_sess
     return created.model_dump()
 
 
-#
-# Dashboard Endpoints
-#
+# =============================================================================
+# Tasks Endpoints
+# =============================================================================
 
+@app.get("/api/tasks")
+def list_tasks(
+    status: Optional[str] = Query(None),
+    due_before: Optional[date] = Query(None),
+    assignee: Optional[str] = Query(None),
+    lead_id: Optional[str] = Query(None),
+    opp_id: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Get tasks, optionally filtered."""
+    tasks = crm.get_tasks(
+        status=status,
+        due_before=due_before,
+        assignee=assignee,
+        lead_id=lead_id,
+        opp_id=opp_id,
+    )
+    return {"tasks": [t.model_dump() for t in tasks], "count": len(tasks)}
+
+
+@app.post("/api/tasks", status_code=201)
+def create_task(data: TaskCreate, crm: CRMManager = Depends(get_crm_session)):
+    """Create a task."""
+    if not data.lead_id and not data.opp_id:
+        raise HTTPException(status_code=400, detail="Task must be linked to a lead or opportunity")
+
+    if data.lead_id and not crm.get_lead(data.lead_id):
+        raise HTTPException(status_code=400, detail="Lead not found")
+    if data.opp_id and not crm.get_opportunity(data.opp_id):
+        raise HTTPException(status_code=400, detail="Opportunity not found")
+
+    task = Task(
+        title=data.title,
+        due_date=data.due_date,
+        status=TaskStatus(data.status) if data.status in [s.value for s in TaskStatus] else TaskStatus.OPEN,
+        priority=TaskPriority(data.priority) if data.priority in [p.value for p in TaskPriority] else TaskPriority.MEDIUM,
+        lead_id=data.lead_id,
+        opp_id=data.opp_id,
+        assignee=data.assignee,
+        notes=data.notes,
+    )
+    created = crm.add_task(task)
+    return created.model_dump()
+
+
+@app.put("/api/tasks/{task_id}")
+def update_task(task_id: str, data: TaskUpdate, crm: CRMManager = Depends(get_crm_session)):
+    """Update a task."""
+    task = crm.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "title" in updates:
+        task.title = updates["title"]
+    if "due_date" in updates:
+        task.due_date = updates["due_date"]
+    if "status" in updates:
+        status = updates["status"]
+        task.status = TaskStatus(status) if status in [s.value for s in TaskStatus] else task.status
+    if "priority" in updates:
+        priority = updates["priority"]
+        task.priority = TaskPriority(priority) if priority in [p.value for p in TaskPriority] else task.priority
+    if "lead_id" in updates:
+        task.lead_id = updates["lead_id"]
+    if "opp_id" in updates:
+        task.opp_id = updates["opp_id"]
+    if "assignee" in updates:
+        task.assignee = updates["assignee"]
+    if "notes" in updates:
+        task.notes = updates["notes"]
+
+    success = crm.update_task(task)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update task")
+
+    return task.model_dump()
+
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Delete a task."""
+    success = crm.delete_task(task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"deleted": True}
+
+
+# =============================================================================
+# Saved Views Endpoints
+# =============================================================================
+
+@app.get("/api/views")
+def list_saved_views(
+    entity: Optional[str] = Query(None),
+    owner: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List saved views."""
+    views = crm.get_saved_views(entity=entity, owner=owner)
+    return {"views": [v.model_dump() for v in views], "count": len(views)}
+
+
+@app.post("/api/views", status_code=201)
+def create_saved_view(data: SavedViewCreate, crm: CRMManager = Depends(get_crm_session)):
+    """Create a saved view."""
+    view = SavedView(
+        name=data.name,
+        entity=data.entity,
+        filters=data.filters,
+        sort_by=data.sort_by,
+        sort_order=data.sort_order,
+        owner=data.owner,
+        is_shared=data.is_shared,
+    )
+    created = crm.add_saved_view(view)
+    return created.model_dump()
+
+
+@app.put("/api/views/{view_id}")
+def update_saved_view(view_id: str, data: SavedViewUpdate, crm: CRMManager = Depends(get_crm_session)):
+    """Update a saved view."""
+    view = crm.get_saved_view(view_id)
+    if not view:
+        raise HTTPException(status_code=404, detail="Saved view not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "name" in updates:
+        view.name = updates["name"]
+    if "entity" in updates:
+        view.entity = updates["entity"]
+    if "filters" in updates:
+        view.filters = updates["filters"]
+    if "sort_by" in updates:
+        view.sort_by = updates["sort_by"]
+    if "sort_order" in updates:
+        view.sort_order = updates["sort_order"]
+    if "owner" in updates:
+        view.owner = updates["owner"]
+    if "is_shared" in updates:
+        view.is_shared = updates["is_shared"]
+
+    success = crm.update_saved_view(view)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update saved view")
+
+    return view.model_dump()
+
+
+@app.delete("/api/views/{view_id}")
+def delete_saved_view(view_id: str, crm: CRMManager = Depends(get_crm_session)):
+    """Delete a saved view."""
+    success = crm.delete_saved_view(view_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Saved view not found")
+    return {"deleted": True}
+
+
+# =============================================================================
+# Custom Fields Endpoints
+# =============================================================================
+
+@app.get("/api/custom-fields")
+def list_custom_fields(
+    entity: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List custom field definitions."""
+    fields = crm.get_custom_field_definitions(entity=entity)
+    return {"fields": [item.model_dump() for item in fields], "count": len(fields)}
+
+
+@app.post("/api/custom-fields", status_code=201)
+def create_custom_field(
+    data: CustomFieldCreate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Create a custom field definition."""
+    normalized_type = data.field_type.strip().lower()
+    try:
+        field_type = CustomFieldType(normalized_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Unsupported field_type: {data.field_type}") from exc
+
+    definition = CustomFieldDefinition(
+        entity=data.entity,
+        key=data.key,
+        label=data.label,
+        field_type=field_type,
+        required=data.required,
+        options=data.options,
+        validation_rule=data.validation_rule,
+    )
+    created = crm.add_custom_field_definition(definition)
+    return created.model_dump()
+
+
+@app.put("/api/custom-fields/{field_id}")
+def update_custom_field(
+    field_id: str,
+    data: CustomFieldUpdate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Update a custom field definition."""
+    definition = crm.get_custom_field_definition(field_id)
+    if not definition:
+        raise HTTPException(status_code=404, detail="Custom field not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "entity" in updates:
+        definition.entity = updates["entity"]
+    if "key" in updates:
+        definition.key = updates["key"]
+    if "label" in updates:
+        definition.label = updates["label"]
+    if "field_type" in updates and updates["field_type"]:
+        try:
+            definition.field_type = CustomFieldType(str(updates["field_type"]).strip().lower())
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Unsupported field_type: {updates['field_type']}") from exc
+    if "required" in updates:
+        definition.required = bool(updates["required"])
+    if "options" in updates:
+        definition.options = updates["options"] or []
+    if "validation_rule" in updates:
+        definition.validation_rule = updates["validation_rule"]
+
+    success = crm.update_custom_field_definition(definition)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update custom field")
+
+    return definition.model_dump()
+
+
+@app.delete("/api/custom-fields/{field_id}")
+def delete_custom_field(
+    field_id: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Delete a custom field definition."""
+    success = crm.delete_custom_field_definition(field_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Custom field not found")
+    return {"deleted": True}
+
+
+# =============================================================================
+# Email Templates Endpoints
+# =============================================================================
+
+@app.get("/api/email-templates")
+def list_email_templates(
+    entity: Optional[str] = Query(None),
+    owner: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List email templates."""
+    templates = crm.get_email_templates(entity=entity, owner=owner)
+    return {"templates": [item.model_dump() for item in templates], "count": len(templates)}
+
+
+@app.post("/api/email-templates", status_code=201)
+def create_email_template(
+    data: EmailTemplateCreate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Create a reusable email template."""
+    template = EmailTemplate(
+        name=data.name,
+        entity=data.entity,
+        subject=data.subject,
+        body=data.body,
+        owner=data.owner,
+        is_shared=data.is_shared,
+    )
+    created = crm.add_email_template(template)
+    _log_audit(
+        crm,
+        action="create",
+        entity="email_template",
+        record_id=created.template_id,
+        metadata={"name": created.name},
+    )
+    return created.model_dump()
+
+
+@app.put("/api/email-templates/{template_id}")
+def update_email_template(
+    template_id: str,
+    data: EmailTemplateUpdate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Update an email template."""
+    template = crm.get_email_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Email template not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "name" in updates:
+        template.name = updates["name"]
+    if "entity" in updates:
+        template.entity = updates["entity"]
+    if "subject" in updates:
+        template.subject = updates["subject"]
+    if "body" in updates:
+        template.body = updates["body"]
+    if "owner" in updates:
+        template.owner = updates["owner"]
+    if "is_shared" in updates:
+        template.is_shared = bool(updates["is_shared"])
+
+    success = crm.update_email_template(template)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update email template")
+
+    _log_audit(
+        crm,
+        action="update",
+        entity="email_template",
+        record_id=template_id,
+    )
+    return template.model_dump()
+
+
+@app.delete("/api/email-templates/{template_id}")
+def delete_email_template(
+    template_id: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Delete an email template."""
+    success = crm.delete_email_template(template_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Email template not found")
+    _log_audit(crm, action="delete", entity="email_template", record_id=template_id)
+    return {"deleted": True}
+
+
+@app.post("/api/email-templates/{template_id}/render")
+def render_email_template(
+    template_id: str,
+    payload: RenderEmailTemplateRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Render template with merge variables."""
+    try:
+        rendered = crm.render_email_template(
+            template_id,
+            lead_id=payload.lead_id,
+            opp_id=payload.opp_id,
+            my_name=payload.my_name,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return {
+        "template_id": template_id,
+        "subject": rendered["subject"],
+        "body": rendered["body"],
+    }
+
+
+# =============================================================================
+# Workflow Rules Endpoints
+# =============================================================================
+
+@app.get("/api/workflow-rules")
+def list_workflow_rules(
+    trigger_type: Optional[str] = Query(None),
+    active_only: bool = Query(False),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List workflow automation rules."""
+    rules = crm.get_workflow_rules(trigger_type=trigger_type, active_only=active_only)
+    return {"rules": [item.model_dump() for item in rules], "count": len(rules)}
+
+
+@app.post("/api/workflow-rules", status_code=201)
+def create_workflow_rule(
+    data: WorkflowRuleCreate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Create a workflow rule."""
+    rule = WorkflowRule(
+        name=data.name,
+        is_active=data.is_active,
+        trigger_type=data.trigger_type,
+        trigger_value=data.trigger_value,
+        entity=data.entity,
+        conditions=data.conditions,
+        actions=data.actions,
+    )
+    created = crm.add_workflow_rule(rule)
+    _log_audit(
+        crm,
+        action="create",
+        entity="workflow_rule",
+        record_id=created.rule_id,
+        metadata={"name": created.name, "trigger_type": created.trigger_type},
+    )
+    return created.model_dump()
+
+
+@app.put("/api/workflow-rules/{rule_id}")
+def update_workflow_rule(
+    rule_id: str,
+    data: WorkflowRuleUpdate,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Update a workflow rule."""
+    rule = crm.get_workflow_rule(rule_id)
+    if not rule:
+        raise HTTPException(status_code=404, detail="Workflow rule not found")
+
+    updates = data.model_dump(exclude_unset=True)
+    if "name" in updates:
+        rule.name = updates["name"]
+    if "is_active" in updates:
+        rule.is_active = bool(updates["is_active"])
+    if "trigger_type" in updates:
+        rule.trigger_type = updates["trigger_type"]
+    if "trigger_value" in updates:
+        rule.trigger_value = updates["trigger_value"]
+    if "entity" in updates:
+        rule.entity = updates["entity"]
+    if "conditions" in updates:
+        rule.conditions = updates["conditions"] or []
+    if "actions" in updates:
+        rule.actions = updates["actions"] or []
+
+    success = crm.update_workflow_rule(rule)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update workflow rule")
+
+    _log_audit(crm, action="update", entity="workflow_rule", record_id=rule_id)
+    return rule.model_dump()
+
+
+@app.delete("/api/workflow-rules/{rule_id}")
+def delete_workflow_rule(
+    rule_id: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Delete a workflow rule."""
+    success = crm.delete_workflow_rule(rule_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Workflow rule not found")
+    _log_audit(crm, action="delete", entity="workflow_rule", record_id=rule_id)
+    return {"deleted": True}
+
+
+@app.post("/api/workflow-rules/evaluate")
+def evaluate_workflow_rules(
+    payload: WorkflowEvaluateRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Manually evaluate workflow rules for a trigger context."""
+    result = crm.run_workflow_rules(payload.trigger_type, payload.context)
+    return result
+
+
+# =============================================================================
+# Integration Endpoints
+# =============================================================================
+
+@app.get("/api/integrations")
+def list_integrations(crm: CRMManager = Depends(get_crm_session)):
+    """List integration connections."""
+    items = crm.get_integrations()
+    return {"integrations": [item.model_dump() for item in items], "count": len(items)}
+
+
+@app.post("/api/integrations/{provider}/connect")
+def connect_integration(
+    provider: str,
+    payload: IntegrationConnectRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Connect or update an integration provider."""
+    connection = crm.upsert_integration(provider, payload.config)
+    _log_audit(
+        crm,
+        action="integration_connect",
+        entity="integration",
+        record_id=connection.provider,
+        metadata={"config_keys": sorted(payload.config.keys())},
+    )
+    return connection.model_dump()
+
+
+@app.post("/api/integrations/{provider}/sync")
+def sync_integration(
+    provider: str,
+    payload: Optional[IntegrationSyncRequest] = Body(default=None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Run a provider sync and return summary."""
+    request_payload = payload or IntegrationSyncRequest()
+    try:
+        result = crm.run_integration_sync(
+            provider,
+            idempotency_key=request_payload.idempotency_key,
+            max_retries=max(0, min(request_payload.max_retries, 3)),
+        )
+    except ValueError as exc:
+        _log_audit(
+            crm,
+            action="integration_sync",
+            entity="integration",
+            record_id=provider,
+            status="failed",
+            metadata={"error": str(exc), "idempotency_key": request_payload.idempotency_key},
+        )
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _log_audit(
+        crm,
+        action="integration_sync",
+        entity="integration",
+        record_id=provider,
+        metadata={
+            "idempotency_key": request_payload.idempotency_key,
+            "synced_records": result.get("synced_records"),
+            "deduplicated": result.get("deduplicated", False),
+        },
+    )
+    return result
+
+
+@app.get("/api/integrations/{provider}/runs")
+def list_integration_runs(
+    provider: str,
+    limit: int = Query(20, ge=1, le=200),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List sync runs for one provider."""
+    runs = crm.get_integration_runs(provider=provider, limit=limit)
+    return {"runs": [item.model_dump() for item in runs], "count": len(runs)}
+
+
+@app.get("/api/integrations/runs")
+def list_all_integration_runs(
+    limit: int = Query(50, ge=1, le=500),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List sync runs across all providers."""
+    runs = crm.get_integration_runs(limit=limit)
+    return {"runs": [item.model_dump() for item in runs], "count": len(runs)}
+
+
+# =============================================================================
+# Export Endpoints
+# =============================================================================
+
+@app.get("/api/export/{entity}")
+def export_entity_csv(
+    entity: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Export CRM entities as CSV."""
+    try:
+        csv_payload = crm.export_entity_csv(entity)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    entity_name = entity.strip().lower()
+    if entity_name == "opps":
+        entity_name = "opportunities"
+    if entity_name == "activity":
+        entity_name = "activities"
+    if entity_name == "task":
+        entity_name = "tasks"
+
+    filename = f"{entity_name}.csv"
+    return StreamingResponse(
+        iter([csv_payload.encode("utf-8")]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# =============================================================================
+# Bulk Operations
+# =============================================================================
+
+@app.post("/api/bulk/{entity}")
+def bulk_operation(
+    entity: str,
+    payload: BulkOperationRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Run bulk operations on supported entities."""
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="No IDs provided for bulk operation")
+
+    entity_name = entity.strip().lower()
+    op = payload.operation.strip().lower()
+
+    try:
+        result: Optional[Dict[str, Any]] = None
+        if entity_name == "leads":
+            if op == "update_status":
+                if not payload.status:
+                    raise HTTPException(status_code=400, detail="status is required for update_status")
+                result = crm.bulk_update_lead_status(payload.ids, payload.status)
+            if op == "delete":
+                result = crm.bulk_delete_leads(payload.ids)
+
+        if entity_name in {"opportunities", "opps"}:
+            if op == "update_stage":
+                if not payload.stage:
+                    raise HTTPException(status_code=400, detail="stage is required for update_stage")
+                result = crm.bulk_update_opportunity_stage(payload.ids, payload.stage)
+            if op == "delete":
+                result = crm.bulk_delete_opportunities(payload.ids)
+        if result is not None:
+            _log_audit(
+                crm,
+                action=f"bulk_{op}",
+                entity=entity_name,
+                metadata={"requested_ids": len(payload.ids), "result": result},
+            )
+            return result
+    except ValueError as exc:
+        _log_audit(
+            crm,
+            action=f"bulk_{op}",
+            entity=entity_name,
+            status="failed",
+            metadata={"error": str(exc), "requested_ids": len(payload.ids)},
+        )
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    raise HTTPException(
+        status_code=400,
+        detail=f"Unsupported bulk operation '{payload.operation}' for entity '{entity}'",
+    )
+
+
+# =============================================================================
+# Dashboard Endpoints
+# =============================================================================
 
 @app.get("/api/dashboard")
 def get_dashboard(crm: CRMManager = Depends(get_crm_session)):
     """Get dashboard summary data."""
-    return crm.get_pipeline_summary()
+    summary = crm.get_pipeline_summary()
+    opportunities = crm.get_opportunities()
+    leads = crm.get_leads()
+
+    funnel_chart = []
+    for stage in PipelineStage:
+        stage_items = [opp for opp in opportunities if opp.stage == stage]
+        funnel_chart.append({
+            "stage": stage.value,
+            "count": len(stage_items),
+            "value": float(sum(opp.value for opp in stage_items)),
+        })
+
+    # Trend by week (last 8 weeks) using opportunity created_at
+    today = date.today()
+    trend_map: Dict[str, int] = {}
+    for i in range(7, -1, -1):
+        period_end = date.fromordinal(today.toordinal() - (i * 7))
+        period_start = date.fromordinal(period_end.toordinal() - 6)
+        key = period_start.isoformat()
+        trend_map[key] = 0
+    for opp in opportunities:
+        created = opp.created_at.date()
+        for key in list(trend_map.keys()):
+            start = date.fromisoformat(key)
+            end = date.fromordinal(start.toordinal() + 6)
+            if start <= created <= end:
+                trend_map[key] += 1
+                break
+    trend_chart = [{"week_start": key, "count": count} for key, count in trend_map.items()]
+
+    # Mix by source + industry (top six)
+    mix_counter: Dict[str, int] = {}
+    for lead in leads:
+        source = lead.source.value if lead.source else "Other"
+        industry = lead.industry if lead.industry else "General"
+        key = f"{source} / {industry}"
+        mix_counter[key] = mix_counter.get(key, 0) + 1
+    sorted_mix = sorted(mix_counter.items(), key=lambda item: item[1], reverse=True)[:6]
+    mix_chart = [{"label": label, "count": count} for label, count in sorted_mix]
+
+    return {
+        **summary,
+        "funnel_chart": funnel_chart,
+        "trend_chart": trend_chart,
+        "mix_chart": mix_chart,
+    }
 
 
 @app.get("/api/pipeline")
 def get_pipeline(crm: CRMManager = Depends(get_crm_session)):
     """Get pipeline data formatted for Kanban view."""
     opps = crm.get_opportunities()
-    leads = {lead.lead_id: lead for lead in crm.get_leads()}
+    leads = {l.lead_id: l for l in crm.get_leads()}
 
     # Group by stage
     pipeline = {}
@@ -711,10 +2042,8 @@ def get_pipeline(crm: CRMManager = Depends(get_crm_session)):
             "stage": stage.value,
             "opportunities": [
                 {
-                    **o.model_dump(),
-                    "lead": leads.get(o.lead_id).model_dump()
-                    if o.lead_id in leads
-                    else None,
+                    **_opportunity_payload(crm, o),
+                    "lead": leads.get(o.lead_id).model_dump() if o.lead_id in leads else None
                 }
                 for o in stage_opps
             ],
@@ -725,6 +2054,73 @@ def get_pipeline(crm: CRMManager = Depends(get_crm_session)):
     return {
         "pipeline": pipeline,
         "stages": [s.value for s in PipelineStage],
+    }
+
+
+@app.get("/api/reports")
+def get_reports(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Get report metrics for a date range."""
+    opportunities = crm.get_opportunities()
+    activities = crm.get_activities()
+
+    if start_date or end_date:
+        def in_window(value: Optional[date]) -> bool:
+            if value is None:
+                return False
+            if start_date and value < start_date:
+                return False
+            if end_date and value > end_date:
+                return False
+            return True
+
+        opportunities = [
+            opp for opp in opportunities
+            if in_window(opp.close_date)
+            or in_window(opp.created_at.date())
+            or in_window(opp.updated_at.date())
+        ]
+        activities = [
+            activity for activity in activities
+            if in_window(activity.date.date())
+        ]
+
+    by_stage: Dict[str, Dict[str, float]] = {}
+    for stage in PipelineStage:
+        stage_opps = [opp for opp in opportunities if opp.stage == stage]
+        by_stage[stage.value] = {
+            "count": len(stage_opps),
+            "total_value": float(sum(opp.value for opp in stage_opps)),
+            "expected_value": float(sum(opp.expected_value for opp in stage_opps)),
+        }
+
+    closed_won = [opp for opp in opportunities if opp.stage == PipelineStage.CLOSED_WON]
+    closed_lost = [opp for opp in opportunities if opp.stage == PipelineStage.CLOSED_LOST]
+
+    activity_by_type: Dict[str, int] = {}
+    for activity in activities:
+        activity_by_type[activity.type.value] = activity_by_type.get(activity.type.value, 0) + 1
+
+    return {
+        "summary": {
+            "opportunity_count": len(opportunities),
+            "pipeline_value": float(sum(opp.value for opp in opportunities if opp.stage != PipelineStage.CLOSED_LOST)),
+            "expected_value": float(sum(opp.expected_value for opp in opportunities)),
+            "closed_won_count": len(closed_won),
+            "closed_won_value": float(sum(opp.value for opp in closed_won)),
+            "closed_lost_count": len(closed_lost),
+            "closed_lost_value": float(sum(opp.value for opp in closed_lost)),
+            "activity_count": len(activities),
+        },
+        "by_stage": by_stage,
+        "activity_by_type": activity_by_type,
+        "range": {
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
+        },
     }
 
 
@@ -740,10 +2136,25 @@ def get_config():
     }
 
 
-#
-# Search Endpoint
-#
+# =============================================================================
+# Audit Endpoints
+# =============================================================================
 
+@app.get("/api/audit")
+def list_audit_events(
+    limit: int = Query(100, ge=1, le=500),
+    action: Optional[str] = Query(None),
+    entity: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """List audit trail events."""
+    events = crm.get_audit_events(limit=limit, action=action, entity=entity)
+    return {"events": [item.model_dump() for item in events], "count": len(events)}
+
+
+# =============================================================================
+# Search Endpoint
+# =============================================================================
 
 @app.get("/api/search")
 def search_all(
@@ -755,51 +2166,44 @@ def search_all(
     Returns results grouped by entity type.
     """
     query = q.lower().strip()
-
+    
     # Search leads
     leads = crm.get_leads()
     matching_leads = [
-        lead
-        for lead in leads
-        if query in lead.company_name.lower()
-        or query in lead.contact_name.lower()
-        or (lead.contact_email and query in lead.contact_email.lower())
-        or (lead.industry and query in lead.industry.lower())
+        l for l in leads
+        if query in l.company_name.lower()
+        or query in l.contact_name.lower()
+        or (l.contact_email and query in l.contact_email.lower())
+        or (l.industry and query in l.industry.lower())
     ]
-
+    
     # Search opportunities
     opps = crm.get_opportunities()
-    leads_by_id = {lead.lead_id: lead for lead in leads}
+    leads_by_id = {l.lead_id: l for l in leads}
     matching_opps = [
-        o
-        for o in opps
+        o for o in opps
         if query in o.title.lower()
         or (o.product and query in o.product.lower())
         or (o.notes and query in o.notes.lower())
         # Also match by company name of associated lead
-        or (
-            o.lead_id in leads_by_id
-            and query in leads_by_id[o.lead_id].company_name.lower()
-        )
+        or (o.lead_id in leads_by_id and query in leads_by_id[o.lead_id].company_name.lower())
     ]
-
+    
     return {
         "query": q,
         "results": {
             "leads": [
                 {
-                    **lead.model_dump(),
+                    **l.model_dump(),
                     "type": "lead",
                 }
-                for lead in matching_leads[:10]  # Limit to 10 results
+                for l in matching_leads[:10]  # Limit to 10 results
             ],
             "opportunities": [
                 {
                     **o.model_dump(),
                     "type": "opportunity",
-                    "lead": leads_by_id.get(o.lead_id).model_dump()
-                    if o.lead_id in leads_by_id
-                    else None,
+                    "lead": leads_by_id.get(o.lead_id).model_dump() if o.lead_id in leads_by_id else None,
                 }
                 for o in matching_opps[:10]
             ],
@@ -808,257 +2212,667 @@ def search_all(
     }
 
 
-#
+# =============================================================================
+# AI Assistant Endpoints
+# =============================================================================
 
+@app.post("/api/ai/parse")
+def parse_natural_language(
+    request: AIParseRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Parse natural language commands into structured operations."""
+    return _parse_ai_intent(request.query, crm)
+
+
+@app.post("/api/ai/execute")
+def execute_ai_operation(
+    request: AIExecuteRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Execute a previously parsed AI operation."""
+    op = request.operation
+    op_type = str(op.get("type", "")).strip()
+
+    if op_type == "create_lead":
+        lead = Lead(
+            company_name=str(op.get("company_name") or "Unknown Company"),
+            contact_name=str(op.get("contact_name") or "Unknown Contact"),
+            status=LeadStatus(op.get("status")) if op.get("status") in [s.value for s in LeadStatus] else LeadStatus.NEW,
+            source=LeadSource(op.get("source")) if op.get("source") in [s.value for s in LeadSource] else LeadSource.OTHER,
+        )
+        created = crm.add_lead(lead)
+        _log_audit(
+            crm,
+            action="ai_execute",
+            entity="lead",
+            record_id=created.lead_id,
+            metadata={"operation": op_type},
+        )
+        return {
+            "success": True,
+            "operation": op_type,
+            "result": _lead_payload(crm, created),
+        }
+
+    if op_type == "move_opportunity_stage":
+        opp_id = str(op.get("opp_id") or "")
+        stage = str(op.get("stage") or "")
+        if not opp_id or not stage:
+            raise HTTPException(status_code=400, detail="opp_id and stage are required")
+        try:
+            target_stage = PipelineStage(stage)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid stage: {stage}") from exc
+        updated = crm.move_opportunity_stage(opp_id, target_stage)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Opportunity not found")
+        _log_audit(
+            crm,
+            action="ai_execute",
+            entity="opportunity",
+            record_id=opp_id,
+            metadata={"operation": op_type, "stage": stage},
+        )
+        return {"success": True, "operation": op_type, "result": {"opp_id": opp_id, "stage": stage}}
+
+    if op_type == "pipeline_summary":
+        _log_audit(
+            crm,
+            action="ai_execute",
+            entity="pipeline",
+            metadata={"operation": op_type},
+        )
+        return {"success": True, "operation": op_type, "result": crm.get_pipeline_summary()}
+
+    _log_audit(
+        crm,
+        action="ai_execute",
+        entity="unknown",
+        status="failed",
+        metadata={"operation": op_type},
+    )
+    raise HTTPException(status_code=400, detail=f"Unsupported AI operation: {op_type}")
+
+
+@app.post("/api/ai/explain")
+def explain_ai_topic(
+    request: AIExplainRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Generate a lightweight explanation for a CRM topic."""
+    topic = request.topic.strip().lower()
+    summary = crm.get_pipeline_summary()
+    if topic in {"pipeline", "health"}:
+        return {
+            "topic": topic,
+            "explanation": (
+                f"Pipeline value is ${summary['total_pipeline_value']:,.0f} across "
+                f"{summary['total_opportunities']} opportunities. "
+                f"Expected value is ${summary['total_expected_value']:,.0f}."
+            ),
+        }
+    if topic in {"leads", "lead status"}:
+        return {
+            "topic": topic,
+            "explanation": f"Lead distribution: {summary['leads_by_status']}",
+        }
+    return {
+        "topic": topic,
+        "explanation": "No tailored explanation available yet for this topic.",
+    }
+
+
+@app.get("/api/ai/suggest")
+def get_ai_suggestions(crm: CRMManager = Depends(get_crm_session)):
+    """Return contextual AI command suggestions."""
+    summary = crm.get_pipeline_summary()
+    suggestions = [
+        "Show pipeline summary",
+        "Create lead for Jane Doe at Acme",
+        "Move <opportunity title> to Negotiation",
+    ]
+    if summary["total_opportunities"] > 0:
+        suggestions.append("Which deals are at risk?")
+    if summary["total_leads"] > 0:
+        suggestions.append("Show all leads from LinkedIn")
+    return {"suggestions": suggestions}
+
+
+@app.post("/api/ai/parse-notes")
+def parse_meeting_notes(
+    request: ParseNotesRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Parse meeting notes into structured CRM suggestions."""
+    parsed = _parse_notes_payload(request.content)
+    parsed["lead_id"] = request.lead_id
+    parsed["opp_id"] = request.opp_id
+    return parsed
+
+
+@app.post("/api/ai/parse-notes/apply")
+def apply_parsed_notes(
+    request: ApplyParsedNotesRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Apply parsed note items to tasks/opportunity/lead notes."""
+    applied = {"tasks_created": 0, "lead_notes_updated": False, "opp_updated": False}
+
+    for item in request.tasks:
+        description = str(item.get("description") or "").strip()
+        if not description:
+            continue
+        due_raw = item.get("due_date")
+        due_date = None
+        if isinstance(due_raw, str) and due_raw:
+            if due_raw.lower() == "tomorrow":
+                due_date = date.fromordinal(date.today().toordinal() + 1)
+            else:
+                try:
+                    due_date = date.fromisoformat(due_raw[:10])
+                except ValueError:
+                    due_date = None
+
+        task = Task(
+            title=description,
+            due_date=due_date,
+            lead_id=request.lead_id,
+            opp_id=request.opp_id,
+            status=TaskStatus.OPEN,
+            priority=TaskPriority.MEDIUM,
+        )
+        crm.add_task(task)
+        applied["tasks_created"] += 1
+
+    if request.opp_id and request.deal_updates:
+        opp = crm.get_opportunity(request.opp_id)
+        if opp:
+            value = request.deal_updates.get("value")
+            if isinstance(value, (int, float)):
+                opp.value = float(value)
+            stage = request.deal_updates.get("stage")
+            if stage and stage in [item.value for item in PipelineStage]:
+                opp.stage = PipelineStage(stage)
+            probability = request.deal_updates.get("probability")
+            if isinstance(probability, int):
+                opp.probability = probability
+            close_date = request.deal_updates.get("close_date")
+            if isinstance(close_date, str) and close_date:
+                try:
+                    opp.close_date = date.fromisoformat(close_date[:10])
+                except ValueError:
+                    pass
+            crm.update_opportunity(opp)
+            applied["opp_updated"] = True
+
+    if request.lead_id and request.key_points:
+        lead = crm.get_lead(request.lead_id)
+        if lead:
+            note_blob = "\n".join([f"- {point}" for point in request.key_points if point])
+            prefix = "AI Notes Parse Summary:"
+            if lead.notes:
+                lead.notes = f"{prefix}\n{note_blob}\n\n{lead.notes}"
+            else:
+                lead.notes = f"{prefix}\n{note_blob}"
+            crm.update_lead(lead)
+            applied["lead_notes_updated"] = True
+
+    _log_audit(
+        crm,
+        action="ai_parse_notes_apply",
+        entity="notes",
+        record_id=request.lead_id or request.opp_id,
+        metadata={"applied": applied},
+    )
+    return {"success": True, "applied": applied}
+
+
+@app.get("/api/coach/tips")
+def get_coach_tips(
+    lead_id: Optional[str] = Query(None),
+    opp_id: Optional[str] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Return contextual coaching tips."""
+    tips: List[Dict[str, str]] = []
+    if opp_id:
+        opp = crm.get_opportunity(opp_id)
+        if opp:
+            if opp.stage == PipelineStage.NEGOTIATION:
+                tips.append({"title": "Negotiation", "tip": "Quantify ROI before discussing discount."})
+            if opp.stage == PipelineStage.DISCOVERY:
+                tips.append({"title": "Discovery", "tip": "Ask one implication question before demoing."})
+            if opp.probability < 40:
+                tips.append({"title": "Risk", "tip": "Schedule a follow-up activity within 48 hours."})
+    if lead_id:
+        lead = crm.get_lead(lead_id)
+        if lead and lead.source == LeadSource.LINKEDIN:
+            tips.append({"title": "Channel", "tip": "Reference the lead's latest LinkedIn activity in outreach."})
+
+    if not tips:
+        tips = [
+            {"title": "Pipeline hygiene", "tip": "Move stagnant deals forward or close-lost within the week."},
+            {"title": "Follow-up cadence", "tip": "Keep follow-ups under two business days for active deals."},
+        ]
+    return {"tips": tips}
+
+
+@app.get("/api/coach/performance")
+def get_coach_performance(crm: CRMManager = Depends(get_crm_session)):
+    """Return lightweight performance analysis."""
+    opps = crm.get_opportunities()
+    total = len(opps)
+    won = len([opp for opp in opps if opp.stage == PipelineStage.CLOSED_WON])
+    lost = len([opp for opp in opps if opp.stage == PipelineStage.CLOSED_LOST])
+    win_rate = (won / total * 100) if total else 0
+
+    return {
+        "total_opportunities": total,
+        "won": won,
+        "lost": lost,
+        "win_rate": round(win_rate, 2),
+        "insights": [
+            "Improve follow-up speed on discovery deals.",
+            "Prioritize opportunities in Proposal and Negotiation stages.",
+        ],
+    }
+
+
+@app.post("/api/coach/ask")
+def ask_coach(
+    request: CoachAskRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Answer a coaching question with context."""
+    question = request.question.strip()
+    context_bits = []
+    if request.lead_id:
+        lead = crm.get_lead(request.lead_id)
+        if lead:
+            context_bits.append(f"Lead: {lead.company_name} ({lead.status.value})")
+    if request.opp_id:
+        opp = crm.get_opportunity(request.opp_id)
+        if opp:
+            context_bits.append(f"Deal: {opp.title} in {opp.stage.value} (${opp.value:,.0f})")
+
+    advice = "Focus on a clear next step and explicit timeline in your follow-up."
+    if "price" in question.lower() or "discount" in question.lower():
+        advice = "Reframe to ROI and offer scope tradeoffs before lowering price."
+    elif "stuck" in question.lower() or "slow" in question.lower():
+        advice = "Identify the blocker and schedule a decision-oriented call."
+
+    return {
+        "question": question,
+        "context": context_bits,
+        "advice": advice,
+    }
+
+
+@app.get("/api/coach/deal/{opp_id}/review")
+def review_deal(
+    opp_id: str,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Provide quick review advice for a specific opportunity."""
+    opp = crm.get_opportunity(opp_id)
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    activities = crm.get_activities(opp_id=opp_id)
+    return {
+        "opp_id": opp_id,
+        "stage": opp.stage.value,
+        "value": opp.value,
+        "activity_count": len(activities),
+        "recommendation": "Create a dated next action and confirm decision criteria with the buyer.",
+    }
+
+
+@app.get("/api/forecast")
+def get_forecast(
+    period: str = Query("this_month"),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Get forecast summary."""
+    opps = crm.get_opportunities()
+    if period == "this_month":
+        month = date.today().month
+        year = date.today().year
+        opps = [opp for opp in opps if opp.close_date and opp.close_date.month == month and opp.close_date.year == year]
+    elif period == "custom" and (start_date or end_date):
+        def in_window(target: Optional[date]) -> bool:
+            if not target:
+                return False
+            if start_date and target < start_date:
+                return False
+            if end_date and target > end_date:
+                return False
+            return True
+        opps = [opp for opp in opps if in_window(opp.close_date)]
+
+    forecast = _build_forecast(opps)
+    forecast["period"] = period
+    return forecast
+
+
+@app.get("/api/forecast/scenarios")
+def get_forecast_scenarios(crm: CRMManager = Depends(get_crm_session)):
+    """Return canned forecast scenarios."""
+    opps = crm.get_opportunities()
+    biggest = sorted(opps, key=lambda item: item.value, reverse=True)[:1]
+    scenario = {
+        "name": "Lose biggest deal",
+        "remove_opp_ids": [item.opp_id for item in biggest],
+    }
+    return {"scenarios": [scenario]}
+
+
+@app.post("/api/forecast/scenario")
+def calculate_forecast_scenario(
+    request: ForecastScenarioRequest,
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Calculate custom scenario result."""
+    opps = crm.get_opportunities()
+    remove_set = set(request.remove_opp_ids)
+    force_close_set = set(request.force_close_opp_ids)
+    adjusted: List[Opportunity] = []
+    for opp in opps:
+        if opp.opp_id in remove_set:
+            continue
+        if opp.opp_id in force_close_set:
+            opp.probability = 100
+        adjusted.append(opp)
+
+    return {
+        "baseline": _build_forecast(opps),
+        "scenario": _build_forecast(adjusted),
+    }
+
+
+@app.get("/api/forecast/coverage")
+def get_forecast_coverage(
+    target: float = Query(..., gt=0),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Pipeline coverage analysis."""
+    opps = crm.get_opportunities()
+    total_pipeline = sum(opp.value for opp in opps)
+    coverage_ratio = total_pipeline / target if target else 0
+    return {
+        "target": target,
+        "pipeline_value": total_pipeline,
+        "coverage_ratio": round(coverage_ratio, 2),
+        "gap": max(0.0, target - total_pipeline),
+    }
+
+
+@app.get("/api/forecast/trends")
+def get_forecast_trends(
+    periods: int = Query(4, ge=1, le=12),
+    crm: CRMManager = Depends(get_crm_session),
+):
+    """Return basic trend slices for recent periods."""
+    opps = crm.get_opportunities()
+    forecast = _build_forecast(opps)
+    rows = []
+    for i in range(periods):
+        factor = 1 - (i * 0.04)
+        rows.append({
+            "period_index": i + 1,
+            "forecast": round(forecast["ai_adjusted_forecast"] * max(factor, 0.5), 2),
+        })
+    return {"trends": rows}
+
+
+# =============================================================================
 # Data Import Endpoints
-#
-
+# =============================================================================
 
 class ColumnMapping(BaseModel):
     """Mapping of CSV column to CRM field."""
-
     csv_column: str
     crm_field: str
 
 
 class ImportPreviewRequest(BaseModel):
     """Request for previewing CSV data with column mappings."""
-
     mappings: List[ColumnMapping]
 
 
 class ImportRequest(BaseModel):
     """Request for importing CSV data."""
-
     mappings: List[ColumnMapping]
 
 
-@app.post("/api/import/csv/upload")
-async def upload_csv_file(
-    file: UploadFile = File(...),
-):
-    """
-    Upload and parse a CSV file.
-    Returns the headers and first 5 rows for preview and mapping.
-    """
-    if not file.filename or not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="File must be a CSV")
+if MULTIPART_AVAILABLE:
+    @app.post("/api/import/csv/upload")
+    async def upload_csv_file(
+        file: UploadFile = File(...),
+    ):
+        """
+        Upload and parse a CSV file.
+        Returns the headers and first 5 rows for preview and mapping.
+        """
+        if not file.filename or not file.filename.endswith('.csv'):
+            raise HTTPException(status_code=400, detail="File must be a CSV")
 
-    try:
-        # Read file content
-        content = await file.read()
-        decoded_content = content.decode("utf-8")
+        try:
+            # Read file content
+            content = await file.read()
+            decoded_content = content.decode('utf-8')
 
-        # Parse CSV
-        csv_reader = csv.reader(io.StringIO(decoded_content))
-        rows = list(csv_reader)
+            # Parse CSV
+            csv_reader = csv.reader(io.StringIO(decoded_content))
+            rows = list(csv_reader)
 
-        if not rows:
-            raise HTTPException(status_code=400, detail="CSV file is empty")
+            if not rows:
+                raise HTTPException(status_code=400, detail="CSV file is empty")
 
-        headers = rows[0]
-        preview_rows = rows[1:6]  # First 5 data rows
-        total_rows = len(rows) - 1  # Excluding header
+            headers = rows[0]
+            preview_rows = rows[1:6]  # First 5 data rows
+            total_rows = len(rows) - 1  # Excluding header
 
-        # Auto-detect possible mappings
-        suggested_mappings = _auto_detect_mappings(headers)
+            # Auto-detect possible mappings
+            suggested_mappings = _auto_detect_mappings(headers)
 
-        return {
-            "success": True,
-            "headers": headers,
-            "preview_rows": preview_rows,
-            "total_rows": total_rows,
-            "suggested_mappings": suggested_mappings,
-        }
-    except UnicodeDecodeError:
-        raise HTTPException(
-            status_code=400, detail="Invalid CSV encoding. Please use UTF-8."
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error parsing CSV: {str(e)}")
-
-
-@app.post("/api/import/csv/preview")
-async def preview_import(
-    file: UploadFile = File(...),
-    mappings: str = Query(..., description="JSON string of column mappings"),
-):
-    """
-    Preview how CSV data will be imported with the given column mappings.
-    Returns first 5 rows mapped to CRM fields.
-    """
-    if not file.filename or not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="File must be a CSV")
-
-    try:
-        # Parse mappings from JSON string
-        import json
-
-        mappings_list = json.loads(mappings)
-        mapping_dict = {m["csv_column"]: m["crm_field"] for m in mappings_list}
-
-        # Read and parse CSV
-        content = await file.read()
-        decoded_content = content.decode("utf-8")
-        csv_reader = csv.reader(io.StringIO(decoded_content))
-        rows = list(csv_reader)
-
-        if not rows:
-            raise HTTPException(status_code=400, detail="CSV file is empty")
-
-        headers = rows[0]
-        data_rows = rows[1:6]  # First 5 data rows
-
-        # Transform rows based on mappings
-        preview_data = []
-        for row in data_rows:
-            mapped_row = {}
-            for i, header in enumerate(headers):
-                if header in mapping_dict and i < len(row):
-                    crm_field = mapping_dict[header]
-                    mapped_row[crm_field] = row[i]
-            preview_data.append(mapped_row)
-
-        return {
-            "success": True,
-            "preview": preview_data,
-            "row_count": len(preview_data),
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error previewing import: {str(e)}"
-        )
+            return {
+                "success": True,
+                "headers": headers,
+                "preview_rows": preview_rows,
+                "total_rows": total_rows,
+                "suggested_mappings": suggested_mappings,
+            }
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please use UTF-8.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error parsing CSV: {str(e)}")
 
 
-@app.post("/api/import/csv/execute")
-async def execute_import(
-    file: UploadFile = File(...),
-    mappings: str = Query(..., description="JSON string of column mappings"),
-    crm: CRMManager = Depends(get_crm_session),
-):
-    """
-    Execute the CSV import with the given column mappings.
-    Batch appends leads to the Google Sheet.
-    """
-    if not file.filename or not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="File must be a CSV")
+    @app.post("/api/import/csv/preview")
+    async def preview_import(
+        file: UploadFile = File(...),
+        mappings: str = Query(..., description="JSON string of column mappings"),
+    ):
+        """
+        Preview how CSV data will be imported with the given column mappings.
+        Returns first 5 rows mapped to CRM fields.
+        """
+        if not file.filename or not file.filename.endswith('.csv'):
+            raise HTTPException(status_code=400, detail="File must be a CSV")
 
-    try:
-        # Parse mappings from JSON string
-        import json
+        try:
+            # Parse mappings from JSON string
+            import json
+            mappings_list = json.loads(mappings)
+            mapping_dict = {m['csv_column']: m['crm_field'] for m in mappings_list}
 
-        mappings_list = json.loads(mappings)
-        mapping_dict = {m["csv_column"]: m["crm_field"] for m in mappings_list}
+            # Read and parse CSV
+            content = await file.read()
+            decoded_content = content.decode('utf-8')
+            csv_reader = csv.reader(io.StringIO(decoded_content))
+            rows = list(csv_reader)
 
-        # Read and parse CSV
-        content = await file.read()
-        decoded_content = content.decode("utf-8")
-        csv_reader = csv.reader(io.StringIO(decoded_content))
-        rows = list(csv_reader)
+            if not rows:
+                raise HTTPException(status_code=400, detail="CSV file is empty")
 
-        if not rows:
-            raise HTTPException(status_code=400, detail="CSV file is empty")
+            headers = rows[0]
+            data_rows = rows[1:6]  # First 5 data rows
 
-        headers = rows[0]
-        data_rows = rows[1:]  # All data rows
-
-        # Transform and validate rows
-        leads_to_import = []
-        errors = []
-
-        # Check if required mappings exist
-        if (
-            "company_name" not in mapping_dict.values()
-            or "contact_name" not in mapping_dict.values()
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail="Mapping must include both 'Company Name' and 'Contact Name' fields.",
-            )
-
-        for idx, row in enumerate(data_rows, start=2):  # Start at 2 (1 is header)
-            try:
-                mapped_data = {}
+            # Transform rows based on mappings
+            preview_data = []
+            for row in data_rows:
+                mapped_row = {}
                 for i, header in enumerate(headers):
                     if header in mapping_dict and i < len(row):
                         crm_field = mapping_dict[header]
-                        mapped_data[crm_field] = row[i].strip() if row[i] else ""
+                        mapped_row[crm_field] = row[i]
+                preview_data.append(mapped_row)
 
-                # Skip empty rows
-                if not any(mapped_data.values()):
-                    continue
+            return {
+                "success": True,
+                "preview": preview_data,
+                "row_count": len(preview_data),
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error previewing import: {str(e)}")
 
-                # Required fields check
-                if not mapped_data.get("company_name") or not mapped_data.get(
-                    "contact_name"
-                ):
-                    errors.append(
-                        {
-                            "row": idx,
-                            "error": "Missing required fields: company_name or contact_name",
-                        }
-                    )
-                    continue
 
-                # Create Lead object
-                status_value = mapped_data.get("status", "")
-                if status_value and status_value in [s.value for s in LeadStatus]:
-                    status = LeadStatus(status_value)
-                else:
-                    status = LeadStatus.NEW
+    @app.post("/api/import/csv/execute")
+    async def execute_import(
+        file: UploadFile = File(...),
+        mappings: str = Query(..., description="JSON string of column mappings"),
+        crm: CRMManager = Depends(get_crm_session),
+    ):
+        """
+        Execute the CSV import with the given column mappings.
+        Batch appends leads to the Google Sheet.
+        """
+        if not file.filename or not file.filename.endswith('.csv'):
+            raise HTTPException(status_code=400, detail="File must be a CSV")
 
-                source_value = mapped_data.get("source", "")
-                if source_value and source_value in [s.value for s in LeadSource]:
-                    source = LeadSource(source_value)
-                else:
-                    source = LeadSource.OTHER
+        try:
+            # Parse mappings from JSON string
+            import json
+            mappings_list = json.loads(mappings)
+            mapping_dict = {m['csv_column']: m['crm_field'] for m in mappings_list}
 
-                company_size_value = mapped_data.get("company_size", "")
-                company_size = None
-                if company_size_value and company_size_value in [
-                    s.value for s in CompanySize
-                ]:
-                    company_size = CompanySize(company_size_value)
+            # Read and parse CSV
+            content = await file.read()
+            decoded_content = content.decode('utf-8')
+            csv_reader = csv.reader(io.StringIO(decoded_content))
+            rows = list(csv_reader)
 
-                lead = Lead(
-                    company_name=mapped_data.get("company_name", ""),
-                    contact_name=mapped_data.get("contact_name", ""),
-                    contact_email=mapped_data.get("contact_email"),
-                    contact_phone=mapped_data.get("contact_phone"),
-                    status=status,
-                    source=source,
-                    industry=mapped_data.get("industry"),
-                    company_size=company_size,
-                    notes=mapped_data.get("notes"),
-                    owner=mapped_data.get("owner"),
-                )
-                leads_to_import.append(lead)
+            if not rows:
+                raise HTTPException(status_code=400, detail="CSV file is empty")
 
-            except Exception as e:
-                errors.append({"row": idx, "error": str(e)})
+            headers = rows[0]
+            data_rows = rows[1:]  # All data rows
 
-        # Batch import leads
-        imported_count = 0
-        if leads_to_import:
-            try:
-                imported_count = crm.batch_add_leads(leads_to_import)
-            except Exception as e:
+            # Transform and validate rows
+            leads_to_import = []
+            errors = []
+
+            # Check if required mappings exist
+            if 'company_name' not in mapping_dict.values() or 'contact_name' not in mapping_dict.values():
                 raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to import to Google Sheets: {str(e)}",
+                    status_code=400,
+                    detail="Mapping must include both 'Company Name' and 'Contact Name' fields."
                 )
 
-        return {
-            "success": True,
-            "imported": imported_count,
-            "total_rows": len(data_rows),
-            "errors": errors,
-        }
+            for idx, row in enumerate(data_rows, start=2):  # Start at 2 (1 is header)
+                try:
+                    mapped_data = {}
+                    for i, header in enumerate(headers):
+                        if header in mapping_dict and i < len(row):
+                            crm_field = mapping_dict[header]
+                            mapped_data[crm_field] = row[i].strip() if row[i] else ""
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error executing import: {str(e)}")
+                    # Skip empty rows
+                    if not any(mapped_data.values()):
+                        continue
+
+                    # Required fields check
+                    if not mapped_data.get('company_name') or not mapped_data.get('contact_name'):
+                        errors.append({
+                            "row": idx,
+                            "error": "Missing required fields: company_name or contact_name"
+                        })
+                        continue
+
+                    # Create Lead object
+                    status_value = mapped_data.get('status', '')
+                    if status_value and status_value in [s.value for s in LeadStatus]:
+                        status = LeadStatus(status_value)
+                    else:
+                        status = LeadStatus.NEW
+
+                    source_value = mapped_data.get('source', '')
+                    if source_value and source_value in [s.value for s in LeadSource]:
+                        source = LeadSource(source_value)
+                    else:
+                        source = LeadSource.OTHER
+
+                    company_size_value = mapped_data.get('company_size', '')
+                    company_size = None
+                    if company_size_value and company_size_value in [s.value for s in CompanySize]:
+                        company_size = CompanySize(company_size_value)
+
+                    lead = Lead(
+                        company_name=mapped_data.get('company_name', ''),
+                        contact_name=mapped_data.get('contact_name', ''),
+                        contact_email=mapped_data.get('contact_email'),
+                        contact_phone=mapped_data.get('contact_phone'),
+                        status=status,
+                        source=source,
+                        industry=mapped_data.get('industry'),
+                        company_size=company_size,
+                        notes=mapped_data.get('notes'),
+                        owner=mapped_data.get('owner'),
+                    )
+                    leads_to_import.append(lead)
+
+                except Exception as e:
+                    errors.append({
+                        "row": idx,
+                        "error": str(e)
+                    })
+
+            # Batch import leads
+            imported_count = 0
+            if leads_to_import:
+                try:
+                    imported_count = crm.batch_add_leads(leads_to_import)
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to import to Google Sheets: {str(e)}")
+
+            return {
+                "success": True,
+                "imported": imported_count,
+                "total_rows": len(data_rows),
+                "errors": errors,
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error executing import: {str(e)}")
+else:
+    @app.post("/api/import/csv/upload")
+    async def upload_csv_file_not_available():
+        raise HTTPException(status_code=503, detail="CSV upload disabled: install python-multipart")
+
+
+    @app.post("/api/import/csv/preview")
+    async def preview_import_not_available():
+        raise HTTPException(status_code=503, detail="CSV preview disabled: install python-multipart")
+
+
+    @app.post("/api/import/csv/execute")
+    async def execute_import_not_available():
+        raise HTTPException(status_code=503, detail="CSV import disabled: install python-multipart")
 
 
 def _auto_detect_mappings(headers: List[str]) -> List[Dict[str, str]]:
@@ -1068,56 +2882,30 @@ def _auto_detect_mappings(headers: List[str]) -> List[Dict[str, str]]:
     """
     # Common header name patterns
     field_patterns = {
-        "company_name": [
-            "company",
-            "company name",
-            "organization",
-            "org",
-            "business",
-            "firm",
-            "account",
-        ],
-        "contact_name": [
-            "contact",
-            "name",
-            "contact name",
-            "full name",
-            "person",
-            "lead",
-            "client",
-        ],
-        "contact_email": ["email", "e-mail", "contact email", "email address", "mail"],
-        "contact_phone": [
-            "phone",
-            "telephone",
-            "contact phone",
-            "phone number",
-            "mobile",
-            "cell",
-            "tel",
-        ],
-        "status": ["status", "lead status", "stage", "phase"],
-        "source": ["source", "lead source", "origin", "channel", "medium", "campaign"],
-        "industry": ["industry", "sector", "vertical", "business type"],
-        "company_size": ["size", "company size", "employees", "headcount", "staff"],
-        "notes": ["notes", "note", "description", "comments", "remarks", "about"],
-        "owner": ["owner", "assigned to", "rep", "sales rep", "agent", "assignee"],
+        'company_name': ['company', 'company name', 'organization', 'org', 'business', 'firm', 'account'],
+        'contact_name': ['contact', 'name', 'contact name', 'full name', 'person', 'lead', 'client'],
+        'contact_email': ['email', 'e-mail', 'contact email', 'email address', 'mail'],
+        'contact_phone': ['phone', 'telephone', 'contact phone', 'phone number', 'mobile', 'cell', 'tel'],
+        'status': ['status', 'lead status', 'stage', 'phase'],
+        'source': ['source', 'lead source', 'origin', 'channel', 'medium', 'campaign'],
+        'industry': ['industry', 'sector', 'vertical', 'business type'],
+        'company_size': ['size', 'company size', 'employees', 'headcount', 'staff'],
+        'notes': ['notes', 'note', 'description', 'comments', 'remarks', 'about'],
+        'owner': ['owner', 'assigned to', 'rep', 'sales rep', 'agent', 'assignee'],
     }
 
     suggestions = []
     used_crm_fields = set()
-
+    
     for header in headers:
-        header_clean = header.lower().strip().replace("_", " ").replace("-", " ")
-
+        header_clean = header.lower().strip().replace('_', ' ').replace('-', ' ')
+        
         best_match = None
         for crm_field, patterns in field_patterns.items():
             if crm_field in used_crm_fields:
                 continue
-
-            if header_clean in patterns or any(
-                pattern == header_clean for pattern in patterns
-            ):
+                
+            if header_clean in patterns or any(pattern == header_clean for pattern in patterns):
                 best_match = crm_field
                 break
 
@@ -1126,107 +2914,15 @@ def _auto_detect_mappings(headers: List[str]) -> List[Dict[str, str]]:
             for crm_field, patterns in field_patterns.items():
                 if crm_field in used_crm_fields:
                     continue
-                if any(
-                    pattern in header_clean or header_clean in pattern
-                    for pattern in patterns
-                ):
+                if any(pattern in header_clean or header_clean in pattern for pattern in patterns):
                     best_match = crm_field
                     break
 
         if best_match:
-            suggestions.append(
-                {
-                    "csv_column": header,
-                    "crm_field": best_match,
-                }
-            )
+            suggestions.append({
+                "csv_column": header,
+                "crm_field": best_match,
+            })
             used_crm_fields.add(best_match)
 
     return suggestions
-
-
-# Gmail Integration Endpoints
-#
-
-
-class EmailSyncRequest(BaseModel):
-    days_back: int = 7
-    auto_log: bool = True
-
-
-@app.post("/api/leads/{lead_id}/sync-emails")
-def sync_lead_emails(
-    lead_id: str, request: EmailSyncRequest, crm: CRMManager = Depends(get_crm_session)
-):
-    """Sync emails for a specific lead and log them as activities."""
-    lead = crm.get_lead(lead_id)
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
-
-    if not lead.contact_email:
-        raise HTTPException(status_code=400, detail="Lead has no email address")
-
-    if not crm.google_creds:
-        raise HTTPException(
-            status_code=400,
-            detail="Gmail access not configured. Please ensure you've granted Gmail permissions.",
-        )
-
-    try:
-        activities = crm.sync_emails_for_lead(
-            lead=lead, days_back=request.days_back, auto_log=request.auto_log
-        )
-
-        return {
-            "success": True,
-            "lead_id": lead_id,
-            "emails_synced": len(activities),
-            "activities": [a.model_dump() for a in activities],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Email sync failed: {str(e)}")
-
-
-@app.post("/api/sync-emails/all", status_code=202)
-def sync_all_emails_background(
-    background_tasks: BackgroundTasks,
-    request: EmailSyncRequest,
-    crm: CRMManager = Depends(get_crm_session),
-):
-    """Sync emails for all leads in the background."""
-    if not crm.google_creds:
-        raise HTTPException(
-            status_code=400,
-            detail="Gmail access not configured. Please ensure you've granted Gmail permissions.",
-        )
-
-    # Add sync task to background
-    background_tasks.add_task(
-        _background_email_sync, crm, request.days_back, request.auto_log
-    )
-
-    return {
-        "success": True,
-        "message": "Email sync started in background",
-        "days_back": request.days_back,
-    }
-
-
-def _background_email_sync(crm: CRMManager, days_back: int, auto_log: bool):
-    """Background task for syncing emails."""
-    try:
-        stats = crm.sync_emails_for_all_leads(days_back=days_back, auto_log=auto_log)
-        print(f"[Gmail Sync] Completed: {stats}")
-    except Exception as e:
-        print(f"[Gmail Sync] Error: {e}")
-
-
-@app.get("/api/leads/{lead_id}/email-summary")
-def get_lead_email_summary(lead_id: str, crm: CRMManager = Depends(get_crm_session)):
-    """Get email activity summary for a lead."""
-    lead = crm.get_lead(lead_id)
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
-
-    summary = crm.get_email_activity_summary(lead_id)
-    return summary
