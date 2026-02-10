@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import ReactMarkdown from 'react-markdown';
+import { useSession } from 'next-auth/react';
 import {
   Opportunity,
   Activity,
@@ -24,12 +25,14 @@ export default function OpportunityDetailModal({
   onClose,
   onUpdate,
 }: OpportunityDetailModalProps) {
+  const { data: session } = useSession();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [analysis, setAnalysis] = useState<OpportunityAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const createdBy = session?.user?.email || session?.user?.name || 'User';
 
   const loadActivities = useCallback(async () => {
     setLoadingActivities(true);
@@ -77,7 +80,7 @@ export default function OpportunityDetailModal({
         type: "Note",
         subject: "Quick Update",
         description: newNote,
-        created_by: "User",
+        created_by: createdBy,
       });
       setNewNote("");
       loadActivities();
@@ -319,6 +322,11 @@ export default function OpportunityDetailModal({
                         <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.5 border border-[var(--border-pencil)] rounded bg-white text-[var(--text-secondary)]">
                           {activity.type}
                         </span>
+                        {activity.created_by && (
+                          <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                            {activity.created_by}
+                          </span>
+                        )}
                         <span className="font-mono text-xs text-[var(--text-muted)]">
                           {new Date(activity.date).toLocaleString()}
                         </span>

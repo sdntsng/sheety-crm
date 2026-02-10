@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Lead, createOpportunity, updateLead, createActivity } from '@/lib/api';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 
@@ -27,6 +28,7 @@ interface ConvertLeadModalProps {
 }
 
 export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLeadModalProps) {
+    const { data: session } = useSession();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState({
@@ -37,6 +39,7 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
         product: '',
         notes: `Converted from lead: ${lead.company_name}`,
     });
+    const createdBy = session?.user?.email || session?.user?.name || 'User';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,6 +70,7 @@ export default function ConvertLeadModal({ lead, onClose, onSuccess }: ConvertLe
                 type: 'Note',
                 subject: 'Lead Converted to Opportunity',
                 description: `Created opportunity: ${formData.title} with value $${formData.value}`,
+                created_by: createdBy,
             });
 
             onSuccess();

@@ -10,9 +10,11 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from 'next-auth/react';
 import {
   getLeads,
   createLead,
+  updateLead,
   bulkOperate,
   Lead,
   getConfig,
@@ -38,6 +40,9 @@ function LeadsPageContent() {
   type FilterOperator = "contains" | "equals" | "gt" | "lt";
   type FilterLogic = "AND" | "OR";
 
+  const { data: session } = useSession();
+  const currentUserEmail = session?.user?.email || '';
+
   interface FilterCondition {
     id: string;
     field: FilterField;
@@ -53,13 +58,16 @@ function LeadsPageContent() {
   const [duplicateLoading, setDuplicateLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [ownerFilterEnabled, setOwnerFilterEnabled] = useState(false);
   const [filterLogic, setFilterLogic] = useState<FilterLogic>("AND");
   const [filters, setFilters] = useState<FilterCondition[]>([]);
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateLeadMatch[]>([]);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
-  const [bulkStatus, setBulkStatus] = useState<string>("Contacted");
+  const [bulkStatus, setBulkStatus] = useState<string>('Contacted');
+  const [ownerDrafts, setOwnerDrafts] = useState<Record<string, string>>({});
+  const [ownerSaving, setOwnerSaving] = useState<Record<string, boolean>>({});
   const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
   const { hiddenStatuses } = useSettings();
   const [copiedLeadId, setCopiedLeadId] = useState<string | null>(null);
@@ -182,6 +190,11 @@ function LeadsPageContent() {
 
   const filteredLeads = leads.filter((lead) => {
     if (statusFilter && lead.status !== statusFilter) return false;
+    if (ownerFilterEnabled) {
+      if (!currentUserEmail) return false;
+      const ownerValue = lead.owner ? lead.owner.toLowerCase() : '';
+      if (ownerValue !== currentUserEmail.toLowerCase()) return false;
+    }
     if (filters.length === 0) return true;
 
     const results = filters.map((condition) => evaluateCondition(lead, condition));
@@ -217,6 +230,7 @@ function LeadsPageContent() {
     setStatusFilter("");
     setFilterLogic("AND");
     setActiveViewId(null);
+    setOwnerFilterEnabled(false);
     setSelectedLeadIds(new Set());
   };
 
@@ -343,6 +357,37 @@ function LeadsPageContent() {
       setError(err instanceof Error ? err.message : "Bulk delete failed");
     } finally {
       setBulkLoading(false);
+    }
+  };
+
+  const updateOwnerDraft = (leadId: string, value: string) => {
+    setOwnerDrafts((prev) => ({ ...prev, [leadId]: value }));
+  };
+
+  const saveOwnerAssignment = async (lead: Lead, value: string) => {
+    const trimmed = value.trim();
+    const currentOwner = lead.owner || '';
+    if (trimmed === currentOwner) return;
+
+    setOwnerSaving((prev) => ({ ...prev, [lead.lead_id]: true }));
+    try {
+      const updated = await updateLead(lead.lead_id, {
+        owner: trimmed,
+      });
+      setLeads((prev) =>
+        prev.map((item) =>
+          item.lead_id === lead.lead_id ? { ...item, owner: updated.owner } : item,
+        ),
+      );
+      setOwnerDrafts((prev) => {
+        const next = { ...prev };
+        delete next[lead.lead_id];
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update owner');
+    } finally {
+      setOwnerSaving((prev) => ({ ...prev, [lead.lead_id]: false }));
     }
   };
 
@@ -558,6 +603,14 @@ function LeadsPageContent() {
             >
               Delete View
             </button>
+            <button
+              className={`btn-secondary text-xs ${ownerFilterEnabled ? 'bg-[var(--accent-blue)] text-white border-[var(--accent-blue)]' : ''}`}
+              onClick={() => setOwnerFilterEnabled((prev) => !prev)}
+              disabled={!currentUserEmail}
+              title={currentUserEmail ? currentUserEmail : 'Sign in to use My Leads'}
+            >
+              My Leads
+            </button>
           </div>
         </div>
 
@@ -749,6 +802,9 @@ function LeadsPageContent() {
                 <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">
                   Contact Info
                 </th>
+                <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)]">
+                  Owner
+                </th>
                 <th className="p-4 font-sans font-bold text-[var(--text-primary)] border-r border-[var(--border-pencil)] w-32 text-center">
                   Score
                 </th>
@@ -871,6 +927,24 @@ function LeadsPageContent() {
                       {lead.contact_phone && <div>📞 {lead.contact_phone}</div>}
                     </div>
                   </td>
+                  <td className="p-4 border-r border-[var(--border-pencil)] border-dashed">
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="email"
+                        className="w-full bg-white border border-[var(--border-pencil)] px-2 py-1 font-mono text-xs"
+                        value={ownerDrafts[lead.lead_id] ?? lead.owner ?? ''}
+                        onChange={(e) => updateOwnerDraft(lead.lead_id, e.target.value)}
+                        onBlur={(e) => saveOwnerAssignment(lead, e.target.value)}
+                        placeholder={currentUserEmail || 'owner@email'}
+                        disabled={ownerSaving[lead.lead_id]}
+                      />
+                      {ownerSaving[lead.lead_id] && (
+                        <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                          Saving...
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="p-4 border-r border-[var(--border-pencil)] border-dashed text-center">
                     <div className="flex flex-col items-center">
                       <span
@@ -917,7 +991,7 @@ function LeadsPageContent() {
               {filteredLeads.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="p-12 text-center text-[var(--text-secondary)] font-sans italic border-b border-[var(--border-pencil)]"
                   >
                     No entries found in the ledger.
@@ -927,6 +1001,7 @@ function LeadsPageContent() {
               {/* Empty rows filler for ledger look */}
               {[1, 2, 3].map((i) => (
                 <tr key={`empty-${i}`} className="h-16">
+                  <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
                   <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
                   <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
                   <td className="border-r border-[var(--border-pencil)] border-dashed"></td>
@@ -950,6 +1025,7 @@ function LeadsPageContent() {
             setLeads([...leads, lead]);
             setShowModal(false);
           }}
+          currentUserEmail={currentUserEmail}
         />
       )}
 
@@ -1024,10 +1100,12 @@ function AddLeadModal({
   config,
   onClose,
   onAdded,
+  currentUserEmail,
 }: {
   config: Config | null;
   onClose: () => void;
   onAdded: (lead: Lead) => void;
+  currentUserEmail?: string;
 }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -1036,13 +1114,23 @@ function AddLeadModal({
     contact_email: "",
     contact_phone: "",
     source: "Other",
+    owner: currentUserEmail || '',
   });
+
+  useEffect(() => {
+    if (currentUserEmail && !formData.owner) {
+      setFormData((prev) => ({ ...prev, owner: currentUserEmail }));
+    }
+  }, [currentUserEmail, formData.owner]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const lead = await createLead(formData);
+      const lead = await createLead({
+        ...formData,
+        owner: formData.owner || undefined,
+      });
       onAdded(lead);
     } catch (err) {
       console.error("Failed to create lead:", err);
@@ -1128,6 +1216,21 @@ function AddLeadModal({
                 }
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block font-mono text-xs font-bold uppercase mb-1">
+              Owner Email
+            </label>
+            <input
+              type="email"
+              className="w-full bg-[var(--bg-paper)] border border-[var(--border-pencil)] px-3 py-2 font-mono text-xs"
+              value={formData.owner}
+              onChange={(e) =>
+                setFormData({ ...formData, owner: e.target.value })
+              }
+              placeholder={currentUserEmail || 'owner@email'}
+            />
           </div>
 
           <div>
