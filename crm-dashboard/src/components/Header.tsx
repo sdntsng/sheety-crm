@@ -86,6 +86,10 @@ export default function Header() {
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
+    if (pathname.startsWith('/forms')) {
+        return null;
+    }
+
     // Don't show header on login page or landing (when unauthenticated at root)
     if (pathname === '/login') {
         return null;

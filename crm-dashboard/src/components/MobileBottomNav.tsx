@@ -120,6 +120,10 @@ export default function MobileBottomNav() {
   const pathname = usePathname();
   const { status } = useSession();
 
+  if (pathname.startsWith('/forms')) {
+    return null;
+  }
+
   // Hide if not authenticated or on login page
   if (status !== "authenticated" || pathname === "/login" || pathname === "/") {
     return null;
